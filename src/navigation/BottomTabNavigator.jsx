@@ -8,6 +8,7 @@ import ConferencesScreen from '../screens/ConferencesScreen';
 import MeetingsScreen from '../screens/MeetingsScreen';
 import ChatScreen from '../screens/ChatScreen';
 import CoursesScreen from '../screens/CoursesScreen';
+import ScheduleScreen from '../screens/ScheduleScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -16,7 +17,7 @@ const BottomTabNavigator = () => {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#7B68EE',
+        tabBarActiveTintColor: '#2e7af5',
         tabBarInactiveTintColor: '#666',
         tabBarStyle: {
           paddingVertical: 5,
@@ -60,6 +61,15 @@ const BottomTabNavigator = () => {
       <Tab.Screen
         name="Courses"
         component={CoursesScreen}
+        options={{
+          tabBarIcon: ({color}) => (
+            <Icon name="book-open-page-variant" size={24} color={color} />
+          ),
+        }}
+      />
+            <Tab.Screen
+        name="Cou"
+        component={ScheduleScreen}
         options={{
           tabBarIcon: ({color}) => (
             <Icon name="book-open-page-variant" size={24} color={color} />

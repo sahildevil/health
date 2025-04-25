@@ -23,7 +23,7 @@ const HomeScreen = ({navigation}) => {
         </View>
         <View>
           <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-            <Icon name="account-circle" size={40} color="#7B68EE" />
+            <Icon name="account-circle" size={40} color="#2e7af5" />
           </TouchableOpacity>
         </View>
  
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 20,
     flex: 1,
-    backgroundColor: '#f7f9fc',
+    backgroundColor: '#ffffff',
   },
   header: {
     padding: 16,
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
   },
@@ -233,14 +233,14 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: '#7B68EE',
+    borderBottomColor: '#2e7af5',
   },
   tabText: {
     fontSize: 16,
     color: '#666',
   },
   activeTabText: {
-    color: '#7B68EE',
+    color: '#2e7af5',
     fontWeight: '500',
   },
   eventCardsContainer: {
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   badgeText: {
-    color: '#7B68EE',
+    color: '#2e7af5',
     fontSize: 12,
   },
   eventTitle: {
@@ -306,12 +306,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   eventButtonText: {
-    color: '#7B68EE',
+    color: '#2e7af5',
     fontSize: 14,
     fontWeight: '500',
   },
   registerButton: {
-    backgroundColor: '#7B68EE',
+    backgroundColor: '#2e7af5',
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   activeNavText: {
-    color: '#7B68EE',
+    color: '#2e7af5',
     fontWeight: '500',
   },
 });
