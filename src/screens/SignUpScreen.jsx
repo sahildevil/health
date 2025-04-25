@@ -9,18 +9,25 @@ import {
   Alert,
 } from 'react-native';
 
-const LoginScreen = ({navigation}) => {
+const SignUpScreen = ({navigation}) => {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleLogin = () => {
+  const handleSignUp = () => {
     // Simple validation
-    if (!email || !password) {
+    if (!name || !email || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
-    // Here you would typically call an API to authenticate the user
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
+    // Here you would typically call an API to register the user
     // For now, we'll just navigate to Home
     navigation.navigate('Home');
   };
@@ -28,11 +35,19 @@ const LoginScreen = ({navigation}) => {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Login to your account</Text>
+        <Text style={styles.title}>Create Account</Text>
+        <Text style={styles.subtitle}>Sign up to get started</Text>
       </View>
 
       <View style={styles.formContainer}>
+        <Text style={styles.inputLabel}>Full Name</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter your full name"
+          value={name}
+          onChangeText={setName}
+        />
+
         <Text style={styles.inputLabel}>Email</Text>
         <TextInput
           style={styles.input}
@@ -46,27 +61,32 @@ const LoginScreen = ({navigation}) => {
         <Text style={styles.inputLabel}>Password</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter your password"
+          placeholder="Create a password"
           secureTextEntry
           value={password}
           onChangeText={setPassword}
         />
 
-        <TouchableOpacity style={styles.forgotPassword}>
-          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-        </TouchableOpacity>
+        <Text style={styles.inputLabel}>Confirm Password</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Confirm your password"
+          secureTextEntry
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+        />
       </View>
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.button} onPress={handleLogin}>
-          <Text style={styles.buttonText}>Login</Text>
+        <TouchableOpacity style={styles.button} onPress={handleSignUp}>
+          <Text style={styles.buttonText}>Sign Up</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Don't have an account?</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-          <Text style={styles.signUpText}>Sign Up</Text>
+        <Text style={styles.footerText}>Already have an account?</Text>
+        <TouchableOpacity onPress={() => navigation.replace('Login')}>
+          <Text style={styles.loginText}>Login</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -113,13 +133,6 @@ const styles = StyleSheet.create({
     borderColor: '#e1e1e1',
     fontSize: 16,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-  },
-  forgotPasswordText: {
-    color: '#2e7af5',
-    fontSize: 14,
-  },
   buttonContainer: {
     marginBottom: 24,
   },
@@ -145,11 +158,11 @@ const styles = StyleSheet.create({
     color: '#666',
     marginRight: 4,
   },
-  signUpText: {
+  loginText: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#2e7af5',
   },
 });
 
-export default LoginScreen;
+export default SignUpScreen;
