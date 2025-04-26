@@ -7,6 +7,7 @@ import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import BottomTabNavigator from './BottomTabNavigator';
 import Profile from '../screens/Profile';
+import CreateConferenceScreen from '../screens/CreateConferenceScreen';
 
 const Stack = createStackNavigator();
 
@@ -21,6 +22,7 @@ const AppNavigator = () => {
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="SignUp" component={SignUpScreen} />
       <Stack.Screen name="Profile" component={Profile} />
+      <Stack.Screen name="CreateConference" component={CreateConferenceScreen} />
       <Stack.Screen name="MainApp" component={BottomTabNavigator} />
     </Stack.Navigator>
   );
