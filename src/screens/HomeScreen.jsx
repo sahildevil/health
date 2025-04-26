@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
-import Feather from 'react-native-vector-icons/Feather';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const HomeScreen = ({navigation}) => {
   return (
@@ -22,9 +22,9 @@ const HomeScreen = ({navigation}) => {
         <Text style={styles.welcomeText}>Welcome, Dr. Smith</Text>
         <Text style={styles.subtitleText}>Here's your medical education today</Text>
         </View>
-        <View>
+        <View style={styles.profileIcon}>
           <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-            <Icon name="account-circle" size={40} color="#2e7af5" />
+           <Ionicons name="person" size={24} color={"#2e7af5"} />
           </TouchableOpacity>
         </View>
  
@@ -147,6 +147,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',  
   },
+  profileIcon: {
+    backgroundColor: '#f8f8f8', 
+    borderRadius: 50,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
   welcomeText: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -167,7 +177,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   card: {
-    width: '30%',
+    width: '32%',
     backgroundColor: '#2e7af5',
     borderRadius: 20,
     padding: 16,

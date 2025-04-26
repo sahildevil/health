@@ -201,23 +201,24 @@ const ConferencesScreen = ({navigation}) => {
           <TextInput
             style={styles.searchInput}
             placeholder="Search events..."
+            placeholderTextColor="#999"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
         </View>
 
-        <TouchableOpacity style={styles.filterButton} onPress={() => {}}>
+        {/* <TouchableOpacity style={styles.filterButton} onPress={() => {}}>
           <Icon name="filter-variant" size={20} color="#2e7af5" />
           <Text style={styles.filterButtonText}>All Events</Text>
           <Icon name="chevron-down" size={16} color="#2e7af5" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <TouchableOpacity
           style={styles.datePickerButton}
           onPress={() => setShowDatePicker(!showDatePicker)}>
           <Icon name="calendar" size={20} color="#666" />
           <Text style={styles.datePickerText}>
-            {selectedDate || 'dd-mm-yyyy'}
+            {selectedDate || 'Seach by date'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -271,6 +272,7 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 20,
+    paddingBottom: 0,
   },
   headerTitleContainer: {
     flexDirection: 'row',
