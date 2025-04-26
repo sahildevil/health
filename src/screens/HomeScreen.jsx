@@ -9,25 +9,58 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import {useAuth} from '../context/AuthContext';
 
 const HomeScreen = ({navigation}) => {
+  // Get user from auth context
+  const {user} = useAuth();
+
+  // Helper function to get proper greeting based on time of day
+  const getGreeting = () => {
+    const hours = new Date().getHours();
+    if (hours < 12) return 'Good Morning';
+    if (hours < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  // Format the name with title if user is a doctor
+  const getFormattedName = () => {
+    if (!user) return 'User';
+
+    if (user.role === 'doctor') {
+      // Get first name only for a more personal greeting
+      const firstName = user.name.split(' ')[0];
+      return `Dr. ${firstName}`;
+    }
+
+    // For non-doctors just use their first name
+    return user.name.split(' ')[0];
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       {/* Header */}
       <View style={styles.header}>
         <View>
-        <Text style={styles.welcomeText}>Welcome, Dr. Smith</Text>
-        <Text style={styles.subtitleText}>Here's your medical education today</Text>
+          <Text style={styles.welcomeText}>
+            {getGreeting()}, {getFormattedName()}
+          </Text>
+          <Text style={styles.subtitleText}>
+            {user?.role === 'doctor'
+              ? "Here's your medical education today"
+              : user?.role === 'pharma'
+              ? 'Here are your upcoming connections'
+              : "Here's your overview today"}
+          </Text>
         </View>
         <View style={styles.profileIcon}>
           <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-           <Ionicons name="person" size={24} color={"#2e7af5"} />
+            <Ionicons name="person" size={24} color={'#2e7af5'} />
           </TouchableOpacity>
         </View>
- 
       </View>
 
       {/* Stats Cards */}
@@ -35,11 +68,9 @@ const HomeScreen = ({navigation}) => {
         <View style={styles.statsContainer}>
           {/* Upcoming Conferences Card */}
           <View style={styles.card}>
-
             <View style={styles.cardHeader}>
-            <Ionicons name="people-outline" size={24} color={"#ffffff"} />
+              <Ionicons name="people-outline" size={24} color={'#ffffff'} />
               <Text style={styles.cardTitle}>Upcoming Events</Text>
-
             </View>
             <Text style={styles.statNumber}>4</Text>
             <Text style={styles.statSubtext}>+2 registered this week</Text>
@@ -48,8 +79,7 @@ const HomeScreen = ({navigation}) => {
           {/* Meetings This Week Card */}
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              
-              <Ionicons name="people-outline" size={24} color={"#ffffff"} />
+              <Ionicons name="people-outline" size={24} color={'#ffffff'} />
               <Text style={styles.cardTitle}>Meetings This Week</Text>
             </View>
             <Text style={styles.statNumber}>7</Text>
@@ -65,7 +95,7 @@ const HomeScreen = ({navigation}) => {
             <Text style={styles.statNumber}>12.5</Text>
             <Text style={styles.statSubtext}>+2.5 from last month</Text>
           </View> */}
-                
+
           {/* Available CME Courses Card */}
           <View style={styles.card}>
             <View style={styles.cardHeader}>
@@ -80,7 +110,9 @@ const HomeScreen = ({navigation}) => {
         {/* Events Tabs */}
         <View style={styles.tabContainer}>
           <TouchableOpacity style={[styles.tab, styles.activeTab]}>
-            <Text style={[styles.tabText, styles.activeTabText]}>Upcoming Events</Text>
+            <Text style={[styles.tabText, styles.activeTabText]}>
+              Upcoming Events
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.tab}>
             <Text style={styles.tabText}>Ongoing Events</Text>
@@ -104,27 +136,35 @@ const HomeScreen = ({navigation}) => {
             </View>
             <Text style={styles.eventTitle}>Cardiology Summit 2025</Text>
             <Text style={styles.eventDescription}>
-              The latest advancements in cardiovascular care and research, featuring leading experts from around the world.
+              The latest advancements in cardiovascular care and research,
+              featuring leading experts from around the world.
             </Text>
             <View style={styles.eventDetails}>
               <View style={styles.eventDetailItem}>
                 <Icon name="calendar" size={16} color="#666" />
-                <Text style={styles.eventDetailText}>Jun 15, 2025 - Jun 17, 2025</Text>
+                <Text style={styles.eventDetailText}>
+                  Jun 15, 2025 - Jun 17, 2025
+                </Text>
               </View>
               <View style={styles.eventDetailItem}>
                 <Icon name="map-marker" size={16} color="#666" />
-                <Text style={styles.eventDetailText}>New York Medical Center</Text>
+                <Text style={styles.eventDetailText}>
+                  New York Medical Center
+                </Text>
               </View>
               <View style={styles.eventDetailItem}>
                 <Icon name="account-group" size={16} color="#666" />
-                <Text style={styles.eventDetailText}>Organized by American Cardiology Foundation</Text>
+                <Text style={styles.eventDetailText}>
+                  Organized by American Cardiology Foundation
+                </Text>
               </View>
             </View>
             <View style={styles.eventButtonContainer}>
               <TouchableOpacity style={styles.eventButton}>
                 <Text style={styles.eventButtonText}>View Details</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.eventButton, styles.registerButton]}>
+              <TouchableOpacity
+                style={[styles.eventButton, styles.registerButton]}>
                 <Text style={styles.registerButtonText}>Register</Text>
               </TouchableOpacity>
             </View>
@@ -148,14 +188,14 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eee',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',  
+    alignItems: 'center',
   },
   profileIcon: {
-    backgroundColor: '#f8f8f8', 
+    backgroundColor: '#f8f8f8',
     borderRadius: 50,
     padding: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
@@ -186,7 +226,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
@@ -245,7 +285,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,

@@ -97,7 +97,7 @@ const CreateConferenceScreen = ({navigation}) => {
           style={styles.backButton}>
           <Icon name="arrow-left" size={24} color="#2e7af5" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create New Conference</Text>
+        <Text style={styles.headerTitle}>Create New Event</Text>
       </View>
 
       <ScrollView style={styles.scrollView}>
@@ -173,6 +173,7 @@ const CreateConferenceScreen = ({navigation}) => {
             <TextInput
               style={styles.input}
               placeholder="Enter a descriptive title"
+              placeholderTextColor={'#999'}
               value={title}
               onChangeText={setTitle}
             />
@@ -183,6 +184,7 @@ const CreateConferenceScreen = ({navigation}) => {
             <TextInput
               style={[styles.input, styles.textarea]}
               placeholder="Describe the purpose and topics of your event"
+              placeholderTextColor={'#999'}
               value={description}
               onChangeText={setDescription}
               multiline={true}
@@ -247,6 +249,7 @@ const CreateConferenceScreen = ({navigation}) => {
                   ? 'e.g., Zoom, Google Meet, or platform link'
                   : 'Enter the full address of the venue'
               }
+              placeholderTextColor={'#999'}
               value={venue}
               onChangeText={setVenue}
             />
@@ -259,6 +262,7 @@ const CreateConferenceScreen = ({navigation}) => {
             <TextInput
               style={styles.input}
               placeholder="e.g., American Medical Association"
+              placeholderTextColor={'#999'}
               value={organizerName}
               onChangeText={setOrganizerName}
             />
@@ -302,12 +306,13 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     padding: 16,
+    paddingTop:0,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    marginTop: 24,
+    marginTop: 10,
     marginBottom: 12,
   },
   radioContainer: {

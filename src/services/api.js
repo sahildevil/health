@@ -47,7 +47,7 @@ import axios from 'axios';
 
 // Base URL for API calls - adjust based on your development environment
 // For Android Emulator to access localhost on host machine:
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://192.168.1.15:5000/api';
 
 // For iOS Simulator:
 // const API_URL = 'http://localhost:5000/api';

@@ -175,9 +175,9 @@ const ConferencesScreen = ({navigation}) => {
       <View style={styles.header}>
         <View style={styles.headerTitleContainer}>
           <View>
-            <Text style={styles.headerTitle}>Conferences</Text>
+            <Text style={styles.headerTitle}>Events</Text>
             <Text style={styles.headerSubtitle}>
-              Browse and register for upcoming medical conferences
+              Browse and Register For Events.
             </Text>
           </View>
           <TouchableOpacity

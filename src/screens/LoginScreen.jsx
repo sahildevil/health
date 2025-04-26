@@ -132,6 +132,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e1e1e1',
     fontSize: 16,
+    color: '#333',
   },
   forgotPassword: {
     alignSelf: 'flex-end',

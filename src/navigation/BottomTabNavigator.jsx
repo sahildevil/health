@@ -35,7 +35,7 @@ const BottomTabNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="Conferences"
+        name="Events"
         component={ConferencesScreen}
         options={{
           tabBarIcon: ({color}) => (
@@ -43,7 +43,7 @@ const BottomTabNavigator = () => {
           ),
         }}
       />
-      <Tab.Screen
+      {/* <Tab.Screen
         name="Meetings"
         component={MeetingsScreen}
         options={{
@@ -51,7 +51,7 @@ const BottomTabNavigator = () => {
             <Ionicons name="person-outline" size={24} color={color} />
           ),
         }}
-      />
+      /> */}
       <Tab.Screen
         name="Chat"
         component={ChatScreen}

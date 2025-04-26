@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   useColorScheme,
+  StatusBar,
 } from 'react-native';
 
 const LandingScreen = ({navigation}) => {
@@ -13,6 +14,7 @@ const LandingScreen = ({navigation}) => {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle= 'dark-content' />
       <View style={styles.logoContainer}>
         <Text style={styles.logoText}>MedEvent Health</Text>
       </View>
@@ -28,11 +30,11 @@ const LandingScreen = ({navigation}) => {
           onPress={() => navigation.navigate('Login')}>
           <Text style={styles.buttonText}>Log In</Text>
         </TouchableOpacity>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.button}
           onPress={() => navigation.navigate('MainApp')}>
           <Text style={styles.buttonText}>Home test</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <TouchableOpacity
           style={[styles.button, styles.signUpButton]}
           onPress={() => navigation.navigate('SignUp')}>
