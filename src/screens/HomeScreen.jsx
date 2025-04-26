@@ -9,7 +9,8 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
+import Feather from 'react-native-vector-icons/Feather';
 
 const HomeScreen = ({navigation}) => {
   return (
@@ -36,7 +37,7 @@ const HomeScreen = ({navigation}) => {
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>Upcoming Conferences</Text>
-              <Icon name="account-group" size={20} color="#666" />
+              <Icon name="account-group" size={20} color="#ffffff" />
             </View>
             <Text style={styles.statNumber}>4</Text>
             <Text style={styles.statSubtext}>+2 registered this week</Text>
@@ -46,27 +47,27 @@ const HomeScreen = ({navigation}) => {
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>Meetings This Week</Text>
-              <Icon name="calendar" size={20} color="#666" />
+              <Icon name="calendar" size={20} color="#ffffff" />
             </View>
             <Text style={styles.statNumber}>7</Text>
             <Text style={styles.statSubtext}>Next one in 2 days</Text>
           </View>
 
           {/* CME Hours Completed Card */}
-          <View style={styles.card}>
+          {/* <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>CME Hours Completed</Text>
               <Icon name="clock-outline" size={20} color="#666" />
             </View>
             <Text style={styles.statNumber}>12.5</Text>
             <Text style={styles.statSubtext}>+2.5 from last month</Text>
-          </View>
-
+          </View> */}
+                
           {/* Available CME Courses Card */}
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>Available CME Courses</Text>
-              <Icon name="book-open-variant" size={20} color="#666" />
+              <Icon name="book-open-variant" size={20} color="#ffffff" />
             </View>
             <Text style={styles.statNumber}>24</Text>
             <Text style={styles.statSubtext}>5 new courses added</Text>
@@ -127,30 +128,6 @@ const HomeScreen = ({navigation}) => {
           </View>
         </View>
       </ScrollView>
-
-      {/* Bottom Navigation */}
-      {/* <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem}>
-          <Icon name="view-dashboard" size={24} color="#7B68EE" />
-          <Text style={[styles.navText, styles.activeNavText]}>Dashboard</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <Icon name="video-account" size={24} color="#666" />
-          <Text style={styles.navText}>Conferences</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <Icon name="calendar-clock" size={24} color="#666" />
-          <Text style={styles.navText}>Meetings</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <Icon name="chat" size={24} color="#666" />
-          <Text style={styles.navText}>Chat</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <Icon name="book-open-page-variant" size={24} color="#666" />
-          <Text style={styles.navText}>CME Courses</Text>
-        </TouchableOpacity>
-      </View> */}
     </SafeAreaView>
   );
 };
@@ -190,9 +167,9 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   card: {
-    width: '48%',
-    backgroundColor: 'white',
-    borderRadius: 12,
+    width: '30%',
+    backgroundColor: '#2e7af5',
+    borderRadius: 20,
     padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
@@ -209,18 +186,18 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 14,
-    color: '#666',
+    color: '#ffffff',
     fontWeight: '500',
   },
   statNumber: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#ffffff',
     marginBottom: 4,
   },
   statSubtext: {
     fontSize: 12,
-    color: '#888',
+    color: '#ffffff',
   },
   tabContainer: {
     flexDirection: 'row',

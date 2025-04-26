@@ -1,7 +1,7 @@
 import React from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-
+import Feather from 'react-native-vector-icons/Feather';
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
 import ConferencesScreen from '../screens/ConferencesScreen';
@@ -29,7 +29,7 @@ const BottomTabNavigator = () => {
         component={HomeScreen}
         options={{
           tabBarIcon: ({color}) => (
-            <Icon name="view-dashboard" size={24} color={color} />
+            <Feather name="home" size={24} color={color} />
           ),
         }}
       />

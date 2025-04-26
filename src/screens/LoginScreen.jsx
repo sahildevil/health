@@ -22,7 +22,7 @@ const LoginScreen = ({navigation}) => {
 
     // Here you would typically call an API to authenticate the user
     // For now, we'll just navigate to Home
-    navigation.navigate('Home');
+    navigation.navigate('MainApp');
   };
 
   return (

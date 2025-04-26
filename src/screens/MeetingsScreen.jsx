@@ -13,7 +13,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Calendar } from 'react-native-calendars';
 
-const ConferencesScreen = ({ navigation }) => {
+const MeetingsScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('All Events');
   const [searchQuery, setSearchQuery] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -157,7 +157,7 @@ const ConferencesScreen = ({ navigation }) => {
       
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Conferences</Text>
+        <Text style={styles.headerTitle}>Meetings</Text>
         <Text style={styles.headerSubtitle}>Browse and register for upcoming medical conferences and meetings</Text>
         
         <View style={styles.userTypeContainer}>
@@ -458,4 +458,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ConferencesScreen;
+export default MeetingsScreen;

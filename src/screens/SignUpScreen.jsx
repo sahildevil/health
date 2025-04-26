@@ -7,13 +7,22 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Image,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const SignUpScreen = ({navigation}) => {
+  const [step, setStep] = useState(1); // Step 1: Choose Role, Step 2: Fill Form
+  const [role, setRole] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  const selectRole = (selectedRole) => {
+    setRole(selectedRole);
+    setStep(2);
+  };
 
   const handleSignUp = () => {
     // Simple validation
@@ -27,16 +36,69 @@ const SignUpScreen = ({navigation}) => {
       return;
     }
 
-    // Here you would typically call an API to register the user
+    // Here you would typically call an API to register the user with their role
     // For now, we'll just navigate to Home
-    navigation.navigate('Home');
+    navigation.navigate('MainApp');
   };
 
+  // Role Selection Screen
+  if (step === 1) {
+    return (
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Join MedEvent</Text>
+          <Text style={styles.subtitle}>What best describes you?</Text>
+        </View>
+
+        <View style={styles.roleContainer}>
+          <TouchableOpacity 
+            style={styles.roleCard}
+            onPress={() => selectRole('doctor')}
+          >
+            <Icon name="doctor" size={60} color="#2e7af5" />
+            <Text style={styles.roleTitle}>Doctor</Text>
+            <Text style={styles.roleDescription}>
+              Access medical conferences, CME courses, and connect with colleagues.
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.roleCard}
+            onPress={() => selectRole('pharma')}
+          >
+            <Icon name="pill" size={60} color="#2e7af5" />
+            <Text style={styles.roleTitle}>Pharmaceutical Rep</Text>
+            <Text style={styles.roleDescription}>
+              Connect with healthcare professionals and showcase your products.
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Already have an account?</Text>
+          <TouchableOpacity onPress={() => navigation.replace('Login')}>
+            <Text style={styles.loginText}>Login</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  // Registration Form Screen
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <TouchableOpacity 
+        style={styles.backButton} 
+        onPress={() => setStep(1)}
+      >
+        <Icon name="arrow-left" size={24} color="#2e7af5" />
+      </TouchableOpacity>
+
       <View style={styles.header}>
         <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Sign up to get started</Text>
+        <Text style={styles.subtitle}>
+          Sign up as {role === 'doctor' ? 'Healthcare Professional' : 'Pharmaceutical Representative'}
+        </Text>
       </View>
 
       <View style={styles.formContainer}>
@@ -58,6 +120,26 @@ const SignUpScreen = ({navigation}) => {
           onChangeText={setEmail}
         />
 
+        {role === 'doctor' && (
+          <>
+            <Text style={styles.inputLabel}>Medical Specialty</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="E.g., Cardiology, Pediatrics"
+            />
+          </>
+        )}
+
+        {role === 'pharma' && (
+          <>
+            <Text style={styles.inputLabel}>Company Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your company name"
+            />
+          </>
+        )}
+
         <Text style={styles.inputLabel}>Password</Text>
         <TextInput
           style={styles.input}
@@ -77,9 +159,15 @@ const SignUpScreen = ({navigation}) => {
         />
       </View>
 
+      <View style={styles.termsContainer}>
+        <Text style={styles.termsText}>
+          By signing up, you agree to our Terms of Service and Privacy Policy
+        </Text>
+      </View>
+
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.button} onPress={handleSignUp}>
-          <Text style={styles.buttonText}>Sign Up</Text>
+          <Text style={styles.buttonText}>Create Account</Text>
         </TouchableOpacity>
       </View>
 
@@ -100,9 +188,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 24,
   },
+  backButton: {
+    marginTop: 40,
+  },
   header: {
-    marginTop: 60,
-    marginBottom: 40,
+    marginTop: 40,
+    marginBottom: 30,
   },
   title: {
     fontSize: 32,
@@ -113,6 +204,34 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#666',
+  },
+  roleContainer: {
+    marginVertical: 20,
+  },
+  roleCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  roleTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  roleDescription: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   formContainer: {
     marginBottom: 24,
@@ -133,6 +252,14 @@ const styles = StyleSheet.create({
     borderColor: '#e1e1e1',
     fontSize: 16,
   },
+  termsContainer: {
+    marginBottom: 24,
+  },
+  termsText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+  },
   buttonContainer: {
     marginBottom: 24,
   },
@@ -152,6 +279,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 16,
   },
   footerText: {
     fontSize: 14,
