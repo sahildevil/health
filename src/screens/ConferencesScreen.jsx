@@ -158,9 +158,9 @@ const ConferencesScreen = ({ navigation }) => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Conferences</Text>
-        <Text style={styles.headerSubtitle}>Browse and register for upcoming medical conferences and meetings</Text>
+        <Text style={styles.headerSubtitle}>Browse and register for upcoming medical conferences</Text>
         
-        <View style={styles.userTypeContainer}>
+        {/* <View style={styles.userTypeContainer}>
           <TouchableOpacity style={[styles.userTypeButton, styles.activeUserType]}>
             <Text style={styles.activeUserTypeText}>Doctor</Text>
           </TouchableOpacity>
@@ -170,7 +170,7 @@ const ConferencesScreen = ({ navigation }) => {
           <TouchableOpacity style={styles.userTypeButton}>
             <Text style={styles.userTypeText}>Admin</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
       </View>
       
       {/* Search and Filter */}

@@ -2,6 +2,7 @@ import React from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
 import ConferencesScreen from '../screens/ConferencesScreen';
@@ -38,7 +39,7 @@ const BottomTabNavigator = () => {
         component={ConferencesScreen}
         options={{
           tabBarIcon: ({color}) => (
-            <Icon name="video-account" size={24} color={color} />
+            <Ionicons name="people-outline" size={24} color={color} />
           ),
         }}
       />
@@ -47,7 +48,7 @@ const BottomTabNavigator = () => {
         component={MeetingsScreen}
         options={{
           tabBarIcon: ({color}) => (
-            <Icon name="calendar-clock" size={24} color={color} />
+            <Ionicons name="person-outline" size={24} color={color} />
           ),
         }}
       />
@@ -55,7 +56,7 @@ const BottomTabNavigator = () => {
         name="Chat"
         component={ChatScreen}
         options={{
-          tabBarIcon: ({color}) => <Icon name="chat" size={24} color={color} />,
+          tabBarIcon: ({color}) => <Ionicons name="chatbubbles-outline" size={24} color={color} />,
         }}
       />
       <Tab.Screen
@@ -63,11 +64,11 @@ const BottomTabNavigator = () => {
         component={CoursesScreen}
         options={{
           tabBarIcon: ({color}) => (
-            <Icon name="book-open-page-variant" size={24} color={color} />
+            <Ionicons name="book-outline" size={24} color={color} />
           ),
         }}
       />
-            <Tab.Screen
+            {/* <Tab.Screen
         name="Cou"
         component={ScheduleScreen}
         options={{
@@ -75,7 +76,7 @@ const BottomTabNavigator = () => {
             <Icon name="book-open-page-variant" size={24} color={color} />
           ),
         }}
-      />
+      /> */}
     </Tab.Navigator>
   );
 };
