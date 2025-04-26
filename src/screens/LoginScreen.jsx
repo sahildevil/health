@@ -7,22 +7,35 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import {useAuth} from '../context/AuthContext';
 
 const LoginScreen = ({navigation}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {login} = useAuth();
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     // Simple validation
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
-    // Here you would typically call an API to authenticate the user
-    // For now, we'll just navigate to Home
-    navigation.navigate('MainApp');
+    try {
+      setIsSubmitting(true);
+      await login(email, password);
+      // Navigation will be handled by the App.tsx when authentication state changes
+    } catch (error) {
+      Alert.alert(
+        'Login Failed',
+        error.message || 'Please check your credentials and try again',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -58,8 +71,15 @@ const LoginScreen = ({navigation}) => {
       </View>
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.button} onPress={handleLogin}>
-          <Text style={styles.buttonText}>Login</Text>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleLogin}
+          disabled={isSubmitting}>
+          {isSubmitting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Login</Text>
+          )}
         </TouchableOpacity>
       </View>
 

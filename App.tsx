@@ -1,20 +1,16 @@
 import React from 'react';
-import {StatusBar} from 'react-native';
 import {NavigationContainer} from '@react-navigation/native';
-import {SafeAreaProvider} from 'react-native-safe-area-context';
-
-// Import app navigator
+import {AuthProvider} from './src/context/AuthContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
-function App(): React.JSX.Element {
+const App = () => {
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle="dark-content" backgroundColor="#f7f9fc" />
+    <AuthProvider>
       <NavigationContainer>
         <AppNavigator />
       </NavigationContainer>
-    </SafeAreaProvider>
+    </AuthProvider>
   );
-}
+};
 
 export default App;

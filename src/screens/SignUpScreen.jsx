@@ -7,24 +7,32 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  Image,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {useAuth} from '../context/AuthContext';
 
 const SignUpScreen = ({navigation}) => {
-  const [step, setStep] = useState(1); // Step 1: Choose Role, Step 2: Fill Form
+  const [step, setStep] = useState(1);
   const [role, setRole] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectRole = (selectedRole) => {
+  // Additional fields based on role
+  const [degree, setDegree] = useState('');
+  const [company, setCompany] = useState('');
+
+  const {signup, login} = useAuth();
+
+  const selectRole = selectedRole => {
     setRole(selectedRole);
     setStep(2);
   };
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     // Simple validation
     if (!name || !email || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
@@ -36,9 +44,51 @@ const SignUpScreen = ({navigation}) => {
       return;
     }
 
-    // Here you would typically call an API to register the user with their role
-    // For now, we'll just navigate to Home
-    navigation.navigate('MainApp');
+    try {
+      setIsSubmitting(true);
+
+      // Create user data object based on role
+      const userData = {
+        name,
+        email,
+        password,
+        role,
+      };
+
+      // Add role-specific fields
+      if (role === 'doctor') {
+        userData.degree = degree;
+      } else if (role === 'pharma') {
+        userData.company = company;
+      }
+
+      // Register the user
+      await signup(userData);
+
+      // Show success message
+      Alert.alert(
+        'Registration Successful',
+        'Your account has been created successfully!',
+        [
+          {
+            text: 'Login Now',
+            onPress: async () => {
+              try {
+                // Auto login after signup
+                await login(email, password);
+              } catch (error) {
+                // If auto-login fails, navigate to login screen
+                navigation.replace('Login');
+              }
+            },
+          },
+        ],
+      );
+    } catch (error) {
+      Alert.alert('Signup Failed', error.message || 'Please try again later');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Role Selection Screen
@@ -51,21 +101,20 @@ const SignUpScreen = ({navigation}) => {
         </View>
 
         <View style={styles.roleContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.roleCard}
-            onPress={() => selectRole('doctor')}
-          >
+            onPress={() => selectRole('doctor')}>
             <Icon name="doctor" size={60} color="#2e7af5" />
             <Text style={styles.roleTitle}>Doctor</Text>
             <Text style={styles.roleDescription}>
-              Access medical conferences, CME courses, and connect with colleagues.
+              Access medical conferences, CME courses, and connect with
+              colleagues.
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.roleCard}
-            onPress={() => selectRole('pharma')}
-          >
+            onPress={() => selectRole('pharma')}>
             <Icon name="pill" size={60} color="#2e7af5" />
             <Text style={styles.roleTitle}>Pharmaceutical Rep</Text>
             <Text style={styles.roleDescription}>
@@ -87,17 +136,17 @@ const SignUpScreen = ({navigation}) => {
   // Registration Form Screen
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <TouchableOpacity 
-        style={styles.backButton} 
-        onPress={() => setStep(1)}
-      >
+      <TouchableOpacity style={styles.backButton} onPress={() => setStep(1)}>
         <Icon name="arrow-left" size={24} color="#2e7af5" />
       </TouchableOpacity>
 
       <View style={styles.header}>
         <Text style={styles.title}>Create Account</Text>
         <Text style={styles.subtitle}>
-          Sign up as {role === 'doctor' ? 'Healthcare Professional' : 'Pharmaceutical Representative'}
+          Sign up as{' '}
+          {role === 'doctor'
+            ? 'Healthcare Professional'
+            : 'Pharmaceutical Representative'}
         </Text>
       </View>
 
@@ -126,6 +175,8 @@ const SignUpScreen = ({navigation}) => {
             <TextInput
               style={styles.input}
               placeholder="E.g., Cardiology, Pediatrics"
+              value={degree}
+              onChangeText={setDegree}
             />
           </>
         )}
@@ -136,6 +187,8 @@ const SignUpScreen = ({navigation}) => {
             <TextInput
               style={styles.input}
               placeholder="Enter your company name"
+              value={company}
+              onChangeText={setCompany}
             />
           </>
         )}
@@ -166,8 +219,15 @@ const SignUpScreen = ({navigation}) => {
       </View>
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.button} onPress={handleSignUp}>
-          <Text style={styles.buttonText}>Create Account</Text>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleSignUp}
+          disabled={isSubmitting}>
+          {isSubmitting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Create Account</Text>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -215,7 +275,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,

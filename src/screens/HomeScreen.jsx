@@ -35,9 +35,11 @@ const HomeScreen = ({navigation}) => {
         <View style={styles.statsContainer}>
           {/* Upcoming Conferences Card */}
           <View style={styles.card}>
+
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Upcoming Conferences</Text>
-              <Icon name="account-group" size={20} color="#ffffff" />
+            <Ionicons name="people-outline" size={24} color={"#ffffff"} />
+              <Text style={styles.cardTitle}>Upcoming Events</Text>
+
             </View>
             <Text style={styles.statNumber}>4</Text>
             <Text style={styles.statSubtext}>+2 registered this week</Text>
@@ -46,8 +48,9 @@ const HomeScreen = ({navigation}) => {
           {/* Meetings This Week Card */}
           <View style={styles.card}>
             <View style={styles.cardHeader}>
+              
+              <Ionicons name="people-outline" size={24} color={"#ffffff"} />
               <Text style={styles.cardTitle}>Meetings This Week</Text>
-              <Icon name="calendar" size={20} color="#ffffff" />
             </View>
             <Text style={styles.statNumber}>7</Text>
             <Text style={styles.statSubtext}>Next one in 2 days</Text>
@@ -189,7 +192,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cardHeader: {
-    flexDirection: 'row',
+    // flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -198,16 +201,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#ffffff',
     fontWeight: '500',
+    textAlign: 'center',
   },
   statNumber: {
-    fontSize: 24,
+    fontSize: 30,
     fontWeight: 'bold',
     color: '#ffffff',
     marginBottom: 4,
+    textAlign: 'center',
   },
   statSubtext: {
     fontSize: 12,
     color: '#ffffff',
+    textAlign: 'center',
   },
   tabContainer: {
     flexDirection: 'row',
