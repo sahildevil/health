@@ -1,48 +1,3 @@
-// import axios from 'axios';
-
-// // Base URL for API calls
-// const API_URL = 'http://localhost:5000/api'; // Use 10.0.2.2 for Android emulator to connect to localhost
-// // For iOS simulator, use 'http://localhost:5000/api'
-
-// // Create axios instance
-// const api = axios.create({
-//   baseURL: API_URL,
-//   headers: {
-//     'Content-Type': 'application/json',
-//   },
-// });
-
-// // Authentication services
-// export const authService = {
-//   login: async (email, password) => {
-//     try {
-//       const response = await api.post('/auth/login', {email, password});
-//       return response.data;
-//     } catch (error) {
-//       throw error.response?.data || {message: 'Network error occurred'};
-//     }
-//   },
-
-//   signup: async userData => {
-//     try {
-//       const response = await api.post('/auth/signup', userData);
-//       return response.data;
-//     } catch (error) {
-//       throw error.response?.data || {message: 'Network error occurred'};
-//     }
-//   },
-
-//   // Add auth token to requests
-//   setAuthToken: token => {
-//     if (token) {
-//       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-//     } else {
-//       delete api.defaults.headers.common['Authorization'];
-//     }
-//   },
-// };
-
-// export default api;
 import axios from 'axios';
 
 // Base URL for API calls - adjust based on your development environment
@@ -112,6 +67,122 @@ export const authService = {
       delete api.defaults.headers.common['Authorization'];
     }
   }
+};
+
+// Admin services
+export const adminService = {
+  // Get all doctors
+  getDoctors: async () => {
+    try {
+      const response = await api.get('/admin/doctors');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Verify a doctor
+  verifyDoctor: async (doctorId) => {
+    try {
+      const response = await api.put(`/admin/doctors/${doctorId}/verify`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Delete a doctor
+  deleteDoctor: async (doctorId) => {
+    try {
+      const response = await api.delete(`/admin/doctors/${doctorId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Get doctor details
+  getDoctorDetails: async (doctorId) => {
+    try {
+      const response = await api.get(`/admin/doctors/${doctorId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+};
+
+// Event services
+export const eventService = {
+  // Create a new event
+  createEvent: async (eventData) => {
+    try {
+      const response = await api.post('/events', eventData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Get all events (approved or created by current user)
+  getEvents: async () => {
+    try {
+      const response = await api.get('/events');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Get pending events (admin only)
+  getPendingEvents: async () => {
+    try {
+      const response = await api.get('/events/pending');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Approve an event (admin only)
+  approveEvent: async (eventId) => {
+    try {
+      const response = await api.put(`/events/${eventId}/approve`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Delete/reject an event
+  deleteEvent: async (eventId) => {
+    try {
+      const response = await api.delete(`/events/${eventId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Register for an event
+  registerForEvent: async (eventId) => {
+    try {
+      const response = await api.post(`/events/${eventId}/register`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Get event details
+  getEventDetails: async (eventId) => {
+    try {
+      const response = await api.get(`/events/${eventId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
 };
 
 export default api;

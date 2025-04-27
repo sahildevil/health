@@ -30,11 +30,17 @@ export const AuthProvider = ({children}) => {
     loadStoredUser();
   }, []);
 
-  const login = async (email, password) => {
+  // Modified login function to handle role-specific login
+  const login = async (email, password, requiredRole = null) => {
     try {
       setError(null);
       setLoading(true);
       const response = await authService.login(email, password);
+      
+      // Check if login is for a specific role (like admin)
+      if (requiredRole && response.user.role !== requiredRole) {
+        throw new Error(`Access denied: You must be a ${requiredRole} to login here`);
+      }
 
       // Store user info and token in AsyncStorage
       await AsyncStorage.setItem('@user', JSON.stringify(response.user));
@@ -52,7 +58,8 @@ export const AuthProvider = ({children}) => {
     }
   };
 
-  const signup = async userData => {
+  // Modified signup to handle admin signup
+  const signup = async (userData) => {
     try {
       setError(null);
       setLoading(true);

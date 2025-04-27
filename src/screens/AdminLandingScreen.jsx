@@ -4,18 +4,19 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Image,
+  useColorScheme,
   StatusBar,
 } from 'react-native';
 
-const LandingScreen = ({navigation}) => {
+const AdminLandingScreen = ({navigation}) => {
+  const isDarkMode = useColorScheme() === 'dark';
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle= 'dark-content' />
       <View style={styles.logoContainer}>
-        <TouchableOpacity onPress={() => navigation.navigate('AdminLogin')}>
-          <Text style={styles.logoText}>MedEvent Health</Text>
-          {/* <Text style={styles.adminHint}>Tap for admin access</Text> */}
-        </TouchableOpacity>
+        <Text style={styles.logoText}>MedEvent Health</Text>
       </View>
 
       <View style={styles.contentContainer}>
@@ -29,6 +30,11 @@ const LandingScreen = ({navigation}) => {
           onPress={() => navigation.navigate('Login')}>
           <Text style={styles.buttonText}>Log In</Text>
         </TouchableOpacity>
+        {/* <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate('MainApp')}>
+          <Text style={styles.buttonText}>Home test</Text>
+        </TouchableOpacity> */}
         <TouchableOpacity
           style={[styles.button, styles.signUpButton]}
           onPress={() => navigation.navigate('SignUp')}>
@@ -55,12 +61,6 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: '#2e7af5',
-  },
-  adminHint: {
-    fontSize: 10,
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 4,
   },
   contentContainer: {
     flex: 1,
@@ -105,4 +105,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LandingScreen;
+export default AdminLandingScreen;
