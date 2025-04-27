@@ -124,10 +124,20 @@ export const eventService = {
     }
   },
   
-  // Get all events (approved or created by current user)
+  // Get approved events or own events
   getEvents: async () => {
     try {
       const response = await api.get('/events');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Get events created by current user
+  getMyEvents: async () => {
+    try {
+      const response = await api.get('/events/my-events');
       return response.data;
     } catch (error) {
       throw error;
@@ -145,16 +155,26 @@ export const eventService = {
   },
   
   // Approve an event (admin only)
-  approveEvent: async (eventId) => {
+  approveEvent: async (eventId, notes = '') => {
     try {
-      const response = await api.put(`/events/${eventId}/approve`);
+      const response = await api.put(`/events/${eventId}/approve`, { notes });
       return response.data;
     } catch (error) {
       throw error;
     }
   },
   
-  // Delete/reject an event
+  // Reject an event (admin only)
+  rejectEvent: async (eventId, notes = '') => {
+    try {
+      const response = await api.put(`/events/${eventId}/reject`, { notes });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Delete an event
   deleteEvent: async (eventId) => {
     try {
       const response = await api.delete(`/events/${eventId}`);

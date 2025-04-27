@@ -14,6 +14,7 @@ import AdminProfileScreen from '../screens/AdminProfileScreen';
 import EventApprovalScreen from '../screens/EventApprovalScreen';
 import DoctorListScreen from '../screens/DoctorListScreen';
 import DoctorDetailsScreen from '../screens/DoctorDetailsScreen';
+import EventDetailsScreen from '../screens/EventDetailsScreen';
 
 // Import regular user flow
 import BottomTabNavigator from './BottomTabNavigator';
@@ -30,6 +31,7 @@ const AdminNavigator = () => {
       <AdminStack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <AdminStack.Screen name="AdminProfile" component={AdminProfileScreen} />
       <AdminStack.Screen name="EventApproval" component={EventApprovalScreen} />
+      <AdminStack.Screen name="EventDetails" component={EventDetailsScreen} />
       <AdminStack.Screen name="DoctorList" component={DoctorListScreen} />
       <AdminStack.Screen name="DoctorDetails" component={DoctorDetailsScreen} />
     </AdminStack.Navigator>

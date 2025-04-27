@@ -8,6 +8,9 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Alert,
+  Modal,
+  TextInput,
+  Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { eventService } from '../services/api';
@@ -16,6 +19,11 @@ const EventApprovalScreen = ({ navigation }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [verificationNotes, setVerificationNotes] = useState('');
+  const [isApproving, setIsApproving] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const fetchPendingEvents = async () => {
     try {
@@ -35,57 +43,43 @@ const EventApprovalScreen = ({ navigation }) => {
     fetchPendingEvents();
   }, []);
 
-  const handleApproveEvent = (eventId) => {
-    Alert.alert(
-      'Approve Event',
-      'Are you sure you want to approve this event?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Approve',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              await eventService.approveEvent(eventId);
-              // Remove the approved event from the list
-              setEvents(events.filter(event => event._id !== eventId));
-              Alert.alert('Success', 'Event has been approved');
-            } catch (err) {
-              Alert.alert('Error', 'Failed to approve event: ' + (err.message || 'Unknown error'));
-            } finally {
-              setLoading(false);
-            }
-          }
-        }
-      ]
-    );
+  const showVerificationModal = (event, approving = true) => {
+    setSelectedEvent(event);
+    setIsApproving(approving);
+    setVerificationNotes('');
+    setModalVisible(true);
   };
 
-  const handleRejectEvent = (eventId) => {
-    Alert.alert(
-      'Reject Event',
-      'Are you sure you want to reject this event? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reject',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              await eventService.deleteEvent(eventId);
-              // Remove the rejected event from the list
-              setEvents(events.filter(event => event._id !== eventId));
-              Alert.alert('Success', 'Event has been rejected');
-            } catch (err) {
-              Alert.alert('Error', 'Failed to reject event: ' + (err.message || 'Unknown error'));
-            } finally {
-              setLoading(false);
-            }
-          }
-        }
-      ]
-    );
+  const handleVerificationSubmit = async () => {
+    if (!selectedEvent) return;
+    
+    try {
+      setActionLoading(true);
+      
+      if (isApproving) {
+        await eventService.approveEvent(selectedEvent._id, verificationNotes);
+        Alert.alert('Success', 'Event has been approved');
+      } else {
+        await eventService.rejectEvent(selectedEvent._id, verificationNotes);
+        Alert.alert('Success', 'Event has been rejected');
+      }
+      
+      // Remove the event from the list
+      setEvents(events.filter(event => event._id !== selectedEvent._id));
+      setModalVisible(false);
+    } catch (err) {
+      Alert.alert(
+        'Error', 
+        `Failed to ${isApproving ? 'approve' : 'reject'} event: ` + 
+        (err.message || 'Unknown error')
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleViewDetails = (eventId) => {
+    navigation.navigate('EventDetails', { eventId });
   };
 
   const renderEventItem = ({ item }) => (
@@ -96,7 +90,7 @@ const EventApprovalScreen = ({ navigation }) => {
       </View>
       
       <Text style={styles.eventTitle}>{item.title}</Text>
-      <Text style={styles.eventDescription}>{item.description}</Text>
+      <Text style={styles.eventDescription} numberOfLines={2}>{item.description}</Text>
       
       <View style={styles.eventDetails}>
         <View style={styles.detailItem}>
@@ -113,12 +107,18 @@ const EventApprovalScreen = ({ navigation }) => {
           <Icon name="account" size={16} color="#666" />
           <Text style={styles.detailText}>By: {item.createdBy?.name || 'Unknown'}</Text>
         </View>
+        <View style={styles.detailItem}>
+          <Icon name="clock-outline" size={16} color="#666" />
+          <Text style={styles.detailText}>
+            Submitted: {new Date(item.createdAt).toLocaleDateString()}
+          </Text>
+        </View>
       </View>
       
       <View style={styles.actionButtons}>
         <TouchableOpacity 
           style={styles.viewButton}
-          onPress={() => navigation.navigate('EventDetails', { eventId: item._id })}
+          onPress={() => handleViewDetails(item._id)}
         >
           <Icon name="eye" size={16} color="#2e7af5" />
           <Text style={styles.viewButtonText}>View Details</Text>
@@ -126,7 +126,7 @@ const EventApprovalScreen = ({ navigation }) => {
         
         <TouchableOpacity 
           style={styles.approveButton}
-          onPress={() => handleApproveEvent(item._id)}
+          onPress={() => showVerificationModal(item, true)}
         >
           <Icon name="check-circle" size={16} color="#fff" />
           <Text style={styles.approveButtonText}>Approve</Text>
@@ -134,7 +134,7 @@ const EventApprovalScreen = ({ navigation }) => {
         
         <TouchableOpacity 
           style={styles.rejectButton}
-          onPress={() => handleRejectEvent(item._id)}
+          onPress={() => showVerificationModal(item, false)}
         >
           <Icon name="close-circle" size={16} color="#fff" />
           <Text style={styles.rejectButtonText}>Reject</Text>
@@ -189,6 +189,66 @@ const EventApprovalScreen = ({ navigation }) => {
           onRefresh={fetchPendingEvents}
         />
       )}
+
+      {/* Verification Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalTitle}>
+              {isApproving ? 'Approve Event' : 'Reject Event'}
+            </Text>
+            
+            {selectedEvent && (
+              <Text style={styles.modalEventTitle}>{selectedEvent.title}</Text>
+            )}
+            
+            <Text style={styles.modalLabel}>Verification Notes (optional):</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder={isApproving ? 
+                "Add any notes about the approval" : 
+                "Please provide a reason for rejection"
+              }
+              multiline={true}
+              numberOfLines={4}
+              value={verificationNotes}
+              onChangeText={setVerificationNotes}
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setModalVisible(false)}
+                disabled={actionLoading}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.modalButton, 
+                  isApproving ? styles.modalButtonApprove : styles.modalButtonReject
+                ]}
+                onPress={handleVerificationSubmit}
+                disabled={actionLoading}
+              >
+                {actionLoading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.modalButtonText}>
+                    {isApproving ? 'Approve' : 'Reject'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -335,14 +395,13 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
   },
   viewButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    marginRight: 8,
   },
   viewButtonText: {
     color: '#2e7af5',
@@ -355,9 +414,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#4caf50',
     borderRadius: 4,
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    marginRight: 8,
   },
   approveButtonText: {
     color: '#fff',
@@ -370,7 +428,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f44336',
     borderRadius: 4,
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 12,
   },
   rejectButtonText: {
@@ -378,6 +436,83 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     marginLeft: 4,
+  },
+  // Modal styles
+  centeredView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 20,
+  },
+  modalView: {
+    width: '100%',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: '#333',
+    textAlign: 'center',
+  },
+  modalEventTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#666',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalLabel: {
+    fontSize: 16,
+    marginBottom: 8,
+    color: '#333',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+    fontSize: 16,
+    backgroundColor: '#f9f9f9',
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalButton: {
+    flex: 0.48,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalButtonCancel: {
+    backgroundColor: '#f2f2f2',
+  },
+  modalButtonApprove: {
+    backgroundColor: '#4caf50',
+  },
+  modalButtonReject: {
+    backgroundColor: '#f44336',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
 

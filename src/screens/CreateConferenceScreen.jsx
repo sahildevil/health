@@ -12,10 +12,12 @@ import {
   Alert,
   Switch,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
+import { eventService } from '../services/api';
 const CreateConferenceScreen = ({navigation}) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -39,15 +41,17 @@ const CreateConferenceScreen = ({navigation}) => {
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [startTime, setStartTime] = useState(new Date());
-  const [endTime, setEndTime] = useState(new Date(new Date().setHours(new Date().getHours() + 2)));
+  const [endTime, setEndTime] = useState(
+    new Date(new Date().setHours(new Date().getHours() + 2)),
+  );
   const [termsAndConditions, setTermsAndConditions] = useState('');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // Sponsors state
   const [sponsors, setSponsors] = useState([]);
   const [newSponsorName, setNewSponsorName] = useState('');
   const [newSponsorLevel, setNewSponsorLevel] = useState('');
-  
+
   // Speakers state
   const [speakers, setSpeakers] = useState([]);
   const [newSpeakerName, setNewSpeakerName] = useState('');
@@ -99,7 +103,7 @@ const CreateConferenceScreen = ({navigation}) => {
     }
   };
 
-  const validateEmail = (email) => {
+  const validateEmail = email => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
   };
@@ -110,70 +114,90 @@ const CreateConferenceScreen = ({navigation}) => {
       Alert.alert('Missing Information', 'Please enter sponsor name.');
       return;
     }
-    
+
     const newSponsor = {
       id: Date.now().toString(),
       name: newSponsorName.trim(),
       level: newSponsorLevel.trim() || 'Standard',
     };
-    
+
     setSponsors([...sponsors, newSponsor]);
     setNewSponsorName('');
     setNewSponsorLevel('');
   };
-  
+
   // Remove a sponsor
-  const removeSponsor = (sponsorId) => {
+  const removeSponsor = sponsorId => {
     setSponsors(sponsors.filter(sponsor => sponsor.id !== sponsorId));
   };
-  
+
   // Add a new speaker
   const addSpeaker = () => {
     if (newSpeakerName.trim() === '') {
       Alert.alert('Missing Information', 'Please enter speaker name.');
       return;
     }
-    
+
     const newSpeaker = {
       id: Date.now().toString(),
       name: newSpeakerName.trim(),
       title: newSpeakerTitle.trim(),
       bio: newSpeakerBio.trim(),
     };
-    
+
     setSpeakers([...speakers, newSpeaker]);
     setNewSpeakerName('');
     setNewSpeakerTitle('');
     setNewSpeakerBio('');
   };
-  
+
   // Remove a speaker
-  const removeSpeaker = (speakerId) => {
+  const removeSpeaker = speakerId => {
     setSpeakers(speakers.filter(speaker => speaker.id !== speakerId));
   };
 
-  const handleCreateConference = () => {
+  const handleCreateConference = async () => {
     // Validate form
     if (!title || !description || !venue || !organizerName || !organizerEmail) {
       Alert.alert('Missing Information', 'Please fill all required fields.');
       return;
     }
-
+  
     if (!validateEmail(organizerEmail)) {
       Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
-
+  
     if (endDate < startDate) {
       Alert.alert('Invalid Dates', 'End date must be after start date.');
       return;
     }
-    
+  
     if (!agreeToTerms) {
-      Alert.alert('Terms and Conditions', 'You must agree to the terms and conditions to create an event.');
+      Alert.alert(
+        'Terms and Conditions',
+        'You must agree to the terms and conditions to create an event.',
+      );
       return;
     }
-
+  
+    // Combine date and time for start and end dates
+    const combinedStartDate = new Date(startDate);
+    combinedStartDate.setHours(
+      startTime.getHours(),
+      startTime.getMinutes(),
+      0,
+      0
+    );
+    
+    const combinedEndDate = new Date(endDate);
+    combinedEndDate.setHours(
+      endTime.getHours(),
+      endTime.getMinutes(),
+      0,
+      0
+    );
+  
     // Create conference object
     const newConference = {
       title,
@@ -182,29 +206,43 @@ const CreateConferenceScreen = ({navigation}) => {
       organizerName,
       organizerEmail,
       organizerPhone,
-      startDate: formatDate(startDate),
-      endDate: formatDate(endDate),
-      startTime: formatTime(startTime),
-      endTime: formatTime(endTime),
+      startDate: combinedStartDate.toISOString(),
+      endDate: combinedEndDate.toISOString(),
       type: conferenceType,
       mode: conferenceMode,
       capacity: capacity ? parseInt(capacity, 10) : null,
       website,
       registrationFee: isFree ? '0' : regFee,
-      tags: tags.split(',').map(tag => tag.trim()),
+      tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
       termsAndConditions,
       sponsors,
       speakers,
-      // You might also want to add an ID, created date, etc.
     };
-
-    // In a real app, you would send this to your API
-    console.log('New Conference:', newConference);
-
-    // Show success message
-    Alert.alert('Success', 'Your event has been created successfully!', [
-      {text: 'OK', onPress: () => navigation.goBack()},
-    ]);
+  
+    try {
+      // Set loading state
+      setIsSubmitting(true);
+  
+      // Submit to API
+      const result = await eventService.createEvent(newConference);
+  
+      // Show success message
+      Alert.alert(
+        'Success',
+        result.requiresApproval
+          ? 'Your event has been submitted for approval. You will be notified once it is reviewed.'
+          : 'Your event has been created successfully!',
+        [{text: 'OK', onPress: () => navigation.goBack()}],
+      );
+    } catch (error) {
+      console.log('Error creating event:', error);
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to create event. Please try again.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Render sponsor item for FlatList
@@ -219,14 +257,20 @@ const CreateConferenceScreen = ({navigation}) => {
       </TouchableOpacity>
     </View>
   );
-  
+
   // Render speaker item for FlatList
   const renderSpeakerItem = ({item}) => (
     <View style={styles.listItem}>
       <View style={styles.listItemContent}>
         <Text style={styles.listItemTitle}>{item.name}</Text>
-        {item.title ? <Text style={styles.listItemSubtitle}>{item.title}</Text> : null}
-        {item.bio ? <Text style={styles.listItemDescription} numberOfLines={2}>{item.bio}</Text> : null}
+        {item.title ? (
+          <Text style={styles.listItemSubtitle}>{item.title}</Text>
+        ) : null}
+        {item.bio ? (
+          <Text style={styles.listItemDescription} numberOfLines={2}>
+            {item.bio}
+          </Text>
+        ) : null}
       </View>
       <TouchableOpacity onPress={() => removeSpeaker(item.id)}>
         <Icon name="delete" size={24} color="#ff6b6b" />
@@ -478,7 +522,7 @@ const CreateConferenceScreen = ({navigation}) => {
               onChangeText={setNewSpeakerName}
             />
           </View>
-          
+
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Speaker Title/Role</Text>
             <TextInput
@@ -489,7 +533,7 @@ const CreateConferenceScreen = ({navigation}) => {
               onChangeText={setNewSpeakerTitle}
             />
           </View>
-          
+
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Speaker Bio</Text>
             <TextInput
@@ -502,12 +546,12 @@ const CreateConferenceScreen = ({navigation}) => {
               numberOfLines={3}
             />
           </View>
-          
+
           <TouchableOpacity style={styles.addButton} onPress={addSpeaker}>
             <Icon name="plus" size={20} color="white" />
             <Text style={styles.addButtonText}>Add Speaker</Text>
           </TouchableOpacity>
-          
+
           {speakers.length > 0 && (
             <View style={styles.listContainer}>
               <FlatList
@@ -531,8 +575,8 @@ const CreateConferenceScreen = ({navigation}) => {
               onChangeText={setNewSponsorName}
             />
           </View>
-          
-          <View style={styles.inputGroup}>
+
+          {/* <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Sponsorship Level</Text>
             <TextInput
               style={styles.input}
@@ -541,13 +585,13 @@ const CreateConferenceScreen = ({navigation}) => {
               value={newSponsorLevel}
               onChangeText={setNewSponsorLevel}
             />
-          </View>
-          
+          </View> */}
+
           <TouchableOpacity style={styles.addButton} onPress={addSponsor}>
             <Icon name="plus" size={20} color="white" />
             <Text style={styles.addButtonText}>Add Sponsor</Text>
           </TouchableOpacity>
-          
+
           {sponsors.length > 0 && (
             <View style={styles.listContainer}>
               <FlatList
@@ -624,7 +668,7 @@ const CreateConferenceScreen = ({navigation}) => {
               keyboardType="phone-pad"
             />
           </View>
-          
+
           {/* Terms and Conditions */}
           <Text style={styles.sectionTitle}>Terms and Conditions</Text>
           <View style={styles.inputGroup}>
@@ -639,13 +683,15 @@ const CreateConferenceScreen = ({navigation}) => {
               numberOfLines={6}
             />
           </View>
-          
+
           <View style={styles.inputGroup}>
             <View style={styles.checkboxContainer}>
               <TouchableOpacity
                 style={styles.checkbox}
                 onPress={() => setAgreeToTerms(!agreeToTerms)}>
-                {agreeToTerms && <Icon name="check" size={16} color="#2e7af5" />}
+                {agreeToTerms && (
+                  <Icon name="check" size={16} color="#2e7af5" />
+                )}
               </TouchableOpacity>
               <Text style={styles.checkboxLabel}>
                 I agree to the terms and conditions for creating this event
@@ -656,8 +702,13 @@ const CreateConferenceScreen = ({navigation}) => {
           {/* Submit Button */}
           <TouchableOpacity
             style={styles.createButton}
-            onPress={handleCreateConference}>
-            <Text style={styles.createButtonText}>Create Event</Text>
+            onPress={handleCreateConference}
+            disabled={isSubmitting}>
+            {isSubmitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.createButtonText}>Create Event</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
