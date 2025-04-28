@@ -50,7 +50,7 @@ const AdminProfileScreen = ({ navigation }) => {
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Profile</Text>
-        <View style={{ width: 24 }} /> {/* Empty view for balanced header */}
+        <View style={{ width: 24 }} /> 
       </View>
 
       <ScrollView style={styles.scrollView}>

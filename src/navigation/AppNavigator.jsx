@@ -1,7 +1,7 @@
 import React from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
-import { useAuth } from '../context/AuthContext';
+import {createStackNavigator} from '@react-navigation/stack';
+import {ActivityIndicator, View, StyleSheet} from 'react-native';
+import {useAuth} from '../context/AuthContext';
 
 // Import screens
 import LandingScreen from '../screens/LandingScreen';
@@ -20,6 +20,8 @@ import EventDetailsScreen from '../screens/EventDetailsScreen';
 import BottomTabNavigator from './BottomTabNavigator';
 import Profile from '../screens/Profile';
 import CreateConferenceScreen from '../screens/CreateConferenceScreen';
+import RegisteredEventsScreen from '../screens/RegisteredEventsScreen';
+import MyEventsScreen from '../screens/MyEventsScreen';
 
 const Stack = createStackNavigator();
 const AdminStack = createStackNavigator();
@@ -27,8 +29,11 @@ const AdminStack = createStackNavigator();
 // Admin Navigation Stack
 const AdminNavigator = () => {
   return (
-    <AdminStack.Navigator screenOptions={{ headerShown: false }}>
-      <AdminStack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+    <AdminStack.Navigator screenOptions={{headerShown: false}}>
+      <AdminStack.Screen
+        name="AdminDashboard"
+        component={AdminDashboardScreen}
+      />
       <AdminStack.Screen name="AdminProfile" component={AdminProfileScreen} />
       <AdminStack.Screen name="EventApproval" component={EventApprovalScreen} />
       <AdminStack.Screen name="EventDetails" component={EventDetailsScreen} />
@@ -39,7 +44,7 @@ const AdminNavigator = () => {
 };
 
 const AppNavigator = () => {
-  const { isAuthenticated, loading, user } = useAuth();
+  const {isAuthenticated, loading, user} = useAuth();
 
   if (loading) {
     return (
@@ -54,7 +59,9 @@ const AppNavigator = () => {
 
   return (
     <Stack.Navigator
-      initialRouteName={isAuthenticated ? (isAdmin ? 'AdminFlow' : 'MainApp') : 'Landing'}
+      initialRouteName={
+        isAuthenticated ? (isAdmin ? 'AdminFlow' : 'MainApp') : 'Landing'
+      }
       screenOptions={{
         headerShown: false,
       }}>
@@ -68,6 +75,15 @@ const AppNavigator = () => {
             <Stack.Screen
               name="CreateConference"
               component={CreateConferenceScreen}
+            />
+            <Stack.Screen
+              name="RegisteredEvents"
+              component={RegisteredEventsScreen}
+            />
+            <Stack.Screen
+              name="MyEvents"
+              component={MyEventsScreen}
+              options={{headerShown: false}}
             />
           </>
         )

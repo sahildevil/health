@@ -21,36 +21,37 @@ const api = axios.create({
 
 // Error handling interceptor
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  response => response,
+  error => {
     console.log('API Error:', error);
-    
+
     // Network error
     if (!error.response) {
       return Promise.reject({
-        message: 'Network error - check your connection and make sure the server is running',
+        message:
+          'Network error - check your connection and make sure the server is running',
       });
     }
-    
+
     // Return error data if available
     return Promise.reject(
-      error.response.data || { message: 'An error occurred with the request' }
+      error.response.data || {message: 'An error occurred with the request'},
     );
-  }
+  },
 );
 
 // Authentication services
 export const authService = {
   login: async (email, password) => {
     try {
-      const response = await api.post('/auth/login', { email, password });
+      const response = await api.post('/auth/login', {email, password});
       return response.data;
     } catch (error) {
       throw error;
     }
   },
 
-  signup: async (userData) => {
+  signup: async userData => {
     try {
       const response = await api.post('/auth/signup', userData);
       return response.data;
@@ -60,13 +61,13 @@ export const authService = {
   },
 
   // Add auth token to requests
-  setAuthToken: (token) => {
+  setAuthToken: token => {
     if (token) {
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
       delete api.defaults.headers.common['Authorization'];
     }
-  }
+  },
 };
 
 // Admin services
@@ -80,9 +81,9 @@ export const adminService = {
       throw error;
     }
   },
-  
+
   // Verify a doctor
-  verifyDoctor: async (doctorId) => {
+  verifyDoctor: async doctorId => {
     try {
       const response = await api.put(`/admin/doctors/${doctorId}/verify`);
       return response.data;
@@ -90,9 +91,9 @@ export const adminService = {
       throw error;
     }
   },
-  
+
   // Delete a doctor
-  deleteDoctor: async (doctorId) => {
+  deleteDoctor: async doctorId => {
     try {
       const response = await api.delete(`/admin/doctors/${doctorId}`);
       return response.data;
@@ -100,22 +101,58 @@ export const adminService = {
       throw error;
     }
   },
-  
+
   // Get doctor details
-  getDoctorDetails: async (doctorId) => {
+  getDoctorDetails: async doctorId => {
     try {
       const response = await api.get(`/admin/doctors/${doctorId}`);
       return response.data;
     } catch (error) {
       throw error;
     }
-  }
+  },
+
+  // Get doctor documents
+  getDoctorDocuments: async doctorId => {
+    try {
+      const response = await api.get(`/admin/doctors/${doctorId}/documents`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Verify a document
+  verifyDocument: async (doctorId, documentId, notes = '') => {
+    try {
+      const response = await api.put(
+        `/admin/doctors/${doctorId}/documents/${documentId}/verify`,
+        {notes},
+      );
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Reject a document
+  rejectDocument: async (doctorId, documentId, notes = '') => {
+    try {
+      const response = await api.put(
+        `/admin/doctors/${doctorId}/documents/${documentId}/reject`,
+        {notes},
+      );
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
 };
 
 // Event services
 export const eventService = {
   // Create a new event
-  createEvent: async (eventData) => {
+  createEvent: async eventData => {
     try {
       const response = await api.post('/events', eventData);
       return response.data;
@@ -123,7 +160,7 @@ export const eventService = {
       throw error;
     }
   },
-  
+
   // Get approved events or own events
   getEvents: async () => {
     try {
@@ -143,7 +180,7 @@ export const eventService = {
       throw error;
     }
   },
-  
+
   // Get pending events (admin only)
   getPendingEvents: async () => {
     try {
@@ -153,29 +190,37 @@ export const eventService = {
       throw error;
     }
   },
-  
+  getRegisteredEvents: async () => {
+    try {
+      const response = await api.get('/events/registered');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   // Approve an event (admin only)
   approveEvent: async (eventId, notes = '') => {
     try {
-      const response = await api.put(`/events/${eventId}/approve`, { notes });
+      const response = await api.put(`/events/${eventId}/approve`, {notes});
       return response.data;
     } catch (error) {
       throw error;
     }
   },
-  
+
   // Reject an event (admin only)
   rejectEvent: async (eventId, notes = '') => {
     try {
-      const response = await api.put(`/events/${eventId}/reject`, { notes });
+      const response = await api.put(`/events/${eventId}/reject`, {notes});
       return response.data;
     } catch (error) {
       throw error;
     }
   },
-  
+
   // Delete an event
-  deleteEvent: async (eventId) => {
+  deleteEvent: async eventId => {
     try {
       const response = await api.delete(`/events/${eventId}`);
       return response.data;
@@ -183,9 +228,9 @@ export const eventService = {
       throw error;
     }
   },
-  
+
   // Register for an event
-  registerForEvent: async (eventId) => {
+  registerForEvent: async eventId => {
     try {
       const response = await api.post(`/events/${eventId}/register`);
       return response.data;
@@ -193,9 +238,9 @@ export const eventService = {
       throw error;
     }
   },
-  
+
   // Get event details
-  getEventDetails: async (eventId) => {
+  getEventDetails: async eventId => {
     try {
       const response = await api.get(`/events/${eventId}`);
       return response.data;

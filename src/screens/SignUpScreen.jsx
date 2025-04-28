@@ -8,9 +8,15 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Image,
+  Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
+import * as ImagePicker from 'react-native-image-picker';
+import RNFS from 'react-native-fs';
+// Import the WebView document picker
+import WebViewDocumentPicker from '../components/WebViewDocumentPicker';
 
 const SignUpScreen = ({navigation}) => {
   const [step, setStep] = useState(1);
@@ -25,6 +31,13 @@ const SignUpScreen = ({navigation}) => {
   const [degree, setDegree] = useState('');
   const [company, setCompany] = useState('');
 
+  // Document upload states
+  const [documents, setDocuments] = useState([]);
+  const [uploading, setUploading] = useState(false);
+
+  // Add state for WebView document picker
+  const [webViewPickerVisible, setWebViewPickerVisible] = useState(false);
+
   const {signup, login} = useAuth();
 
   const selectRole = selectedRole => {
@@ -32,6 +45,135 @@ const SignUpScreen = ({navigation}) => {
     setStep(2);
   };
 
+  // Replace your old document picker function with this one
+  const pickDocument = () => {
+    setWebViewPickerVisible(true);
+  };
+
+  // Handle files selected from WebView
+  const handleWebViewFilesSelected = files => {
+    setWebViewPickerVisible(false);
+
+    if (files && files.length > 0) {
+      const newDocs = files.map(file => ({
+        name: file.name,
+        type: file.type,
+        uri: file.uri,
+        size: file.size,
+      }));
+
+      setDocuments(prev => [...prev, ...newDocs]);
+    }
+  };
+
+  const removeDocument = index => {
+    const newDocs = [...documents];
+    newDocs.splice(index, 1);
+    setDocuments(newDocs);
+  };
+
+  const takePhoto = () => {
+    const options = {
+      mediaType: 'photo',
+      quality: 0.8,
+    };
+
+    ImagePicker.launchCamera(options, response => {
+      if (response.didCancel) {
+        console.log('User cancelled camera');
+      } else if (response.errorCode) {
+        Alert.alert('Error', 'Camera Error: ' + response.errorMessage);
+      } else {
+        const asset = response.assets[0];
+        const newDoc = {
+          name: `Photo_${new Date().toISOString()}.jpg`,
+          type: asset.type,
+          uri: asset.uri,
+          size: asset.fileSize,
+        };
+        setDocuments([...documents, newDoc]);
+      }
+    });
+  };
+
+  const pickFromGallery = () => {
+    const options = {
+      mediaType: 'photo',
+      quality: 0.8,
+    };
+
+    ImagePicker.launchImageLibrary(options, response => {
+      if (response.didCancel) {
+        console.log('User cancelled image picker');
+      } else if (response.errorCode) {
+        Alert.alert('Error', 'ImagePicker Error: ' + response.errorMessage);
+      } else {
+        const asset = response.assets[0];
+        const newDoc = {
+          name: asset.fileName || `Image_${new Date().toISOString()}.jpg`,
+          type: asset.type,
+          uri: asset.uri,
+          size: asset.fileSize,
+        };
+        setDocuments([...documents, newDoc]);
+      }
+    });
+  };
+
+  // Fix the handleUploadDocuments function
+  const handleUploadDocuments = async () => {
+    if (documents.length === 0) {
+      return [];
+    }
+
+    setUploading(true);
+
+    try {
+      const uploadedDocs = [];
+
+      for (const doc of documents) {
+        // Process the document based on its URI format
+        let base64Data;
+        if (doc.uri.startsWith('data:')) {
+          // Extract the base64 part from data URL
+          base64Data = doc.uri.split(',')[1] || '';
+        } else {
+          try {
+            // Read the file as base64
+            base64Data = await RNFS.readFile(doc.uri, 'base64');
+          } catch (err) {
+            console.error('Error reading file:', err);
+            // Use a placeholder if reading fails
+            base64Data = 'file-read-error';
+          }
+        }
+
+        // Create a document object with the required fields
+        uploadedDocs.push({
+          name: doc.name,
+          type: doc.type,
+          size: doc.size,
+          preview: base64Data.substring(0, 1000), // Store more data for preview
+          uploadDate: new Date().toISOString(),
+          verified: false,
+        });
+      }
+
+      console.log(`Prepared ${uploadedDocs.length} documents for upload`);
+      return uploadedDocs;
+    } catch (error) {
+      console.error('Document upload error:', error);
+      Alert.alert(
+        'Upload Error',
+        'Failed to prepare documents: ' + error.message,
+      );
+      return [];
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Update the handleSignUp function to properly include documents
   const handleSignUp = async () => {
     // Simple validation
     if (!name || !email || !password || !confirmPassword) {
@@ -44,8 +186,22 @@ const SignUpScreen = ({navigation}) => {
       return;
     }
 
+    if (role === 'doctor' && documents.length === 0) {
+      Alert.alert('Error', 'Please upload your medical certification');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
+
+      // Upload documents first if doctor role
+      let uploadedDocuments = [];
+      if (role === 'doctor' && documents.length > 0) {
+        uploadedDocuments = await handleUploadDocuments();
+        console.log(
+          `Processed ${uploadedDocuments.length} documents for upload`,
+        );
+      }
 
       // Create user data object based on role
       const userData = {
@@ -58,9 +214,21 @@ const SignUpScreen = ({navigation}) => {
       // Add role-specific fields
       if (role === 'doctor') {
         userData.degree = degree;
+        // Ensure documents are properly set
+        if (uploadedDocuments && uploadedDocuments.length > 0) {
+          userData.documents = uploadedDocuments;
+        }
       } else if (role === 'pharma') {
         userData.company = company;
       }
+
+      // Debug log
+      console.log(
+        'Sending user data with documents:',
+        role === 'doctor'
+          ? `${uploadedDocuments.length} documents`
+          : 'No documents',
+      );
 
       // Register the user
       await signup(userData);
@@ -68,7 +236,9 @@ const SignUpScreen = ({navigation}) => {
       // Show success message
       Alert.alert(
         'Registration Successful',
-        'Your account has been created successfully!',
+        role === 'doctor'
+          ? 'Your account has been created! An admin will review your documents for verification.'
+          : 'Your account has been created successfully!',
         [
           {
             text: 'Login Now',
@@ -85,6 +255,7 @@ const SignUpScreen = ({navigation}) => {
         ],
       );
     } catch (error) {
+      console.error('Signup error:', error);
       Alert.alert('Signup Failed', error.message || 'Please try again later');
     } finally {
       setIsSubmitting(false);
@@ -178,6 +349,67 @@ const SignUpScreen = ({navigation}) => {
               value={degree}
               onChangeText={setDegree}
             />
+
+            <Text style={styles.sectionTitle}>Upload Medical Credentials</Text>
+            <Text style={styles.sectionSubtitle}>
+              Please upload your medical degree, certifications, or license
+              documents
+            </Text>
+
+            <View style={styles.uploadButtonsContainer}>
+              <TouchableOpacity
+                style={styles.uploadButton}
+                onPress={pickDocument}>
+                <Icon name="file-document-outline" size={24} color="#2e7af5" />
+                <Text style={styles.uploadButtonText}>Browse Files</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.uploadButton} onPress={takePhoto}>
+                <Icon name="camera" size={24} color="#2e7af5" />
+                <Text style={styles.uploadButtonText}>Take Photo</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.uploadButton}
+                onPress={pickFromGallery}>
+                <Icon name="image" size={24} color="#2e7af5" />
+                <Text style={styles.uploadButtonText}>From Gallery</Text>
+              </TouchableOpacity>
+            </View>
+
+            {documents.length > 0 && (
+              <View style={styles.documentListContainer}>
+                <Text style={styles.documentListTitle}>
+                  Selected Documents ({documents.length})
+                </Text>
+                {documents.map((doc, index) => (
+                  <View key={index} style={styles.documentItem}>
+                    <View style={styles.documentInfo}>
+                      <Icon
+                        name={
+                          doc.type.includes('image') ? 'image' : 'file-pdf-box'
+                        }
+                        size={24}
+                        color="#2e7af5"
+                      />
+                      <View style={styles.documentDetails}>
+                        <Text style={styles.documentName} numberOfLines={1}>
+                          {doc.name}
+                        </Text>
+                        <Text style={styles.documentSize}>
+                          {(doc.size / 1024).toFixed(1)} KB
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => removeDocument(index)}
+                      style={styles.documentRemove}>
+                      <Icon name="close" size={20} color="#ff4c4c" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
           </>
         )}
 
@@ -215,6 +447,8 @@ const SignUpScreen = ({navigation}) => {
       <View style={styles.termsContainer}>
         <Text style={styles.termsText}>
           By signing up, you agree to our Terms of Service and Privacy Policy
+          {role === 'doctor' &&
+            '. Your credentials will be verified by an admin.'}
         </Text>
       </View>
 
@@ -222,8 +456,8 @@ const SignUpScreen = ({navigation}) => {
         <TouchableOpacity
           style={styles.button}
           onPress={handleSignUp}
-          disabled={isSubmitting}>
-          {isSubmitting ? (
+          disabled={isSubmitting || uploading}>
+          {isSubmitting || uploading ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.buttonText}>Create Account</Text>
@@ -237,6 +471,13 @@ const SignUpScreen = ({navigation}) => {
           <Text style={styles.loginText}>Login</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Add the WebView document picker component */}
+      <WebViewDocumentPicker
+        visible={webViewPickerVisible}
+        onClose={() => setWebViewPickerVisible(false)}
+        onFilesSelected={handleWebViewFilesSelected}
+      />
     </ScrollView>
   );
 };
@@ -311,6 +552,80 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e1e1e1',
     fontSize: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+  },
+  uploadButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  uploadButton: {
+    flex: 1,
+    backgroundColor: '#e3f2fd',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#2e7af5',
+    borderStyle: 'dashed',
+  },
+  uploadButtonText: {
+    color: '#2e7af5',
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  documentListContainer: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  documentListTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 8,
+  },
+  documentItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  documentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  documentDetails: {
+    marginLeft: 8,
+    flex: 1,
+  },
+  documentName: {
+    fontSize: 14,
+    color: '#333',
+  },
+  documentSize: {
+    fontSize: 12,
+    color: '#666',
+  },
+  documentRemove: {
+    padding: 4,
   },
   termsContainer: {
     marginBottom: 24,

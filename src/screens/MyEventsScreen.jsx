@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,14 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
-import { eventService } from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import {useNavigation} from '@react-navigation/native';
+import {eventService} from '../services/api';
+import {useAuth} from '../context/AuthContext';
 
-const EventStatusBadge = ({ status }) => {
+const EventStatusBadge = ({status}) => {
   let bgColor = '#FFF3E0'; // Default pending color
   let textColor = '#E65100';
   let iconName = 'clock-outline';
@@ -35,9 +36,14 @@ const EventStatusBadge = ({ status }) => {
   }
 
   return (
-    <View style={[styles.badge, { backgroundColor: bgColor }]}>
-      <Icon name={iconName} size={12} color={textColor} style={{ marginRight: 4 }} />
-      <Text style={[styles.badgeText, { color: textColor }]}>{label}</Text>
+    <View style={[styles.badge, {backgroundColor: bgColor}]}>
+      <Icon
+        name={iconName}
+        size={12}
+        color={textColor}
+        style={{marginRight: 4}}
+      />
+      <Text style={[styles.badgeText, {color: textColor}]}>{label}</Text>
     </View>
   );
 };
@@ -47,12 +53,13 @@ const MyEventsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation();
-  const { user } = useAuth();
+  const {user} = useAuth();
 
   const fetchEvents = async () => {
     try {
       setLoading(true);
       const data = await eventService.getMyEvents();
+      console.log('My events fetched:', data.length);
       setEvents(data);
     } catch (error) {
       console.error('Failed to load events:', error);
@@ -65,7 +72,14 @@ const MyEventsScreen = () => {
 
   useEffect(() => {
     fetchEvents();
-  }, []);
+
+    // Refresh events when the screen comes into focus
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchEvents();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -76,7 +90,31 @@ const MyEventsScreen = () => {
     navigation.navigate('CreateConference');
   };
 
-  const formatDate = (dateString) => {
+  const handleDeleteEvent = async eventId => {
+    Alert.alert(
+      'Delete Event',
+      'Are you sure you want to delete this event? This action cannot be undone.',
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await eventService.deleteEvent(eventId);
+              // Remove the event from the list
+              setEvents(events.filter(event => event._id !== eventId));
+              Alert.alert('Success', 'Event deleted successfully');
+            } catch (error) {
+              Alert.alert('Error', `Failed to delete event: ${error.message}`);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const formatDate = dateString => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -85,11 +123,10 @@ const MyEventsScreen = () => {
     });
   };
 
-  const renderEventItem = ({ item }) => (
+  const renderEventItem = ({item}) => (
     <TouchableOpacity
       style={styles.eventCard}
-      onPress={() => navigation.navigate('EventDetails', { eventId: item._id })}
-    >
+      onPress={() => navigation.navigate('EventDetails', {eventId: item._id})}>
       <View style={styles.eventHeader}>
         <View>
           <Text style={styles.eventType}>{item.type}</Text>
@@ -97,6 +134,10 @@ const MyEventsScreen = () => {
         </View>
         <EventStatusBadge status={item.status} />
       </View>
+
+      <Text style={styles.eventDescription} numberOfLines={2}>
+        {item.description}
+      </Text>
 
       <View style={styles.eventDetails}>
         <View style={styles.detailItem}>
@@ -120,16 +161,29 @@ const MyEventsScreen = () => {
         {item.status === 'rejected' && item.verificationNotes && (
           <View style={styles.rejectionNote}>
             <Text style={styles.rejectionNoteTitle}>Rejection reason:</Text>
-            <Text style={styles.rejectionNoteText}>{item.verificationNotes}</Text>
+            <Text style={styles.rejectionNoteText}>
+              {item.verificationNotes}
+            </Text>
           </View>
         )}
       </View>
 
       <View style={styles.eventActions}>
-        <View style={styles.actionButton}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() =>
+            navigation.navigate('EventDetails', {eventId: item._id})
+          }>
           <Icon name="eye" size={16} color="#2e7af5" />
           <Text style={styles.actionText}>View Details</Text>
-        </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, styles.deleteButton]}
+          onPress={() => handleDeleteEvent(item._id)}>
+          <Icon name="delete" size={16} color="#ff4757" />
+          <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
@@ -138,6 +192,11 @@ const MyEventsScreen = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}>
+            <Icon name="arrow-left" size={24} color="#333" />
+          </TouchableOpacity>
           <Text style={styles.headerTitle}>My Events</Text>
           <TouchableOpacity
             style={styles.createButton}
@@ -156,8 +215,13 @@ const MyEventsScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f7f9fc" />
-      
+
       <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}>
+          <Icon name="arrow-left" size={24} color="#333" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>My Events</Text>
         <TouchableOpacity
           style={styles.createButton}
@@ -165,7 +229,7 @@ const MyEventsScreen = () => {
           <Icon name="plus" size={24} color="#2e7af5" />
         </TouchableOpacity>
       </View>
-      
+
       {events.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Icon name="calendar-blank" size={64} color="#ccc" />
@@ -183,7 +247,7 @@ const MyEventsScreen = () => {
         <FlatList
           data={events}
           renderItem={renderEventItem}
-          keyExtractor={(item) => item._id}
+          keyExtractor={item => item._id}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -206,14 +270,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
+  backButton: {
+    padding: 8,
+  },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#333',
   },
   createButton: {
@@ -244,7 +311,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
@@ -253,7 +320,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   eventType: {
     fontSize: 13,
@@ -266,6 +333,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginRight: 8,
+    maxWidth: '80%',
   },
   badge: {
     flexDirection: 'row',
@@ -278,8 +346,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+  eventDescription: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
   eventDetails: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   detailItem: {
     flexDirection: 'row',
@@ -309,18 +383,28 @@ const styles = StyleSheet.create({
   },
   eventActions: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    padding: 8,
   },
   actionText: {
     fontSize: 14,
     color: '#2e7af5',
     fontWeight: '500',
     marginLeft: 4,
+  },
+  deleteButton: {
+    backgroundColor: '#fff5f5',
+    borderRadius: 6,
+  },
+  deleteText: {
+    color: '#ff4757',
   },
   emptyContainer: {
     flex: 1,
