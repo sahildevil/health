@@ -85,6 +85,11 @@ const AppNavigator = () => {
               component={MyEventsScreen}
               options={{headerShown: false}}
             />
+            <Stack.Screen
+              name="EventDetails"
+              component={EventDetailsScreen}
+              options={{headerShown: false}}
+            />
           </>
         )
       ) : (

@@ -3,54 +3,87 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+  Platform,
   ActivityIndicator,
   Alert,
-  StatusBar,
+  FlatList,
+  Linking,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { eventService } from '../services/api';
-import { useAuth } from '../context/AuthContext';
+
+// Event Status Badge Component (reused from HomeScreen)
+const EventStatusBadge = ({ status }) => {
+  let bgColor = '#FFF3E0'; // Default pending color
+  let textColor = '#E65100';
+  let iconName = 'clock-outline';
+  let label = 'Pending';
+
+  if (status === 'approved') {
+    bgColor = '#E8F5E9';
+    textColor = '#2E7D32';
+    iconName = 'check-circle';
+    label = 'Approved';
+  } else if (status === 'rejected') {
+    bgColor = '#FFEBEE';
+    textColor = '#C62828';
+    iconName = 'close-circle';
+    label = 'Rejected';
+  }
+
+  return (
+    <View style={[styles.badge, { backgroundColor: bgColor }]}>
+      <Icon
+        name={iconName}
+        size={12}
+        color={textColor}
+        style={{ marginRight: 4 }}
+      />
+      <Text style={[styles.badgeText, { color: textColor }]}>{label}</Text>
+    </View>
+  );
+};
 
 const EventDetailsScreen = ({ route, navigation }) => {
   const { eventId } = route.params;
+
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
 
   useEffect(() => {
-    const fetchEventDetails = async () => {
-      try {
-        setLoading(true);
-        const data = await eventService.getEventDetails(eventId);
-        setEvent(data);
-      } catch (error) {
-        console.error('Failed to load event details:', error);
-        Alert.alert(
-          'Error',
-          'Failed to load event details: ' + (error.message || 'Unknown error')
-        );
-        navigation.goBack();
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchEventDetails();
   }, [eventId]);
 
-  const formatDate = (dateString) => {
+  const fetchEventDetails = async () => {
+    try {
+      setLoading(true);
+      const eventData = await eventService.getEventById(eventId);
+      setEvent(eventData);
+    } catch (error) {
+      console.error('Failed to load event details:', error);
+      Alert.alert('Error', 'Failed to load event details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Format date function
+  const formatDate = dateString => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric',
     });
   };
 
-  const formatTime = (dateString) => {
+  // Format time function
+  const formatTime = dateString => {
     const date = new Date(dateString);
     return date.toLocaleTimeString('en-US', {
       hour: '2-digit',
@@ -58,39 +91,32 @@ const EventDetailsScreen = ({ route, navigation }) => {
     });
   };
 
-  const handleDeleteEvent = () => {
-    Alert.alert(
-      'Delete Event',
-      'Are you sure you want to delete this event? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              await eventService.deleteEvent(eventId);
-              Alert.alert('Success', 'Event deleted successfully', [
-                { text: 'OK', onPress: () => navigation.goBack() },
-              ]);
-            } catch (error) {
-              setLoading(false);
-              Alert.alert(
-                'Error',
-                'Failed to delete event: ' + (error.message || 'Unknown error')
-              );
-            }
-          },
-        },
-      ]
-    );
-  };
+  // Render speaker item
+  const renderSpeakerItem = ({ item }) => (
+    <View style={styles.speakerCard}>
+      <View style={styles.speakerIconContainer}>
+        <Icon name="account" size={24} color="#2e7af5" />
+      </View>
+      <View style={styles.speakerInfo}>
+        <Text style={styles.speakerName}>{item.name}</Text>
+        {item.title && <Text style={styles.speakerTitle}>{item.title}</Text>}
+        {item.bio && <Text style={styles.speakerBio}>{item.bio}</Text>}
+      </View>
+    </View>
+  );
+
+  // Render sponsor item
+  const renderSponsorItem = ({ item }) => (
+    <View style={styles.sponsorCard}>
+      <Text style={styles.sponsorName}>{item.name}</Text>
+      {item.level && <Text style={styles.sponsorLevel}>Level: {item.level}</Text>}
+    </View>
+  );
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#f7f9fc" />
+        <StatusBar barStyle="dark-content" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2e7af5" />
           <Text style={styles.loadingText}>Loading event details...</Text>
@@ -99,132 +125,119 @@ const EventDetailsScreen = ({ route, navigation }) => {
     );
   }
 
+  if (!event) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.errorContainer}>
+          <Icon name="alert-circle-outline" size={64} color="#ff6b6b" />
+          <Text style={styles.errorTitle}>Event Not Found</Text>
+          <Text style={styles.errorMessage}>
+            The event you're looking for doesn't exist or has been removed.
+          </Text>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f7f9fc" />
-      
+      <StatusBar barStyle="dark-content" />
+
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}>
+          onPress={() => navigation.goBack()}
+          style={styles.headerBackButton}>
           <Icon name="arrow-left" size={24} color="#2e7af5" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Event Details</Text>
-        {user && event && user.id === event.createdBy._id && (
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={handleDeleteEvent}>
-            <Icon name="delete" size={24} color="#ff4c4c" />
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity style={styles.headerActionButton}>
+          <Icon name="share-variant" size={24} color="#2e7af5" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scrollView}>
-        {/* Status Badge */}
-        <View style={[
-          styles.statusBadge,
-          event?.status === 'approved'
-            ? styles.approvedBadge
-            : event?.status === 'rejected'
-              ? styles.rejectedBadge
-              : styles.pendingBadge
-        ]}>
-          <Icon
-            name={
-              event?.status === 'approved'
-                ? 'check-circle'
-                : event?.status === 'rejected'
-                  ? 'close-circle'
-                  : 'clock-outline'
-            }
-            size={16}
-            color={
-              event?.status === 'approved'
-                ? '#2e7d32'
-                : event?.status === 'rejected'
-                  ? '#c62828'
-                  : '#e65100'
-            }
-            style={styles.statusIcon}
-          />
-          <Text style={[
-            styles.statusText,
-            {
-              color:
-                event?.status === 'approved'
-                  ? '#2e7d32'
-                  : event?.status === 'rejected'
-                    ? '#c62828'
-                    : '#e65100'
-            }
-          ]}>
-            {event?.status === 'approved'
-              ? 'Approved'
-              : event?.status === 'rejected'
-                ? 'Rejected'
-                : 'Pending Approval'}
-          </Text>
-        </View>
-
-        {/* Event Title and Type */}
-        <View style={styles.titleContainer}>
-          <Text style={styles.eventTitle}>{event?.title}</Text>
-          <View style={styles.typeContainer}>
-            <Text style={styles.eventType}>{event?.type} • {event?.mode}</Text>
+        {/* Event Header Section */}
+        <View style={styles.eventHeaderSection}>
+          <View style={styles.eventTypeAndStatus}>
+            <Text style={styles.eventType}>{event.type}</Text>
+            <EventStatusBadge status={event.status} />
           </View>
-        </View>
-
-        {/* Rejection Notes if applicable */}
-        {event?.status === 'rejected' && event?.verificationNotes && (
-          <View style={styles.rejectionContainer}>
-            <Text style={styles.rejectionTitle}>Reason for Rejection:</Text>
-            <Text style={styles.rejectionText}>{event.verificationNotes}</Text>
-          </View>
-        )}
-
-        {/* Event Details */}
-        <View style={styles.detailsContainer}>
-          <Text style={styles.sectionTitle}>Event Details</Text>
-          <Text style={styles.eventDescription}>{event?.description}</Text>
-
-          <View style={styles.detailItem}>
-            <Icon name="calendar-range" size={18} color="#666" />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Date</Text>
-              <Text style={styles.detailText}>
-                {formatDate(event?.startDate)} - {formatDate(event?.endDate)}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.detailItem}>
-            <Icon name="clock-outline" size={18} color="#666" />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Time</Text>
-              <Text style={styles.detailText}>
-                {formatTime(event?.startDate)} - {formatTime(event?.endDate)}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.detailItem}>
+          <Text style={styles.eventTitle}>{event.title}</Text>
+          <View style={styles.eventMode}>
             <Icon
-              name={event?.mode === 'Virtual' ? 'video' : 'map-marker'}
-              size={18}
+              name={event.mode === 'Virtual' ? 'video' : 'map-marker'}
+              size={16}
               color="#666"
             />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>
-                {event?.mode === 'Virtual' ? 'Platform' : 'Location'}
+            <Text style={styles.eventModeText}>{event.mode}</Text>
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.actionButtonsContainer}>
+          {event.status === 'approved' && (
+            <TouchableOpacity style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>Register Now</Text>
+            </TouchableOpacity>
+          )}
+          
+          <TouchableOpacity style={styles.secondaryButton}>
+            <Icon name="calendar-plus" size={18} color="#2e7af5" />
+            <Text style={styles.secondaryButtonText}>Add to Calendar</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Date and Time Section */}
+        <View style={styles.detailSection}>
+          <Text style={styles.sectionTitle}>Date & Time</Text>
+          <View style={styles.detailRow}>
+            <Icon name="calendar-range" size={20} color="#2e7af5" />
+            <View style={styles.detailTextContainer}>
+              <Text style={styles.detailLabel}>Start Date</Text>
+              <Text style={styles.detailText}>
+                {formatDate(event.startDate)} at {formatTime(event.startDate)}
               </Text>
-              <Text style={styles.detailText}>{event?.venue}</Text>
             </View>
           </View>
+          <View style={styles.detailRow}>
+            <Icon name="calendar-range" size={20} color="#2e7af5" />
+            <View style={styles.detailTextContainer}>
+              <Text style={styles.detailLabel}>End Date</Text>
+              <Text style={styles.detailText}>
+                {formatDate(event.endDate)} at {formatTime(event.endDate)}
+              </Text>
+            </View>
+          </View>
+        </View>
 
-          {event?.capacity && (
-            <View style={styles.detailItem}>
-              <Icon name="account-group" size={18} color="#666" />
-              <View style={styles.detailContent}>
+        {/* Venue Section */}
+        <View style={styles.detailSection}>
+          <Text style={styles.sectionTitle}>Location</Text>
+          <View style={styles.detailRow}>
+            <Icon
+              name={event.mode === 'Virtual' ? 'video' : 'map-marker'}
+              size={20}
+              color="#2e7af5"
+            />
+            <View style={styles.detailTextContainer}>
+              <Text style={styles.detailLabel}>
+                {event.mode === 'Virtual' ? 'Platform' : 'Venue'}
+              </Text>
+              <Text style={styles.detailText}>{event.venue}</Text>
+            </View>
+          </View>
+          
+          {event.capacity && (
+            <View style={styles.detailRow}>
+              <Icon name="account-group" size={20} color="#2e7af5" />
+              <View style={styles.detailTextContainer}>
                 <Text style={styles.detailLabel}>Capacity</Text>
                 <Text style={styles.detailText}>{event.capacity} attendees</Text>
               </View>
@@ -232,92 +245,136 @@ const EventDetailsScreen = ({ route, navigation }) => {
           )}
         </View>
 
-        {/* Organizer Information */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Organizer</Text>
-          <View style={styles.detailItem}>
-            <Icon name="account" size={18} color="#666" />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Name</Text>
-              <Text style={styles.detailText}>{event?.organizerName}</Text>
+        {/* Description Section */}
+        <View style={styles.detailSection}>
+          <Text style={styles.sectionTitle}>Description</Text>
+          <Text style={styles.description}>{event.description}</Text>
+        </View>
+
+        {/* Registration Information */}
+        <View style={styles.detailSection}>
+          <Text style={styles.sectionTitle}>Registration</Text>
+          <View style={styles.detailRow}>
+            <Icon name="currency-usd" size={20} color="#2e7af5" />
+            <View style={styles.detailTextContainer}>
+              <Text style={styles.detailLabel}>Registration Fee</Text>
+              <Text style={styles.detailText}>
+                {event.registrationFee === '0' || event.registrationFee === 0
+                  ? 'Free Event'
+                  : `$${event.registrationFee}`}
+              </Text>
             </View>
           </View>
-
-          <View style={styles.detailItem}>
-            <Icon name="email" size={18} color="#666" />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Email</Text>
-              <Text style={styles.detailText}>{event?.organizerEmail}</Text>
-            </View>
-          </View>
-
-          {event?.organizerPhone && (
-            <View style={styles.detailItem}>
-              <Icon name="phone" size={18} color="#666" />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Phone</Text>
-                <Text style={styles.detailText}>{event.organizerPhone}</Text>
+          
+          {event.website && (
+            <View style={styles.detailRow}>
+              <Icon name="web" size={20} color="#2e7af5" />
+              <View style={styles.detailTextContainer}>
+                <Text style={styles.detailLabel}>Website</Text>
+                <TouchableOpacity
+                  onPress={() => Linking.openURL(event.website)}>
+                  <Text style={styles.linkText}>{event.website}</Text>
+                </TouchableOpacity>
               </View>
             </View>
           )}
         </View>
 
         {/* Speakers Section */}
-        {event?.speakers && event.speakers.length > 0 && (
-          <View style={styles.sectionContainer}>
+        {event.speakers && event.speakers.length > 0 && (
+          <View style={styles.detailSection}>
             <Text style={styles.sectionTitle}>Speakers</Text>
-            {event.speakers.map((speaker, index) => (
-              <View key={index} style={styles.speakerItem}>
-                <View style={styles.speakerAvatar}>
-                  <Text style={styles.speakerInitial}>
-                    {speaker.name.charAt(0)}
-                  </Text>
-                </View>
-                <View style={styles.speakerContent}>
-                  <Text style={styles.speakerName}>{speaker.name}</Text>
-                  {speaker.title && (
-                    <Text style={styles.speakerTitle}>{speaker.title}</Text>
-                  )}
-                  {speaker.bio && (
-                    <Text style={styles.speakerBio}>{speaker.bio}</Text>
-                  )}
-                </View>
-              </View>
-            ))}
+            <FlatList
+              data={event.speakers}
+              renderItem={renderSpeakerItem}
+              keyExtractor={item => item.id}
+              scrollEnabled={false}
+            />
           </View>
         )}
 
         {/* Sponsors Section */}
-        {event?.sponsors && event.sponsors.length > 0 && (
-          <View style={styles.sectionContainer}>
+        {event.sponsors && event.sponsors.length > 0 && (
+          <View style={styles.detailSection}>
             <Text style={styles.sectionTitle}>Sponsors</Text>
-            {event.sponsors.map((sponsor, index) => (
-              <View key={index} style={styles.sponsorItem}>
-                <Text style={styles.sponsorName}>{sponsor.name}</Text>
-                {sponsor.level && (
-                  <Text style={styles.sponsorLevel}>{sponsor.level}</Text>
-                )}
-              </View>
-            ))}
+            <FlatList
+              data={event.sponsors}
+              renderItem={renderSponsorItem}
+              keyExtractor={item => item.id}
+              scrollEnabled={false}
+              horizontal={true}
+              contentContainerStyle={styles.sponsorsContainer}
+            />
           </View>
         )}
 
-        {/* Registration Information */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Registration</Text>
-          <Text style={styles.registrationInfo}>
-            {event?.registrationFee === '0'
-              ? 'This is a free event'
-              : `Registration Fee: $${event?.registrationFee}`}
-          </Text>
+        {/* Tags Section */}
+        {/* {event.tags && event.tags.length > 0 && (
+          <View style={styles.detailSection}>
+            <Text style={styles.sectionTitle}>Tags</Text>
+            <View style={styles.tagsContainer}>
+              {event.tags.map((tag, index) => (
+                <View key={index} style={styles.tag}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )} */}
+
+        {/* Organizer Information */}
+        <View style={styles.detailSection}>
+          <Text style={styles.sectionTitle}>Event Organizer</Text>
+          <View style={styles.detailRow}>
+            <Icon name="account" size={20} color="#2e7af5" />
+            <View style={styles.detailTextContainer}>
+              <Text style={styles.detailLabel}>Name</Text>
+              <Text style={styles.detailText}>{event.organizerName}</Text>
+            </View>
+          </View>
           
-          {event?.status === 'approved' && (
-            <TouchableOpacity style={styles.registerButton}>
-              <Text style={styles.registerButtonText}>Register Now</Text>
-            </TouchableOpacity>
+          <View style={styles.detailRow}>
+            <Icon name="email" size={20} color="#2e7af5" />
+            <View style={styles.detailTextContainer}>
+              <Text style={styles.detailLabel}>Email</Text>
+              <TouchableOpacity
+                onPress={() => Linking.openURL(`mailto:${event.organizerEmail}`)}>
+                <Text style={styles.linkText}>{event.organizerEmail}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          {event.organizerPhone && (
+            <View style={styles.detailRow}>
+              <Icon name="phone" size={20} color="#2e7af5" />
+              <View style={styles.detailTextContainer}>
+                <Text style={styles.detailLabel}>Phone</Text>
+                <TouchableOpacity
+                  onPress={() => Linking.openURL(`tel:${event.organizerPhone}`)}>
+                  <Text style={styles.linkText}>{event.organizerPhone}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           )}
         </View>
+
+        {/* Terms and Conditions */}
+        {event.termsAndConditions && (
+          <View style={styles.detailSection}>
+            <Text style={styles.sectionTitle}>Terms and Conditions</Text>
+            <Text style={styles.description}>{event.termsAndConditions}</Text>
+          </View>
+        )}
       </ScrollView>
+
+      {/* Fixed Bottom Action Button for Approved Events */}
+      {event.status === 'approved' && (
+        <View style={styles.bottomButtonContainer}>
+          <TouchableOpacity style={styles.bottomButton}>
+            <Text style={styles.bottomButtonText}>Register for this Event</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -326,29 +383,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f7f9fc',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    backgroundColor: 'white',
   },
-  backButton: {
-    padding: 8,
+  headerBackButton: {
+    padding: 4,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#333',
-    flex: 1,
-    textAlign: 'center',
   },
-  deleteButton: {
-    padding: 8,
+  headerActionButton: {
+    padding: 4,
+  },
+  scrollView: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -356,147 +414,179 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 16,
+    marginTop: 12,
     fontSize: 16,
     color: '#666',
   },
-  scrollView: {
+  errorContainer: {
     flex: 1,
-  },
-  statusBadge: {
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    padding: 24,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
     marginTop: 16,
-    marginLeft: 16,
+    marginBottom: 8,
   },
-  approvedBadge: {
-    backgroundColor: '#e8f5e9',
+  errorMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
   },
-  pendingBadge: {
-    backgroundColor: '#fff3e0',
+  backButton: {
+    backgroundColor: '#2e7af5',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
   },
-  rejectedBadge: {
-    backgroundColor: '#ffebee',
-  },
-  statusIcon: {
-    marginRight: 6,
-  },
-  statusText: {
-    fontSize: 14,
+  backButtonText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '500',
   },
-  titleContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 24,
+  eventHeaderSection: {
+    padding: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  eventTypeAndStatus: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  eventType: {
+    fontSize: 14,
+    color: '#2e7af5',
+    fontWeight: '500',
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   eventTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 8,
   },
-  typeContainer: {
+  eventMode: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  eventType: {
-    fontSize: 16,
+  eventModeText: {
+    fontSize: 14,
     color: '#666',
+    marginLeft: 6,
   },
-  rejectionContainer: {
-    backgroundColor: '#ffebee',
-    margin: 16,
-    marginTop: 0,
+  actionButtonsContainer: {
+    flexDirection: 'row',
     padding: 16,
-    borderRadius: 8,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  rejectionTitle: {
+  primaryButton: {
+    backgroundColor: '#2e7af5',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 1,
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  primaryButtonText: {
+    color: 'white',
     fontSize: 16,
     fontWeight: '600',
-    color: '#c62828',
-    marginBottom: 8,
   },
-  rejectionText: {
-    fontSize: 15,
-    color: '#333',
-    lineHeight: 22,
+  secondaryButton: {
+    backgroundColor: '#f0f7ff',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    marginLeft: 8,
   },
-  detailsContainer: {
-    backgroundColor: '#fff',
-    margin: 16,
+  secondaryButtonText: {
+    color: '#2e7af5',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  detailSection: {
     padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: 'white',
+    marginTop: 12,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
     marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    paddingBottom: 8,
   },
-  eventDescription: {
-    fontSize: 16,
-    color: '#333',
-    lineHeight: 24,
-    marginBottom: 20,
-  },
-  detailItem: {
+  detailRow: {
     flexDirection: 'row',
     marginBottom: 16,
   },
-  detailContent: {
+  detailTextContainer: {
     marginLeft: 12,
     flex: 1,
   },
   detailLabel: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+    color: '#888',
+    marginBottom: 2,
   },
   detailText: {
     fontSize: 16,
     color: '#333',
   },
-  sectionContainer: {
-    backgroundColor: '#fff',
-    margin: 16,
-    marginTop: 0,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+  description: {
+    fontSize: 16,
+    color: '#333',
+    lineHeight: 24,
   },
-  speakerItem: {
+  linkText: {
+    fontSize: 16,
+    color: '#2e7af5',
+    textDecorationLine: 'underline',
+  },
+  speakerCard: {
     flexDirection: 'row',
-    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    marginBottom: 12,
   },
-  speakerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#2e7af5',
+  speakerIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#e3f2fd',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  speakerInitial: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  speakerContent: {
+  speakerInfo: {
     flex: 1,
   },
   speakerName: {
@@ -515,34 +605,68 @@ const styles = StyleSheet.create({
     color: '#666',
     lineHeight: 20,
   },
-  sponsorItem: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+  sponsorsContainer: {
+    paddingVertical: 8,
+  },
+  sponsorCard: {
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    marginRight: 12,
+    minWidth: 150,
+    alignItems: 'center',
   },
   sponsorName: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#333',
+    marginBottom: 4,
+    textAlign: 'center',
   },
   sponsorLevel: {
     fontSize: 14,
     color: '#666',
-    marginTop: 2,
+    textAlign: 'center',
   },
-  registrationInfo: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 16,
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
-  registerButton: {
+  tag: {
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  tagText: {
+    color: '#2e7af5',
+    fontSize: 14,
+  },
+  bottomButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  bottomButton: {
     backgroundColor: '#2e7af5',
-    paddingVertical: 12,
+    padding: 16,
     borderRadius: 8,
     alignItems: 'center',
   },
-  registerButtonText: {
-    color: '#fff',
+  bottomButtonText: {
+    color: 'white',
     fontSize: 16,
     fontWeight: '600',
   },

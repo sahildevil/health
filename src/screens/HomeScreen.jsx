@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,57 @@ import {
   SafeAreaView,
   StatusBar,
   Platform,
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import {useAuth} from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
+import { eventService } from '../services/api';
 
-const HomeScreen = ({navigation}) => {
+// Event Status Badge Component (reused from MyEventsScreen)
+const EventStatusBadge = ({ status }) => {
+  let bgColor = '#FFF3E0'; // Default pending color
+  let textColor = '#E65100';
+  let iconName = 'clock-outline';
+  let label = 'Pending';
+
+  if (status === 'approved') {
+    bgColor = '#E8F5E9';
+    textColor = '#2E7D32';
+    iconName = 'check-circle';
+    label = 'Approved';
+  } else if (status === 'rejected') {
+    bgColor = '#FFEBEE';
+    textColor = '#C62828';
+    iconName = 'close-circle';
+    label = 'Rejected';
+  }
+
+  return (
+    <View style={[styles.badge, { backgroundColor: bgColor }]}>
+      <Icon
+        name={iconName}
+        size={12}
+        color={textColor}
+        style={{ marginRight: 4 }}
+      />
+      <Text style={[styles.badgeText, { color: textColor }]}>{label}</Text>
+    </View>
+  );
+};
+
+const HomeScreen = ({ navigation }) => {
   // Get user from auth context
-  const {user} = useAuth();
+  const { user } = useAuth();
+  
+  // State for events
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('my'); // 'my', 'ongoing', 'recommended'
 
   // Helper function to get proper greeting based on time of day
   const getGreeting = () => {
@@ -38,6 +81,120 @@ const HomeScreen = ({navigation}) => {
     // For non-doctors just use their first name
     return user.name.split(' ')[0];
   };
+
+  // Fetch events
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      // Fetch events based on active tab
+      let data;
+      switch (activeTab) {
+        case 'my':
+          data = await eventService.getMyEvents();
+          break;
+        case 'ongoing':
+          // Replace with your API call for ongoing events
+          data = await eventService.getOngoingEvents();
+          break;
+        case 'recommended':
+          // Replace with your API call for recommended events
+          data = await eventService.getRecommendedEvents();
+          break;
+        default:
+          data = await eventService.getMyEvents();
+      }
+      setEvents(data);
+    } catch (error) {
+      console.error('Failed to load events:', error);
+      Alert.alert('Error', 'Failed to load events.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEvents();
+    
+    // Refresh events when the screen comes into focus
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchEvents();
+    });
+
+    return unsubscribe;
+  }, [navigation, activeTab]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchEvents();
+  };
+
+  // Format date function (reused from MyEventsScreen)
+  const formatDate = dateString => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  // Render event item (similar to MyEventsScreen)
+  const renderEventItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.eventCard}
+      onPress={() => navigation.navigate('EventDetails', { eventId: item._id })}>
+      <View style={styles.eventHeader}>
+        <View>
+          <Text style={styles.eventType}>{item.type}</Text>
+          <Text style={styles.eventTitle}>{item.title}</Text>
+        </View>
+        <EventStatusBadge status={item.status} />
+      </View>
+
+      <Text style={styles.eventDescription} numberOfLines={2}>
+        {item.description}
+      </Text>
+
+      <View style={styles.eventDetails}>
+        <View style={styles.detailItem}>
+          <Icon name="calendar-range" size={16} color="#666" />
+          <Text style={styles.detailText}>
+            {formatDate(item.startDate)} - {formatDate(item.endDate)}
+          </Text>
+        </View>
+
+        <View style={styles.detailItem}>
+          <Icon
+            name={item.mode === 'Virtual' ? 'video' : 'map-marker'}
+            size={16}
+            color="#666"
+          />
+          <Text style={styles.detailText}>
+            {item.mode}: {item.venue}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.eventActions}>
+        <TouchableOpacity
+          style={styles.eventButton}
+          onPress={() =>
+            navigation.navigate('EventDetails', { eventId: item._id })
+          }>
+          <Text style={styles.eventButtonText}>View Details</Text>
+        </TouchableOpacity>
+        
+        {/* Display Register button only for approved events */}
+        {item.status === 'approved' && (
+          <TouchableOpacity
+            style={[styles.eventButton, styles.registerButton]}>
+            <Text style={styles.registerButtonText}>Register</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -64,7 +221,10 @@ const HomeScreen = ({navigation}) => {
       </View>
 
       {/* Stats Cards */}
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={styles.scrollView} 
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }>
         <View style={styles.statsContainer}>
           {/* Upcoming Conferences Card */}
           <View style={styles.card}>
@@ -79,28 +239,18 @@ const HomeScreen = ({navigation}) => {
           {/* Meetings This Week Card */}
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <Ionicons name="people-outline" size={24} color={'#ffffff'} />
+              <Ionicons name="calendar-outline" size={24} color={'#ffffff'} />
               <Text style={styles.cardTitle}>Meetings This Week</Text>
             </View>
             <Text style={styles.statNumber}>7</Text>
             <Text style={styles.statSubtext}>Next one in 2 days</Text>
           </View>
 
-          {/* CME Hours Completed Card */}
-          {/* <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>CME Hours Completed</Text>
-              <Icon name="clock-outline" size={20} color="#666" />
-            </View>
-            <Text style={styles.statNumber}>12.5</Text>
-            <Text style={styles.statSubtext}>+2.5 from last month</Text>
-          </View> */}
-
           {/* Available CME Courses Card */}
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Available CME Courses</Text>
-              <Icon name="book-open-variant" size={20} color="#ffffff" />
+              <Icon name="book-open-variant" size={24} color="#ffffff" />
+              <Text style={styles.cardTitle}>Available Courses</Text>
             </View>
             <Text style={styles.statNumber}>24</Text>
             <Text style={styles.statSubtext}>5 new courses added</Text>
@@ -109,66 +259,64 @@ const HomeScreen = ({navigation}) => {
 
         {/* Events Tabs */}
         <View style={styles.tabContainer}>
-          <TouchableOpacity style={[styles.tab, styles.activeTab]}>
-            <Text style={[styles.tabText, styles.activeTabText]}>
-              Upcoming Events
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'my' && styles.activeTab]}
+            onPress={() => setActiveTab('my')}>
+            <Text style={[styles.tabText, activeTab === 'my' && styles.activeTabText]}>
+              My Events
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.tab}>
-            <Text style={styles.tabText}>Ongoing Events</Text>
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'ongoing' && styles.activeTab]}
+            onPress={() => setActiveTab('ongoing')}>
+            <Text style={[styles.tabText, activeTab === 'ongoing' && styles.activeTabText]}>
+              Ongoing Events
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.tab}>
-            <Text style={styles.tabText}>Recommended</Text>
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'recommended' && styles.activeTab]}
+            onPress={() => setActiveTab('recommended')}>
+            <Text style={[styles.tabText, activeTab === 'recommended' && styles.activeTabText]}>
+              Recommended
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Event Cards */}
         <View style={styles.eventCardsContainer}>
-          {/* Cardiology Summit */}
-          <View style={styles.eventCard}>
-            <View style={styles.eventBadgeContainer}>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>Conference</Text>
-              </View>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>Upcoming</Text>
-              </View>
+          {loading && !refreshing ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#2e7af5" />
+              <Text style={styles.loadingText}>Loading events...</Text>
             </View>
-            <Text style={styles.eventTitle}>Cardiology Summit 2025</Text>
-            <Text style={styles.eventDescription}>
-              The latest advancements in cardiovascular care and research,
-              featuring leading experts from around the world.
-            </Text>
-            <View style={styles.eventDetails}>
-              <View style={styles.eventDetailItem}>
-                <Icon name="calendar" size={16} color="#666" />
-                <Text style={styles.eventDetailText}>
-                  Jun 15, 2025 - Jun 17, 2025
-                </Text>
-              </View>
-              <View style={styles.eventDetailItem}>
-                <Icon name="map-marker" size={16} color="#666" />
-                <Text style={styles.eventDetailText}>
-                  New York Medical Center
-                </Text>
-              </View>
-              <View style={styles.eventDetailItem}>
-                <Icon name="account-group" size={16} color="#666" />
-                <Text style={styles.eventDetailText}>
-                  Organized by American Cardiology Foundation
-                </Text>
-              </View>
+          ) : events.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Icon name="calendar-blank" size={64} color="#ccc" />
+              <Text style={styles.emptyTitle}>No Events Found</Text>
+              <Text style={styles.emptySubtitle}>
+                {activeTab === 'my' 
+                  ? 'Create your first medical event or browse recommended events'
+                  : activeTab === 'ongoing'
+                  ? 'There are no ongoing events at the moment'
+                  : 'We don\'t have any recommendations for you yet'}
+              </Text>
+              {activeTab === 'my' && (
+                <TouchableOpacity
+                  style={styles.createEventButton}
+                  onPress={() => navigation.navigate('CreateConference')}>
+                  <Text style={styles.createEventButtonText}>Create Event</Text>
+                </TouchableOpacity>
+              )}
             </View>
-            <View style={styles.eventButtonContainer}>
-              <TouchableOpacity style={styles.eventButton}>
-                <Text style={styles.eventButtonText}>View Details</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.eventButton, styles.registerButton]}>
-                <Text style={styles.registerButtonText}>Register</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          ) : (
+            <FlatList
+              data={events}
+              renderItem={renderEventItem}
+              keyExtractor={item => item._id}
+              scrollEnabled={false}
+              nestedScrollEnabled={true}
+            />
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -232,7 +380,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cardHeader: {
-    // flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -278,6 +425,7 @@ const styles = StyleSheet.create({
   },
   eventCardsContainer: {
     padding: 16,
+    paddingBottom: 80,
   },
   eventCard: {
     backgroundColor: 'white',
@@ -290,53 +438,66 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  eventBadgeContainer: {
+  eventHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 8,
   },
-  badge: {
-    backgroundColor: '#EBE9FD',
-    borderRadius: 16,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginRight: 8,
-  },
-  badgeText: {
+  eventType: {
+    fontSize: 13,
     color: '#2e7af5',
-    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 4,
   },
   eventTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
+    marginRight: 8,
+    maxWidth: '80%',
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   eventDescription: {
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   eventDetails: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  eventDetailItem: {
+  detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
   },
-  eventDetailText: {
+  detailText: {
     fontSize: 14,
     color: '#666',
     marginLeft: 8,
   },
-  eventButtonContainer: {
+  eventActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
   },
   eventButton: {
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
   },
   eventButtonText: {
     color: '#2e7af5',
@@ -345,33 +506,49 @@ const styles = StyleSheet.create({
   },
   registerButton: {
     backgroundColor: '#2e7af5',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
   },
   registerButtonText: {
     color: 'white',
     fontSize: 14,
     fontWeight: '500',
   },
-  bottomNav: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    justifyContent: 'space-around',
-  },
-  navItem: {
+  loadingContainer: {
+    padding: 32,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  navText: {
-    fontSize: 12,
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
     color: '#666',
-    marginTop: 4,
   },
-  activeNavText: {
-    color: '#2e7af5',
+  emptyContainer: {
+    padding: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  createEventButton: {
+    backgroundColor: '#2e7af5',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  createEventButtonText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '500',
   },
 });
