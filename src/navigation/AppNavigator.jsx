@@ -87,6 +87,11 @@ const AppNavigator = () => {
               options={{headerShown: false}}
             />
             <Stack.Screen name="UploadDocuments" component={UploadDocumentsScreen} />
+            <Stack.Screen
+              name="EventDetails"
+              component={EventDetailsScreen}
+              options={{headerShown: false}}
+            />
           </>
         )
       ) : (
