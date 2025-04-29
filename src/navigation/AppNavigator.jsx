@@ -22,6 +22,7 @@ import Profile from '../screens/Profile';
 import CreateConferenceScreen from '../screens/CreateConferenceScreen';
 import RegisteredEventsScreen from '../screens/RegisteredEventsScreen';
 import MyEventsScreen from '../screens/MyEventsScreen';
+import UploadDocumentsScreen from '../screens/UploadDocumentsScreen';
 
 const Stack = createStackNavigator();
 const AdminStack = createStackNavigator();
@@ -85,6 +86,7 @@ const AppNavigator = () => {
               component={MyEventsScreen}
               options={{headerShown: false}}
             />
+            <Stack.Screen name="UploadDocuments" component={UploadDocumentsScreen} />
           </>
         )
       ) : (

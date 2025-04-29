@@ -17,6 +17,7 @@ import * as ImagePicker from 'react-native-image-picker';
 import RNFS from 'react-native-fs';
 // Import the WebView document picker
 import WebViewDocumentPicker from '../components/WebViewDocumentPicker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SignUpScreen = ({navigation}) => {
   const [step, setStep] = useState(1);
@@ -120,7 +121,8 @@ const SignUpScreen = ({navigation}) => {
     });
   };
 
-  // Fix the handleUploadDocuments function
+  // Update the handleUploadDocuments function with a non-Expo approach
+
   const handleUploadDocuments = async () => {
     if (documents.length === 0) {
       return [];
@@ -130,46 +132,84 @@ const SignUpScreen = ({navigation}) => {
 
     try {
       const uploadedDocs = [];
+      const token = await getAuthToken();
 
       for (const doc of documents) {
-        // Process the document based on its URI format
-        let base64Data;
-        if (doc.uri.startsWith('data:')) {
-          // Extract the base64 part from data URL
-          base64Data = doc.uri.split(',')[1] || '';
-        } else {
-          try {
-            // Read the file as base64
-            base64Data = await RNFS.readFile(doc.uri, 'base64');
-          } catch (err) {
-            console.error('Error reading file:', err);
-            // Use a placeholder if reading fails
-            base64Data = 'file-read-error';
-          }
+        console.log(`Uploading document: ${doc.name}`);
+
+        // Create form data
+        const formData = new FormData();
+
+        // Add file to form data with appropriate properties
+        formData.append('document', {
+          uri: Platform.OS === 'ios' ? doc.uri.replace('file://', '') : doc.uri,
+          type: doc.type || 'application/octet-stream',
+          name: doc.name || `file-${Date.now()}.${doc.uri.split('.').pop()}`,
+        });
+
+        // Log the form data for debugging
+        console.log('FormData created:', {
+          uri: doc.uri,
+          type: doc.type,
+          name: doc.name,
+        });
+
+        // Upload to our server endpoint
+        const response = await fetch(
+          'http://192.168.1.15:5000/api/uploads/document',
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data',
+            },
+            body: formData,
+          },
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Upload failed:', errorText);
+          throw new Error(`Upload failed: ${response.status} ${errorText}`);
         }
 
-        // Create a document object with the required fields
+        const result = await response.json();
+        console.log('Upload result:', result);
+
         uploadedDocs.push({
           name: doc.name,
           type: doc.type,
           size: doc.size,
-          preview: base64Data.substring(0, 1000), // Store more data for preview
+          url: result.url,
+          public_id: result.public_id,
+          resource_type: result.resource_type || 'image',
           uploadDate: new Date().toISOString(),
           verified: false,
         });
       }
 
-      console.log(`Prepared ${uploadedDocs.length} documents for upload`);
+      console.log(`Successfully uploaded ${uploadedDocs.length} documents`);
       return uploadedDocs;
     } catch (error) {
       console.error('Document upload error:', error);
       Alert.alert(
         'Upload Error',
-        'Failed to prepare documents: ' + error.message,
+        'Failed to upload documents: ' + error.message,
       );
       return [];
     } finally {
       setUploading(false);
+    }
+  };
+
+  // Helper function to get the auth token
+  const getAuthToken = async () => {
+    try {
+      const token = await AsyncStorage.getItem('@token');
+      return token;
+    } catch (error) {
+      console.error('Failed to get auth token', error);
+      return null;
     }
   };
 

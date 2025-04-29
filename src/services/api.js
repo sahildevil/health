@@ -250,4 +250,27 @@ export const eventService = {
   },
 };
 
+// User services
+export const userService = {
+  // Get current user's documents
+  getMyDocuments: async () => {
+    try {
+      const response = await api.get('/users/my-documents');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Upload new documents
+  uploadDocuments: async documents => {
+    try {
+      const response = await api.post('/users/documents', {documents});
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+};
+
 export default api;

@@ -9,6 +9,7 @@ import {
   Modal,
   Image,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
@@ -72,18 +73,41 @@ const Profile = ({navigation}) => {
 
           <View style={styles.documentContent}>
             {isImage ? (
-              <Image
-                source={{
-                  uri: `data:${viewingDocument.type};base64,${viewingDocument.preview}`,
-                }}
-                style={styles.documentImage}
-                resizeMode="contain"
-              />
+              viewingDocument.url ? (
+                <Image
+                  source={{uri: viewingDocument.url}}
+                  style={styles.documentImage}
+                  resizeMode="contain"
+                  onError={e => {
+                    console.error('Image loading error:', e.nativeEvent.error);
+                    console.log('Attempted to load URL:', viewingDocument.url);
+                  }}
+                  onLoad={() =>
+                    console.log(
+                      'Image loaded successfully:',
+                      viewingDocument.url,
+                    )
+                  }
+                />
+              ) : (
+                <View style={styles.pdfPlaceholder}>
+                  <Icon name="image-off" size={80} color="#e53935" />
+                  <Text style={styles.pdfText}>
+                    Image preview not available
+                  </Text>
+                  <Text style={styles.pdfHint}>The image URL is missing</Text>
+                </View>
+              )
             ) : (
               <View style={styles.pdfPlaceholder}>
                 <Icon name="file-pdf-box" size={80} color="#e53935" />
                 <Text style={styles.pdfText}>{viewingDocument.name}</Text>
-                <Text style={styles.pdfHint}>PDF preview not available</Text>
+                <Text style={styles.pdfHint}>
+                  <TouchableOpacity
+                    onPress={() => Linking.openURL(viewingDocument.url)}>
+                    <Text style={styles.pdfLink}>Open PDF</Text>
+                  </TouchableOpacity>
+                </Text>
               </View>
             )}
 
@@ -213,7 +237,15 @@ const Profile = ({navigation}) => {
 
             {/* Add Documents Section */}
             <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>My Documents</Text>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>My Documents</Text>
+                <TouchableOpacity
+                  style={styles.addDocButton}
+                  onPress={() => navigation.navigate('UploadDocuments')}>
+                  <Icon name="plus" size={16} color="#fff" />
+                  <Text style={styles.addDocText}>Add Document</Text>
+                </TouchableOpacity>
+              </View>
 
               {loading ? (
                 <View style={styles.loadingContainer}>
@@ -556,6 +588,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  pdfLink: {
+    color: '#2e7af5',
+    textDecorationLine: 'underline',
+  },
   documentStatus: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -593,6 +629,25 @@ const styles = StyleSheet.create({
   notesText: {
     fontSize: 14,
     color: '#666',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  addDocButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2e7af5',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  addDocText: {
+    color: '#fff',
+    fontWeight: '500',
+    marginLeft: 8,
   },
 });
 
