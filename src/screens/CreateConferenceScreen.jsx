@@ -68,7 +68,7 @@ const CreateConferenceScreen = ({navigation}) => {
     return `${date.getHours().toString().padStart(2, '0')}:${date
       .getMinutes()
       .toString()
-      .padStart(2, '0')}`;
+      .padStart(2, '0')}:00`;
   };
 
   const handleStartDateChange = (event, selectedDate) => {
@@ -208,6 +208,8 @@ const CreateConferenceScreen = ({navigation}) => {
       organizerPhone,
       startDate: combinedStartDate.toISOString(),
       endDate: combinedEndDate.toISOString(),
+      start_time: formatTime(startTime),  // Must match backend field name
+      end_time: formatTime(endTime),      // Must match backend field name
       type: conferenceType,
       mode: conferenceMode,
       capacity: capacity ? parseInt(capacity, 10) : null,

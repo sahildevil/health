@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -11,18 +11,33 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-} from "react-native";
-import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import { Calendar } from "react-native-calendars";
-import { eventService } from "../services/api"; // Import the API service
+} from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {Calendar} from 'react-native-calendars';
+import {eventService} from '../services/api'; // Import the API service
 
-const ConferencesScreen = ({ navigation }) => {
-  const [activeTab, setActiveTab] = useState("All Events");
-  const [searchQuery, setSearchQuery] = useState("");
+const ConferencesScreen = ({navigation}) => {
+  const [activeTab, setActiveTab] = useState('All Events');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState('');
   const [events, setEvents] = useState([]); // State for events
   const [loading, setLoading] = useState(true); // State for loading
+
+  const formatDate = (dateString) => {
+    const options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+    return new Date(dateString).toLocaleDateString('en-US', options);
+  };
+
+  // Helper function to format time
+  const formatTime = (timeString) => {
+    if (!timeString) return '';
+    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
 
   // Fetch events from the database
   const fetchEvents = async () => {
@@ -31,8 +46,8 @@ const ConferencesScreen = ({ navigation }) => {
       const data = await eventService.getAllEvents(); // Fetch events from API
       setEvents(data);
     } catch (error) {
-      console.error("Failed to fetch events:", error);
-      Alert.alert("Error", "Failed to load events.");
+      console.error('Failed to fetch events:', error);
+      Alert.alert('Error', 'Failed to load events.');
     } finally {
       setLoading(false);
     }
@@ -43,18 +58,21 @@ const ConferencesScreen = ({ navigation }) => {
   }, []);
 
   // Filter events based on active tab, search query, and selected date
-  const filteredEvents = events.filter((event) => {
+  const filteredEvents = events.filter(event => {
     // Filter based on active tab
-    if (activeTab === "Conferences" && event.type !== "Conference") {
+    if (activeTab === 'Conferences' && event.type !== 'Conference') {
       return false;
     }
-    
-    if (activeTab === "Meetings" && event.type !== "Meeting") {
+
+    if (activeTab === 'Meetings' && event.type !== 'Meeting') {
       return false;
     }
 
     // Filter based on search query
-    if (searchQuery && !event.title.toLowerCase().includes(searchQuery.toLowerCase())) {
+    if (
+      searchQuery &&
+      !event.title.toLowerCase().includes(searchQuery.toLowerCase())
+    ) {
       return false;
     }
 
@@ -65,14 +83,17 @@ const ConferencesScreen = ({ navigation }) => {
 
     return true;
   });
+  
 
-  const renderEventCard = (event) => (
+  const renderEventCard = event => (
     <View style={styles.eventCard} key={event.id}>
       <View style={styles.eventBadgeContainer}>
-        <View style={[styles.badge, styles[event.type.toLowerCase() + "Badge"]]}>
+        <View
+          style={[styles.badge, styles[event.type.toLowerCase() + 'Badge']]}>
           <Text style={styles.badgeText}>{event.type}</Text>
         </View>
-        <View style={[styles.badge, styles[event.status.toLowerCase() + "Badge"]]}>
+        <View
+          style={[styles.badge, styles[event.status.toLowerCase() + 'Badge']]}>
           <Text style={styles.badgeText}>{event.status}</Text>
         </View>
       </View>
@@ -84,9 +105,17 @@ const ConferencesScreen = ({ navigation }) => {
         <View style={styles.eventDetailItem}>
           <Icon name="calendar" size={16} color="#666" />
           <Text style={styles.eventDetailText}>
-            {event.start_date} - {event.end_date}
+            {formatDate(event.start_date)} - {formatDate(event.end_date)}
           </Text>
         </View>
+
+        <View style={styles.eventDetailItem}>
+          <Icon name="clock" size={16} color="#666" />
+          <Text style={styles.eventDetailText}>
+            {formatTime(event.start_time)} - {formatTime(event.end_time)}
+          </Text>
+        </View>
+        
         <View style={styles.eventDetailItem}>
           <Icon name="map-marker" size={16} color="#666" />
           <Text style={styles.eventDetailText}>{event.venue}</Text>
@@ -100,14 +129,14 @@ const ConferencesScreen = ({ navigation }) => {
       <View style={styles.eventButtonContainer}>
         <TouchableOpacity
           style={styles.eventButton}
-          onPress={() => navigation.navigate("EventDetails", { eventId: event.id })}
-        >
+          onPress={() =>
+            navigation.navigate('EventDetails', {eventId: event.id})
+          }>
           <Text style={styles.eventButtonText}>View Details</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.eventButton, styles.registerButton]}
-          onPress={() => {}}
-        >
+          onPress={() => {}}>
           <Text style={styles.registerButtonText}>Register</Text>
         </TouchableOpacity>
       </View>
@@ -123,12 +152,13 @@ const ConferencesScreen = ({ navigation }) => {
         <View style={styles.headerTitleContainer}>
           <View>
             <Text style={styles.headerTitle}>Events</Text>
-            <Text style={styles.headerSubtitle}>Browse and Register For Events.</Text>
+            <Text style={styles.headerSubtitle}>
+              Browse and Register For Events.
+            </Text>
           </View>
           <TouchableOpacity
             style={styles.createButton}
-            onPress={() => navigation.navigate("CreateConference")}
-          >
+            onPress={() => navigation.navigate('CreateConference')}>
             <Icon name="plus" size={18} color="#fff" />
             <Text style={styles.createButtonText}>Create</Text>
           </TouchableOpacity>
@@ -138,7 +168,12 @@ const ConferencesScreen = ({ navigation }) => {
       {/* Search and Filter */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
-          <Icon name="magnify" size={20} color="#999" style={styles.searchIcon} />
+          <Icon
+            name="magnify"
+            size={20}
+            color="#999"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search events..."
@@ -150,22 +185,23 @@ const ConferencesScreen = ({ navigation }) => {
 
         <TouchableOpacity
           style={styles.datePickerButton}
-          onPress={() => setShowDatePicker(!showDatePicker)}
-        >
+          onPress={() => setShowDatePicker(!showDatePicker)}>
           <Icon name="calendar" size={20} color="#666" />
-          <Text style={styles.datePickerText}>{selectedDate || "Search by date"}</Text>
+          <Text style={styles.datePickerText}>
+            {selectedDate || 'Search by date'}
+          </Text>
         </TouchableOpacity>
       </View>
 
       {showDatePicker && (
         <Calendar
           style={styles.calendar}
-          onDayPress={(day) => {
+          onDayPress={day => {
             setSelectedDate(day.dateString);
             setShowDatePicker(false);
           }}
           markedDates={{
-            [selectedDate]: { selected: true, selectedColor: "#2e7af5" },
+            [selectedDate]: {selected: true, selectedColor: '#2e7af5'},
           }}
         />
       )}
@@ -190,11 +226,15 @@ const ConferencesScreen = ({ navigation }) => {
 
       {/* Event Cards */}
       {loading ? (
-        <ActivityIndicator size="large" color="#2e7af5" style={{ marginTop: 20 }} />
+        <ActivityIndicator
+          size="large"
+          color="#2e7af5"
+          style={{marginTop: 20}}
+        />
       ) : (
         <ScrollView style={styles.scrollView}>
           <View style={styles.eventsContainer}>
-            {filteredEvents.map((event) => renderEventCard(event))}
+            {filteredEvents.map(event => renderEventCard(event))}
           </View>
         </ScrollView>
       )}
