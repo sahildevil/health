@@ -1,14 +1,8 @@
 import axios from 'axios';
 
-// Base URL for API calls - adjust based on your development environment
-// For Android Emulator to access localhost on host machine:
-const API_URL = 'http://192.168.1.7:5000/api';
 
-// For iOS Simulator:
-// const API_URL = 'http://localhost:5000/api';
-
-// For physical devices testing, use your computer's IP address:
-// const API_URL = 'http://192.168.X.X:5000/api';
+// Base URL for API calls
+const API_URL = 'http://192.168.1.15:5000/api';
 
 // Create axios instance
 const api = axios.create({
@@ -25,18 +19,13 @@ api.interceptors.response.use(
   error => {
     console.log('API Error:', error);
 
-    // Network error
     if (!error.response) {
       return Promise.reject({
-        message:
-          'Network error - check your connection and make sure the server is running',
+        message: 'Network error - check your connection and make sure the server is running',
       });
     }
 
-    // Return error data if available
-    return Promise.reject(
-      error.response.data || {message: 'An error occurred with the request'},
-    );
+    return Promise.reject(error.response.data || { message: 'An error occurred with the request' });
   },
 );
 
@@ -60,7 +49,6 @@ export const authService = {
     }
   },
 
-  // Add auth token to requests
   setAuthToken: token => {
     if (token) {
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -154,40 +142,70 @@ export const eventService = {
   // Create a new event
   createEvent: async eventData => {
     try {
+      console.log('Attempting to create event with data:', eventData);
+      
+      // Use the API to send to backend, not directly to Supabase
       const response = await api.post('/events', eventData);
+      console.log('Event created successfully:', response.data);
       return response.data;
     } catch (error) {
+      console.error('Create event error:', error);
       throw error;
     }
   },
 
-  // Get approved events or own events
-  getEvents: async () => {
+  // Get all events
+  getAllEvents: async () => {
     try {
-      const response = await api.get('/events');
+      const response = await api.get("/events"); // Call the backend API
       return response.data;
     } catch (error) {
+      console.error("Get all events error:", error);
       throw error;
     }
   },
 
-  getEventById: async (eventId) => {
-    try {
-      const response = await api.get(`/events/${eventId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching event:', error);
-      throw error;
-    }
-  },
-  
-
-  // Get events created by current user
+  // Get events for current user
   getMyEvents: async () => {
     try {
       const response = await api.get('/events/my-events');
       return response.data;
     } catch (error) {
+      console.error('Get my events error:', error);
+      throw error;
+    }
+  },
+
+  // Get ongoing events
+  getOngoingEvents: async () => {
+    try {
+      const response = await api.get('/events/ongoing');
+      return response.data;
+    } catch (error) {
+      console.error('Get ongoing events error:', error);
+      throw error;
+    }
+  },
+
+  // Get recommended events (you may need to create a new endpoint for this)
+  getRecommendedEvents: async () => {
+    try {
+      // This is a placeholder - You might want to create a dedicated endpoint
+      const response = await api.get('/events?recommended=true');
+      return response.data;
+    } catch (error) {
+      console.error('Get recommended events error:', error);
+      throw error;
+    }
+  },
+
+  // Get events the user is registered for
+  getRegisteredEvents: async () => {
+    try {
+      const response = await api.get('/events/registered');
+      return response.data;
+    } catch (error) {
+      console.error('Get registered events error:', error);
       throw error;
     }
   },
@@ -198,24 +216,33 @@ export const eventService = {
       const response = await api.get('/events/pending');
       return response.data;
     } catch (error) {
+      console.error('Get pending events error:', error);
       throw error;
     }
   },
-  getRegisteredEvents: async () => {
+
+  // Get event by ID
+  getEventById: async eventId => {
     try {
-      const response = await api.get('/events/registered');
+      const response = await api.get(`/events/${eventId}`);
       return response.data;
     } catch (error) {
+      console.error('Get event details error:', error);
       throw error;
     }
   },
 
   // Approve an event (admin only)
   approveEvent: async (eventId, notes = '') => {
+    if (!eventId) {
+      throw new Error('Event ID is required');
+    }
+
     try {
-      const response = await api.put(`/events/${eventId}/approve`, {notes});
+      const response = await api.put(`/admin/events/${eventId}/approve`, { notes });
       return response.data;
     } catch (error) {
+      console.error('Approve event error:', error);
       throw error;
     }
   },
@@ -226,6 +253,7 @@ export const eventService = {
       const response = await api.put(`/events/${eventId}/reject`, {notes});
       return response.data;
     } catch (error) {
+      console.error('Reject event error:', error);
       throw error;
     }
   },
@@ -236,6 +264,7 @@ export const eventService = {
       const response = await api.delete(`/events/${eventId}`);
       return response.data;
     } catch (error) {
+      console.error('Delete event error:', error);
       throw error;
     }
   },
@@ -246,16 +275,7 @@ export const eventService = {
       const response = await api.post(`/events/${eventId}/register`);
       return response.data;
     } catch (error) {
-      throw error;
-    }
-  },
-
-  // Get event details
-  getEventDetails: async eventId => {
-    try {
-      const response = await api.get(`/events/${eventId}`);
-      return response.data;
-    } catch (error) {
+      console.error('Event registration error:', error);
       throw error;
     }
   },

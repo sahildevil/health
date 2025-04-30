@@ -80,7 +80,7 @@ const Profile = ({navigation}) => {
                   resizeMode="contain"
                   onError={e => {
                     console.error('Image loading error:', e.nativeEvent.error);
-                    console.log('Attempted to load URL:', viewingDocument.url);
+                    console.log('Failed to load URL:', viewingDocument.url);
                   }}
                   onLoad={() =>
                     console.log(

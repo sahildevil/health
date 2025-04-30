@@ -24,6 +24,7 @@ const EventApprovalScreen = ({ navigation }) => {
   const [verificationNotes, setVerificationNotes] = useState('');
   const [isApproving, setIsApproving] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchPendingEvents = async () => {
     try {
@@ -51,30 +52,60 @@ const EventApprovalScreen = ({ navigation }) => {
   };
 
   const handleVerificationSubmit = async () => {
-    if (!selectedEvent) return;
-    
+    if (!selectedEvent || !selectedEvent.id) {
+      Alert.alert('Error', 'Event ID is missing or invalid.');
+      return;
+    }
+  
     try {
       setActionLoading(true);
-      
+  
       if (isApproving) {
-        await eventService.approveEvent(selectedEvent._id, verificationNotes);
+        await eventService.approveEvent(selectedEvent.id, verificationNotes); // Use `id`, not `_id`
         Alert.alert('Success', 'Event has been approved');
       } else {
-        await eventService.rejectEvent(selectedEvent._id, verificationNotes);
+        await eventService.rejectEvent(selectedEvent.id, verificationNotes); // Use `id`, not `_id`
         Alert.alert('Success', 'Event has been rejected');
       }
-      
+  
       // Remove the event from the list
-      setEvents(events.filter(event => event._id !== selectedEvent._id));
+      setEvents(events.filter(event => event.id !== selectedEvent.id));
       setModalVisible(false);
     } catch (err) {
       Alert.alert(
-        'Error', 
-        `Failed to ${isApproving ? 'approve' : 'reject'} event: ` + 
-        (err.message || 'Unknown error')
+        'Error',
+        `Failed to ${isApproving ? 'approve' : 'reject'} event: ` +
+          (err.message || 'Unknown error')
       );
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    try {
+      setIsSubmitting(true);
+      console.log("Approving event with ID:", selectedEvent?.id); // Debug to check ID
+
+      if (!selectedEvent || !selectedEvent.id) {
+        Alert.alert("Error", "Event ID is missing.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      await eventService.approveEvent(selectedEvent.id, verificationNotes);
+      setModalVisible(false);
+      setVerificationNotes('');
+      
+      // Update events list by filtering out the approved event
+      setEvents(events.filter(event => event.id !== selectedEvent.id));
+      
+      Alert.alert("Success", "Event has been approved successfully.");
+    } catch (error) {
+      console.error("Approval error:", error);
+      Alert.alert("Error", `Failed to approve event: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

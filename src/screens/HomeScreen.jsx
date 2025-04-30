@@ -106,7 +106,7 @@ const HomeScreen = ({ navigation }) => {
       setEvents(data);
     } catch (error) {
       console.error('Failed to load events:', error);
-      Alert.alert('Error', 'Failed to load events.');
+      //Alert.alert('Error', 'Failed to load events.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -143,7 +143,7 @@ const HomeScreen = ({ navigation }) => {
   const renderEventItem = ({ item }) => (
     <TouchableOpacity
       style={styles.eventCard}
-      onPress={() => navigation.navigate('EventDetails', { eventId: item._id })}>
+      onPress={() => navigation.navigate('EventDetails', { eventId: item.id })}>
       <View style={styles.eventHeader}>
         <View>
           <Text style={styles.eventType}>{item.type}</Text>
@@ -180,7 +180,7 @@ const HomeScreen = ({ navigation }) => {
         <TouchableOpacity
           style={styles.eventButton}
           onPress={() =>
-            navigation.navigate('EventDetails', { eventId: item._id })
+            navigation.navigate('EventDetails', { eventId: item.id })
           }>
           <Text style={styles.eventButtonText}>View Details</Text>
         </TouchableOpacity>
@@ -312,7 +312,7 @@ const HomeScreen = ({ navigation }) => {
             <FlatList
               data={events}
               renderItem={renderEventItem}
-              keyExtractor={item => item._id}
+              keyExtractor={item => item.id}
               scrollEnabled={false}
               nestedScrollEnabled={true}
             />

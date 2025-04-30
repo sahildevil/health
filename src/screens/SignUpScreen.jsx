@@ -18,6 +18,7 @@ import RNFS from 'react-native-fs';
 // Import the WebView document picker
 import WebViewDocumentPicker from '../components/WebViewDocumentPicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import api, { userService } from '../services/api';
 
 const SignUpScreen = ({navigation}) => {
   const [step, setStep] = useState(1);
@@ -123,84 +124,72 @@ const SignUpScreen = ({navigation}) => {
 
   // Update the handleUploadDocuments function with a non-Expo approach
 
-  const handleUploadDocuments = async () => {
-    if (documents.length === 0) {
-      return [];
-    }
+// In handleUploadDocuments function
 
-    setUploading(true);
+const handleUploadDocuments = async () => {
+  if (documents.length === 0) {
+    return [];
+  }
 
-    try {
-      const uploadedDocs = [];
-      const token = await getAuthToken();
+  setUploading(true);
 
-      for (const doc of documents) {
-        console.log(`Uploading document: ${doc.name}`);
+  try {
+    const uploadedDocs = [];
+    const token = await getAuthToken();
 
-        // Create form data
-        const formData = new FormData();
-
-        // Add file to form data with appropriate properties
-        formData.append('document', {
-          uri: Platform.OS === 'ios' ? doc.uri.replace('file://', '') : doc.uri,
-          type: doc.type || 'application/octet-stream',
-          name: doc.name || `file-${Date.now()}.${doc.uri.split('.').pop()}`,
-        });
-
-        // Log the form data for debugging
-        console.log('FormData created:', {
-          uri: doc.uri,
-          type: doc.type,
-          name: doc.name,
-        });
-
-        // Upload to our server endpoint
-        const response = await fetch(
-          'http://192.168.1.15:5000/api/uploads/document',
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'multipart/form-data',
-            },
-            body: formData,
-          },
-        );
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Upload failed:', errorText);
-          throw new Error(`Upload failed: ${response.status} ${errorText}`);
-        }
-
-        const result = await response.json();
-        console.log('Upload result:', result);
-
-        uploadedDocs.push({
-          name: doc.name,
-          type: doc.type,
-          size: doc.size,
-          url: result.url,
-          public_id: result.public_id,
-          resource_type: result.resource_type || 'image',
-          uploadDate: new Date().toISOString(),
-          verified: false,
-        });
+    for (const doc of documents) {
+      console.log(`Uploading document: ${doc.name}`);
+      
+      // Create form data
+      const formData = new FormData();
+      
+      // Add file to form data
+      formData.append('document', {
+        uri: Platform.OS === 'ios' ? doc.uri.replace('file://', '') : doc.uri,
+        type: doc.type || 'application/octet-stream',
+        name: doc.name || `file-${Date.now()}.${doc.uri.split('.').pop()}`
+      });
+      
+      // Upload to our server endpoint
+      const response = await fetch(`${api.defaults.baseURL}/uploads/document`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // Don't set Content-Type for multipart/form-data
+        },
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Upload failed:', errorText);
+        throw new Error(`Upload failed: ${response.status} ${errorText}`);
       }
-
-      console.log(`Successfully uploaded ${uploadedDocs.length} documents`);
-      return uploadedDocs;
-    } catch (error) {
-      console.error('Document upload error:', error);
-      Alert.alert(
-        'Upload Error',
-        'Failed to upload documents: ' + error.message,
-      );
-      return [];
-    } finally {
-      setUploading(false);
+      
+      const result = await response.json();
+      console.log('Upload result:', result);
+      
+      uploadedDocs.push({
+        name: doc.name,
+        type: doc.type,
+        size: doc.size,
+        url: result.url,
+        storage_path: result.storage_path,
+        upload_date: new Date().toISOString(),
+        verified: false,
+      });
     }
-  };
+
+    console.log(`Successfully uploaded ${uploadedDocs.length} documents`);
+    return uploadedDocs;
+  } catch (error) {
+    console.error('Document upload error:', error);
+    Alert.alert('Upload Error', 'Failed to upload documents: ' + error.message);
+    return [];
+  } finally {
+    setUploading(false);
+  }
+};
 
   // Helper function to get the auth token
   const getAuthToken = async () => {

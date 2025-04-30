@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,127 +9,66 @@ import {
   ScrollView,
   StatusBar,
   Platform,
-} from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {Calendar} from 'react-native-calendars';
+  ActivityIndicator,
+  Alert,
+} from "react-native";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import { Calendar } from "react-native-calendars";
+import { eventService } from "../services/api"; // Import the API service
 
-const ConferencesScreen = ({navigation}) => {
-  const [activeTab, setActiveTab] = useState('All Events');
-  const [searchQuery, setSearchQuery] = useState('');
+const ConferencesScreen = ({ navigation }) => {
+  const [activeTab, setActiveTab] = useState("All Events");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedDate, setSelectedDate] = useState("");
+  const [events, setEvents] = useState([]); // State for events
+  const [loading, setLoading] = useState(true); // State for loading
 
-  // Sample data
-  const eventTypes = [
-    {name: 'All Events', count: 8},
-    {name: 'Conferences', count: 5},
-    {name: 'Meetings', count: 3},
-  ];
+  // Fetch events from the database
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      const data = await eventService.getAllEvents(); // Fetch events from API
+      setEvents(data);
+    } catch (error) {
+      console.error("Failed to fetch events:", error);
+      Alert.alert("Error", "Failed to load events.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const events = [
-    {
-      type: 'Conference',
-      status: 'Upcoming',
-      title: 'Cardiology Summit 2025',
-      description:
-        'The latest advancements in cardiovascular care and research, featuring leading experts from around the world.',
-      startDate: 'Jun 15, 2025',
-      endDate: 'Jun 17, 2025',
-      location: 'New York Medical Center',
-      organizer: 'Organized by American Cardiology Foundation',
-    },
-    {
-      type: 'Conference',
-      status: 'Upcoming',
-      title: 'Neurology Conference',
-      description:
-        'Exploring new frontiers in neurological disorders and treatments with interactive workshops and presentations.',
-      startDate: 'Aug 10, 2025',
-      endDate: 'Aug 12, 2025',
-      location: 'Boston Convention Center',
-      organizer: 'Organized by Neurology Research Foundation',
-    },
-    {
-      type: 'Conference',
-      status: 'Upcoming',
-      title: 'Virtual Medical Education Symposium',
-      description:
-        'A fully virtual symposium focused on the future of medical education and digital learning platforms.',
-      startDate: 'Apr 5, 2025',
-      endDate: 'Apr 7, 2025',
-      location: 'Virtual Event',
-      organizer: 'Organized by Medical Education Institute',
-    },
-    {
-      type: 'Meeting',
-      status: 'Upcoming',
-      title: 'Pediatrics Monthly Meeting',
-      description:
-        'Regular meeting for pediatricians to discuss recent cases, research findings, and departmental updates.',
-      startDate: 'Apr 28, 2025',
-      endDate: 'Apr 28, 2025',
-      location: "Children's Hospital Conference Room",
-      organizer: "Organized by Children's Hospital Pediatrics Department",
-    },
-    {
-      type: 'Meeting',
-      status: 'Ongoing',
-      title: 'Pharmaceutical Research Collaboration',
-      description:
-        'Meeting between pharmaceutical researchers and practicing physicians to discuss current clinical trials and research needs.',
-      startDate: 'Apr 25, 2025',
-      endDate: 'Apr 27, 2025',
-      location: 'Virtual Event',
-      organizer: 'Organized by PharmaCompany',
-    },
-    {
-      type: 'Conference',
-      status: 'Upcoming',
-      title: 'Medical Technology Expo',
-      description:
-        'Exhibition of the latest medical technologies, devices, and software solutions for healthcare professionals.',
-      startDate: 'Sep 20, 2025',
-      endDate: 'Sep 22, 2025',
-      location: 'San Francisco Tech Center',
-      organizer: 'Organized by MedTech Association',
-    },
-  ];
+  useEffect(() => {
+    fetchEvents(); // Fetch events when the screen loads
+  }, []);
 
-  const filteredEvents = events.filter(event => {
+  // Filter events based on active tab, search query, and selected date
+  const filteredEvents = events.filter((event) => {
     // Filter based on active tab
-    if (
-      activeTab !== 'All Events' &&
-      !event.type.includes(activeTab.slice(0, -4))
-    ) {
+    if (activeTab !== "All Events" && !event.type.includes(activeTab.slice(0, -4))) {
       return false;
     }
 
     // Filter based on search query
-    if (
-      searchQuery &&
-      !event.title.toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
+    if (searchQuery && !event.title.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
 
     // Filter based on date (if selected)
-    // This is simplified - in a real app you'd check if the event date range contains the selected date
-    if (selectedDate && !event.startDate.includes(selectedDate)) {
+    if (selectedDate && !event.start_date.includes(selectedDate)) {
       return false;
     }
 
     return true;
   });
 
-  const renderEventCard = event => (
-    <View style={styles.eventCard} key={event.title}>
+  const renderEventCard = (event) => (
+    <View style={styles.eventCard} key={event.id}>
       <View style={styles.eventBadgeContainer}>
-        <View
-          style={[styles.badge, styles[event.type.toLowerCase() + 'Badge']]}>
+        <View style={[styles.badge, styles[event.type.toLowerCase() + "Badge"]]}>
           <Text style={styles.badgeText}>{event.type}</Text>
         </View>
-        <View
-          style={[styles.badge, styles[event.status.toLowerCase() + 'Badge']]}>
+        <View style={[styles.badge, styles[event.status.toLowerCase() + "Badge"]]}>
           <Text style={styles.badgeText}>{event.status}</Text>
         </View>
       </View>
@@ -141,26 +80,30 @@ const ConferencesScreen = ({navigation}) => {
         <View style={styles.eventDetailItem}>
           <Icon name="calendar" size={16} color="#666" />
           <Text style={styles.eventDetailText}>
-            {event.startDate} - {event.endDate}
+            {event.start_date} - {event.end_date}
           </Text>
         </View>
         <View style={styles.eventDetailItem}>
           <Icon name="map-marker" size={16} color="#666" />
-          <Text style={styles.eventDetailText}>{event.location}</Text>
+          <Text style={styles.eventDetailText}>{event.venue}</Text>
         </View>
         <View style={styles.eventDetailItem}>
           <Icon name="account-group" size={16} color="#666" />
-          <Text style={styles.eventDetailText}>{event.organizer}</Text>
+          <Text style={styles.eventDetailText}>{event.organizer_name}</Text>
         </View>
       </View>
 
       <View style={styles.eventButtonContainer}>
-        <TouchableOpacity style={styles.eventButton} onPress={() => {}}>
+        <TouchableOpacity
+          style={styles.eventButton}
+          onPress={() => navigation.navigate("EventDetails", { eventId: event.id })}
+        >
           <Text style={styles.eventButtonText}>View Details</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.eventButton, styles.registerButton]}
-          onPress={() => {}}>
+          onPress={() => {}}
+        >
           <Text style={styles.registerButtonText}>Register</Text>
         </TouchableOpacity>
       </View>
@@ -176,13 +119,12 @@ const ConferencesScreen = ({navigation}) => {
         <View style={styles.headerTitleContainer}>
           <View>
             <Text style={styles.headerTitle}>Events</Text>
-            <Text style={styles.headerSubtitle}>
-              Browse and Register For Events.
-            </Text>
+            <Text style={styles.headerSubtitle}>Browse and Register For Events.</Text>
           </View>
           <TouchableOpacity
             style={styles.createButton}
-            onPress={() => navigation.navigate('CreateConference')}>
+            onPress={() => navigation.navigate("CreateConference")}
+          >
             <Icon name="plus" size={18} color="#fff" />
             <Text style={styles.createButtonText}>Create</Text>
           </TouchableOpacity>
@@ -192,12 +134,7 @@ const ConferencesScreen = ({navigation}) => {
       {/* Search and Filter */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
-          <Icon
-            name="magnify"
-            size={20}
-            color="#999"
-            style={styles.searchIcon}
-          />
+          <Icon name="magnify" size={20} color="#999" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search events..."
@@ -207,59 +144,38 @@ const ConferencesScreen = ({navigation}) => {
           />
         </View>
 
-        {/* <TouchableOpacity style={styles.filterButton} onPress={() => {}}>
-          <Icon name="filter-variant" size={20} color="#2e7af5" />
-          <Text style={styles.filterButtonText}>All Events</Text>
-          <Icon name="chevron-down" size={16} color="#2e7af5" />
-        </TouchableOpacity> */}
-
         <TouchableOpacity
           style={styles.datePickerButton}
-          onPress={() => setShowDatePicker(!showDatePicker)}>
+          onPress={() => setShowDatePicker(!showDatePicker)}
+        >
           <Icon name="calendar" size={20} color="#666" />
-          <Text style={styles.datePickerText}>
-            {selectedDate || 'Seach by date'}
-          </Text>
+          <Text style={styles.datePickerText}>{selectedDate || "Search by date"}</Text>
         </TouchableOpacity>
       </View>
 
       {showDatePicker && (
         <Calendar
           style={styles.calendar}
-          onDayPress={day => {
+          onDayPress={(day) => {
             setSelectedDate(day.dateString);
             setShowDatePicker(false);
           }}
           markedDates={{
-            [selectedDate]: {selected: true, selectedColor: '#2e7af5'},
+            [selectedDate]: { selected: true, selectedColor: "#2e7af5" },
           }}
         />
       )}
 
-      {/* Event Type Tabs */}
-      <View style={styles.tabsContainer}>
-        {eventTypes.map(type => (
-          <TouchableOpacity
-            key={type.name}
-            style={[styles.tab, activeTab === type.name && styles.activeTab]}
-            onPress={() => setActiveTab(type.name)}>
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === type.name && styles.activeTabText,
-              ]}>
-              {`${type.name} (${type.count})`}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
       {/* Event Cards */}
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.eventsContainer}>
-          {filteredEvents.map(event => renderEventCard(event))}
-        </View>
-      </ScrollView>
+      {loading ? (
+        <ActivityIndicator size="large" color="#2e7af5" style={{ marginTop: 20 }} />
+      ) : (
+        <ScrollView style={styles.scrollView}>
+          <View style={styles.eventsContainer}>
+            {filteredEvents.map((event) => renderEventCard(event))}
+          </View>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 };

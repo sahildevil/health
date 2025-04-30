@@ -12,11 +12,11 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'react-native-image-picker';
 import RNFS from 'react-native-fs';
-import {userService} from '../services/api';
+// import {userService} from '../services/api';
 import WebViewDocumentPicker from '../components/WebViewDocumentPicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Platform} from 'react-native';
-
+import api, { userService } from '../services/api';
 const UploadDocumentsScreen = ({navigation}) => {
   const [documents, setDocuments] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -95,78 +95,82 @@ const UploadDocumentsScreen = ({navigation}) => {
     });
   };
 
-  const handleUploadDocuments = async () => {
-    if (documents.length === 0) {
-      Alert.alert('Error', 'Please select at least one document to upload');
-      return;
+// In handleUploadDocuments function
+
+const handleUploadDocuments = async () => {
+  if (documents.length === 0) {
+    Alert.alert('Error', 'Please select at least one document to upload');
+    return;
+  }
+
+  setIsSubmitting(true);
+
+  try {
+    const uploadedDocs = [];
+    const token = await getAuthToken();
+
+    for (const doc of documents) {
+      console.log(`Uploading document: ${doc.name}`);
+      
+      // Create form data
+      const formData = new FormData();
+      
+      // Add file to form data
+      formData.append('document', {
+        uri: Platform.OS === 'ios' ? doc.uri.replace('file://', '') : doc.uri,
+        type: doc.type || 'application/octet-stream',
+        name: doc.name || `file-${Date.now()}.${doc.uri.split('.').pop()}`
+      });
+      
+      // Upload to our server endpoint
+      const response = await fetch(`${api.defaults.baseURL}/uploads/document`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // Don't set Content-Type for multipart/form-data
+        },
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Upload failed:', errorText);
+        throw new Error(`Upload failed: ${response.status} ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('Upload result:', result);
+      
+      // Create document object with Supabase URL and storage path
+      uploadedDocs.push({
+        name: doc.name,
+        type: doc.type,
+        size: doc.size,
+        url: result.url,
+        storage_path: result.storage_path,
+        upload_date: new Date().toISOString(),
+        verified: false,
+      });
     }
 
-    setIsSubmitting(true);
-
-    try {
-      const uploadedDocs = [];
-
-      for (const doc of documents) {
-        console.log(`Uploading document: ${doc.name}`);
-
-        // Create form data
-        const formData = new FormData();
-
-        // Add file to form data with appropriate properties
-        formData.append('document', {
-          uri: Platform.OS === 'ios' ? doc.uri.replace('file://', '') : doc.uri,
-          type: doc.type || 'application/octet-stream',
-          name: doc.name || `file-${Date.now()}.${doc.uri.split('.').pop()}`,
-        });
-
-        // Upload to our server endpoint with Cloudinary
-        const response = await fetch(
-          'http://192.168.1.15:5000/api/uploads/document',
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${await getAuthToken()}`,
-              'Content-Type': 'multipart/form-data',
-            },
-            body: formData,
-          },
-        );
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Upload failed:', errorText);
-          throw new Error(`Upload failed: ${response.status} ${errorText}`);
-        }
-
-        const result = await response.json();
-        console.log('Upload result:', result);
-
-        // Create document object with Cloudinary URL
-        uploadedDocs.push({
-          name: doc.name,
-          type: doc.type,
-          size: doc.size,
-          url: result.url, // Cloudinary URL
-          public_id: result.public_id, // Cloudinary ID
-          resource_type: result.resource_type || 'image',
-          uploadDate: new Date().toISOString(),
-          verified: false,
-        });
-      }
-
-      // Upload the documents to user profile
+    // Upload the documents to user profile
+    if (uploadedDocs.length > 0) {
       await userService.uploadDocuments(uploadedDocs);
-
+      
       Alert.alert('Success', 'Documents uploaded successfully', [
         {text: 'OK', onPress: () => navigation.goBack()},
       ]);
-    } catch (error) {
-      console.error('Error uploading documents:', error);
-      Alert.alert('Upload Failed', error.message || 'Please try again later');
-    } finally {
-      setIsSubmitting(false);
     }
-  };
+  } catch (error) {
+    console.error('Error uploading documents:', error);
+    Alert.alert(
+      'Upload Failed', 
+      `${error.message || 'Please try again later'}\n\nCheck your network connection and server status.`
+    );
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   // Add this helper function to get the auth token
   const getAuthToken = async () => {

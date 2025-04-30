@@ -198,8 +198,8 @@ const CreateConferenceScreen = ({navigation}) => {
       0
     );
   
-    // Create conference object
-    const newConference = {
+    // Create event object
+    const newEvent = {
       title,
       description,
       venue,
@@ -219,12 +219,14 @@ const CreateConferenceScreen = ({navigation}) => {
       speakers,
     };
   
+    console.log("Submitting event:", newEvent);
+  
     try {
       // Set loading state
       setIsSubmitting(true);
   
       // Submit to API
-      const result = await eventService.createEvent(newConference);
+      const result = await eventService.createEvent(newEvent);
   
       // Show success message
       Alert.alert(
