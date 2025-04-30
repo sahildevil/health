@@ -45,7 +45,11 @@ const ConferencesScreen = ({ navigation }) => {
   // Filter events based on active tab, search query, and selected date
   const filteredEvents = events.filter((event) => {
     // Filter based on active tab
-    if (activeTab !== "All Events" && !event.type.includes(activeTab.slice(0, -4))) {
+    if (activeTab === "Conferences" && event.type !== "Conference") {
+      return false;
+    }
+    
+    if (activeTab === "Meetings" && event.type !== "Meeting") {
       return false;
     }
 
@@ -165,6 +169,24 @@ const ConferencesScreen = ({ navigation }) => {
           }}
         />
       )}
+
+      {/* Event Type Tabs */}
+      <View style={styles.tabsContainer}>
+        {['All Events', 'Conferences', 'Meetings'].map(type => (
+          <TouchableOpacity
+            key={type}
+            style={[styles.tab, activeTab === type && styles.activeTab]}
+            onPress={() => setActiveTab(type)}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === type && styles.activeTabText,
+              ]}>
+              {type}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       {/* Event Cards */}
       {loading ? (
