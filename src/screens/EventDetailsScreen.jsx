@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -15,10 +15,11 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { eventService } from '../services/api';
+import {eventService} from '../services/api';
+import {useAuth} from '../context/AuthContext';
 
 // Event Status Badge Component (reused from HomeScreen)
-const EventStatusBadge = ({ status }) => {
+const EventStatusBadge = ({status}) => {
   let bgColor = '#FFF3E0'; // Default pending color
   let textColor = '#E65100';
   let iconName = 'clock-outline';
@@ -37,21 +38,21 @@ const EventStatusBadge = ({ status }) => {
   }
 
   return (
-    <View style={[styles.badge, { backgroundColor: bgColor }]}>
+    <View style={[styles.badge, {backgroundColor: bgColor}]}>
       <Icon
         name={iconName}
         size={12}
         color={textColor}
-        style={{ marginRight: 4 }}
+        style={{marginRight: 4}}
       />
-      <Text style={[styles.badgeText, { color: textColor }]}>{label}</Text>
+      <Text style={[styles.badgeText, {color: textColor}]}>{label}</Text>
     </View>
   );
 };
 
-const EventDetailsScreen = ({ route, navigation }) => {
-  const { eventId } = route.params;
-
+const EventDetailsScreen = ({route, navigation}) => {
+  const {eventId} = route.params;
+  const {user} = useAuth();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -91,8 +92,29 @@ const EventDetailsScreen = ({ route, navigation }) => {
     });
   };
 
+  // Add function to handle event deletion
+  const handleDeleteEvent = async () => {
+    Alert.alert('Delete Event', 'Are you sure you want to delete this event?', [
+      {text: 'Cancel', style: 'cancel'},
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await eventService.deleteEvent(eventId);
+            Alert.alert('Success', 'Event deleted successfully');
+            navigation.goBack();
+          } catch (error) {
+            console.error('Error deleting event:', error);
+            Alert.alert('Error', 'Failed to delete event');
+          }
+        },
+      },
+    ]);
+  };
+
   // Render speaker item
-  const renderSpeakerItem = ({ item }) => (
+  const renderSpeakerItem = ({item}) => (
     <View style={styles.speakerCard}>
       <View style={styles.speakerIconContainer}>
         <Icon name="account" size={24} color="#2e7af5" />
@@ -106,10 +128,12 @@ const EventDetailsScreen = ({ route, navigation }) => {
   );
 
   // Render sponsor item
-  const renderSponsorItem = ({ item }) => (
+  const renderSponsorItem = ({item}) => (
     <View style={styles.sponsorCard}>
       <Text style={styles.sponsorName}>{item.name}</Text>
-      {item.level && <Text style={styles.sponsorLevel}>Level: {item.level}</Text>}
+      {item.level && (
+        <Text style={styles.sponsorLevel}>Level: {item.level}</Text>
+      )}
     </View>
   );
 
@@ -182,16 +206,48 @@ const EventDetailsScreen = ({ route, navigation }) => {
 
         {/* Action Buttons */}
         <View style={styles.actionButtonsContainer}>
-          {event.status === 'approved' && (
-            <TouchableOpacity style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>Register Now</Text>
-            </TouchableOpacity>
+          {user?.id === event.organizer_id ? (
+            // Show Edit and Delete buttons for event creator
+            <>
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={() => navigation.navigate('EditEvent', {eventId})}>
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <Icon name="pencil" size={18} color="#fff" />
+                  <Text style={[styles.primaryButtonText, {marginLeft: 6}]}>
+                    Edit Event
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.secondaryButton, {backgroundColor: '#ffebee'}]}
+                onPress={handleDeleteEvent}>
+                <Icon name="delete" size={18} color="#d32f2f" />
+                <Text style={[styles.secondaryButtonText, {color: '#d32f2f'}]}>
+                  Delete Event
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            // Show Register and Calendar buttons for other users
+            <>
+              {event.status === 'approved' && (
+                <TouchableOpacity
+                  style={styles.primaryButton}
+                  onPress={() =>
+                    navigation.navigate('EventRegistration', {eventId})
+                  }>
+                  <Icon name="account-plus" size={18} color="#fff" />
+                  <Text style={styles.primaryButtonText}>Register Now</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.secondaryButton}>
+                <Icon name="calendar-plus" size={18} color="#2e7af5" />
+                <Text style={styles.secondaryButtonText}>Add to Calendar</Text>
+              </TouchableOpacity>
+            </>
           )}
-          
-          <TouchableOpacity style={styles.secondaryButton}>
-            <Icon name="calendar-plus" size={18} color="#2e7af5" />
-            <Text style={styles.secondaryButtonText}>Add to Calendar</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Date and Time Section */}
@@ -233,13 +289,15 @@ const EventDetailsScreen = ({ route, navigation }) => {
               <Text style={styles.detailText}>{event.venue}</Text>
             </View>
           </View>
-          
+
           {event.capacity && (
             <View style={styles.detailRow}>
               <Icon name="account-group" size={20} color="#2e7af5" />
               <View style={styles.detailTextContainer}>
                 <Text style={styles.detailLabel}>Capacity</Text>
-                <Text style={styles.detailText}>{event.capacity} attendees</Text>
+                <Text style={styles.detailText}>
+                  {event.capacity} attendees
+                </Text>
               </View>
             </View>
           )}
@@ -265,7 +323,7 @@ const EventDetailsScreen = ({ route, navigation }) => {
               </Text>
             </View>
           </View>
-          
+
           {event.website && (
             <View style={styles.detailRow}>
               <Icon name="web" size={20} color="#2e7af5" />
@@ -332,25 +390,29 @@ const EventDetailsScreen = ({ route, navigation }) => {
               <Text style={styles.detailText}>{event.organizerName}</Text>
             </View>
           </View>
-          
+
           <View style={styles.detailRow}>
             <Icon name="email" size={20} color="#2e7af5" />
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabel}>Email</Text>
               <TouchableOpacity
-                onPress={() => Linking.openURL(`mailto:${event.organizerEmail}`)}>
+                onPress={() =>
+                  Linking.openURL(`mailto:${event.organizerEmail}`)
+                }>
                 <Text style={styles.linkText}>{event.organizerEmail}</Text>
               </TouchableOpacity>
             </View>
           </View>
-          
+
           {event.organizerPhone && (
             <View style={styles.detailRow}>
               <Icon name="phone" size={20} color="#2e7af5" />
               <View style={styles.detailTextContainer}>
                 <Text style={styles.detailLabel}>Phone</Text>
                 <TouchableOpacity
-                  onPress={() => Linking.openURL(`tel:${event.organizerPhone}`)}>
+                  onPress={() =>
+                    Linking.openURL(`tel:${event.organizerPhone}`)
+                  }>
                   <Text style={styles.linkText}>{event.organizerPhone}</Text>
                 </TouchableOpacity>
               </View>
@@ -367,14 +429,16 @@ const EventDetailsScreen = ({ route, navigation }) => {
         )}
       </ScrollView>
 
-      {/* Fixed Bottom Action Button for Approved Events */}
-      {event.status === 'approved' && (
+    
+      {/* {event.status === 'approved' && (
         <View style={styles.bottomButtonContainer}>
-          <TouchableOpacity style={styles.bottomButton}>
+          <TouchableOpacity
+            style={styles.bottomButton}
+            onPress={() => navigation.navigate('EditEvent', {eventId})}>
             <Text style={styles.bottomButtonText}>Register for this Event</Text>
           </TouchableOpacity>
         </View>
-      )}
+      )} */}
     </SafeAreaView>
   );
 };
@@ -499,7 +563,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eee',
   },
   primaryButton: {
-    backgroundColor: '#2e7af5',
+    backgroundColor: '#e36135',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -654,7 +718,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#eee',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
+    shadowOffset: {width: 0, height: -2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 4,

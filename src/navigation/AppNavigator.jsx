@@ -23,6 +23,8 @@ import CreateConferenceScreen from '../screens/CreateConferenceScreen';
 import RegisteredEventsScreen from '../screens/RegisteredEventsScreen';
 import MyEventsScreen from '../screens/MyEventsScreen';
 import UploadDocumentsScreen from '../screens/UploadDocumentsScreen';
+import EventRegistrationScreen from '../screens/EventRegistrationScreen';
+import EditEventScreen from '../screens/EditEventScreen';
 
 const Stack = createStackNavigator();
 const AdminStack = createStackNavigator();
@@ -86,10 +88,23 @@ const AppNavigator = () => {
               component={MyEventsScreen}
               options={{headerShown: false}}
             />
-            <Stack.Screen name="UploadDocuments" component={UploadDocumentsScreen} />
+            <Stack.Screen
+              name="UploadDocuments"
+              component={UploadDocumentsScreen}
+            />
             <Stack.Screen
               name="EventDetails"
               component={EventDetailsScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="EventRegistration"
+              component={EventRegistrationScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="EditEvent"
+              component={EditEventScreen}
               options={{headerShown: false}}
             />
           </>

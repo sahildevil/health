@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -15,11 +15,11 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useAuth } from '../context/AuthContext';
-import { eventService } from '../services/api';
+import {useAuth} from '../context/AuthContext';
+import {eventService} from '../services/api';
 
 // Event Status Badge Component (reused from MyEventsScreen)
-const EventStatusBadge = ({ status }) => {
+const EventStatusBadge = ({status}) => {
   let bgColor = '#FFF3E0'; // Default pending color
   let textColor = '#E65100';
   let iconName = 'clock-outline';
@@ -38,22 +38,22 @@ const EventStatusBadge = ({ status }) => {
   }
 
   return (
-    <View style={[styles.badge, { backgroundColor: bgColor }]}>
+    <View style={[styles.badge, {backgroundColor: bgColor}]}>
       <Icon
         name={iconName}
         size={12}
         color={textColor}
-        style={{ marginRight: 4 }}
+        style={{marginRight: 4}}
       />
-      <Text style={[styles.badgeText, { color: textColor }]}>{label}</Text>
+      <Text style={[styles.badgeText, {color: textColor}]}>{label}</Text>
     </View>
   );
 };
 
-const HomeScreen = ({ navigation }) => {
+const HomeScreen = ({navigation}) => {
   // Get user from auth context
-  const { user } = useAuth();
-  
+  const {user} = useAuth();
+
   // State for events
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -115,7 +115,7 @@ const HomeScreen = ({ navigation }) => {
 
   useEffect(() => {
     fetchEvents();
-    
+
     // Refresh events when the screen comes into focus
     const unsubscribe = navigation.addListener('focus', () => {
       fetchEvents();
@@ -140,10 +140,10 @@ const HomeScreen = ({ navigation }) => {
   };
 
   // Render event item (similar to MyEventsScreen)
-  const renderEventItem = ({ item }) => (
+  const renderEventItem = ({item}) => (
     <TouchableOpacity
       style={styles.eventCard}
-      onPress={() => navigation.navigate('EventDetails', { eventId: item.id })}>
+      onPress={() => navigation.navigate('EventDetails', {eventId: item.id})}>
       <View style={styles.eventHeader}>
         <View>
           <Text style={styles.eventType}>{item.type}</Text>
@@ -167,9 +167,7 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.detailItem}>
           <Icon
             name={item.mode === 'Virtual' ? 'video' : 'map-marker'}
-            size={16}
-            color="#666"
-          />
+            size={16} color="#666" />
           <Text style={styles.detailText}>
             {item.mode}: {item.venue}
           </Text>
@@ -179,19 +177,21 @@ const HomeScreen = ({ navigation }) => {
       <View style={styles.eventActions}>
         <TouchableOpacity
           style={styles.eventButton}
-          onPress={() =>
-            navigation.navigate('EventDetails', { eventId: item.id })
-          }>
+          onPress={() => navigation.navigate('EventDetails', {eventId: item.id})}>
           <Text style={styles.eventButtonText}>View Details</Text>
         </TouchableOpacity>
         
-        {/* Display Register button only for approved events */}
-        {item.status === 'approved' && (
-          <TouchableOpacity
-            style={[styles.eventButton, styles.registerButton]}>
-            <Text style={styles.registerButtonText}>Register</Text>
-          </TouchableOpacity>
-        )}
+        {item.status === 'approved' &&
+          user?.id !== item.organizer_id &&
+          user?.id !== item.created_by?.id && (
+            <TouchableOpacity
+              style={[styles.eventButton, styles.registerButton]}
+              onPress={() =>
+                navigation.navigate('EventRegistration', {eventId: item.id})
+              }>
+              <Text style={styles.registerButtonText}>Register</Text>
+            </TouchableOpacity>
+          )}
       </View>
     </TouchableOpacity>
   );
@@ -221,7 +221,8 @@ const HomeScreen = ({ navigation }) => {
       </View>
 
       {/* Stats Cards */}
-      <ScrollView style={styles.scrollView} 
+      <ScrollView
+        style={styles.scrollView}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }>
@@ -259,24 +260,39 @@ const HomeScreen = ({ navigation }) => {
 
         {/* Events Tabs */}
         <View style={styles.tabContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.tab, activeTab === 'my' && styles.activeTab]}
             onPress={() => setActiveTab('my')}>
-            <Text style={[styles.tabText, activeTab === 'my' && styles.activeTabText]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'my' && styles.activeTabText,
+              ]}>
               My Events
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.tab, activeTab === 'ongoing' && styles.activeTab]}
             onPress={() => setActiveTab('ongoing')}>
-            <Text style={[styles.tabText, activeTab === 'ongoing' && styles.activeTabText]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'ongoing' && styles.activeTabText,
+              ]}>
               Ongoing Events
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'recommended' && styles.activeTab]}
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === 'recommended' && styles.activeTab,
+            ]}
             onPress={() => setActiveTab('recommended')}>
-            <Text style={[styles.tabText, activeTab === 'recommended' && styles.activeTabText]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'recommended' && styles.activeTabText,
+              ]}>
               Recommended
             </Text>
           </TouchableOpacity>
@@ -294,11 +310,11 @@ const HomeScreen = ({ navigation }) => {
               <Icon name="calendar-blank" size={64} color="#ccc" />
               <Text style={styles.emptyTitle}>No Events Found</Text>
               <Text style={styles.emptySubtitle}>
-                {activeTab === 'my' 
+                {activeTab === 'my'
                   ? 'Create your first medical event or browse recommended events'
                   : activeTab === 'ongoing'
                   ? 'There are no ongoing events at the moment'
-                  : 'We don\'t have any recommendations for you yet'}
+                  : "We don't have any recommendations for you yet"}
               </Text>
               {activeTab === 'my' && (
                 <TouchableOpacity

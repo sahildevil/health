@@ -13,29 +13,38 @@ import {
   Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AntDesignIcon from 'react-native-vector-icons/AntDesign';
 import {Calendar} from 'react-native-calendars';
 import {eventService} from '../services/api'; // Import the API service
+import {useAuth} from '../context/AuthContext';
 
 const ConferencesScreen = ({navigation}) => {
+  const {user} = useAuth(); // Get current user
   const [activeTab, setActiveTab] = useState('All Events');
   const [searchQuery, setSearchQuery] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
   const [events, setEvents] = useState([]); // State for events
   const [loading, setLoading] = useState(true); // State for loading
+  const [registeredEvents, setRegisteredEvents] = useState([]); // Add this state
 
-  const formatDate = (dateString) => {
-    const options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+  const formatDate = dateString => {
+    const options = {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    };
     return new Date(dateString).toLocaleDateString('en-US', options);
   };
 
   // Helper function to format time
-  const formatTime = (timeString) => {
+  const formatTime = timeString => {
     if (!timeString) return '';
     return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
     });
   };
 
@@ -53,8 +62,19 @@ const ConferencesScreen = ({navigation}) => {
     }
   };
 
+  // Add function to fetch registered events
+  const fetchRegisteredEvents = async () => {
+    try {
+      const data = await eventService.getRegisteredEvents();
+      setRegisteredEvents(data.map(event => event.id));
+    } catch (error) {
+      console.error('Failed to fetch registered events:', error);
+    }
+  };
+
   useEffect(() => {
     fetchEvents(); // Fetch events when the screen loads
+    fetchRegisteredEvents();
   }, []);
 
   // Filter events based on active tab, search query, and selected date
@@ -83,7 +103,6 @@ const ConferencesScreen = ({navigation}) => {
 
     return true;
   });
-  
 
   const renderEventCard = event => (
     <View style={styles.eventCard} key={event.id}>
@@ -115,7 +134,7 @@ const ConferencesScreen = ({navigation}) => {
             {formatTime(event.start_time)} - {formatTime(event.end_time)}
           </Text>
         </View>
-        
+
         <View style={styles.eventDetailItem}>
           <Icon name="map-marker" size={16} color="#666" />
           <Text style={styles.eventDetailText}>{event.venue}</Text>
@@ -134,11 +153,29 @@ const ConferencesScreen = ({navigation}) => {
           }>
           <Text style={styles.eventButtonText}>View Details</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.eventButton, styles.registerButton]}
-          onPress={() => {}}>
-          <Text style={styles.registerButtonText}>Register</Text>
-        </TouchableOpacity>
+
+        {/* Only show register button if user is not the organizer */}
+        {user?.id !== event.organizer_id &&
+          (registeredEvents.includes(event.id) ? (
+            <TouchableOpacity
+              style={[styles.eventButton, styles.registeredButton]}
+              disabled={true}>
+              <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                <AntDesignIcon name="checkcircle" size={14} color="#fff" />
+                <Text style={[styles.registeredButtonText, {marginLeft: 5}]}>
+                   Registered
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.eventButton, styles.registerButton]}
+              onPress={() =>
+                navigation.navigate('EventRegistration', {eventId: event.id})
+              }>
+              <Text style={styles.registerButtonText}>Register</Text>
+            </TouchableOpacity>
+          ))}
       </View>
     </View>
   );
@@ -454,6 +491,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   registerButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  registeredButton: {
+    backgroundColor: '#4caf50',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  registeredButtonText: {
     color: 'white',
     fontSize: 14,
     fontWeight: '500',

@@ -154,6 +154,16 @@ export const eventService = {
     }
   },
 
+  registerForEvent: async (eventId, registrationData) => {
+    try {
+      const response = await axios.post(`/events/${eventId}/register`, registrationData);
+      return response.data;
+    } catch (error) {
+      console.error('Error registering for event:', error);
+      throw error;
+    }
+  },
+
   // Get all events
   getAllEvents: async () => {
     try {
@@ -254,6 +264,16 @@ export const eventService = {
       return response.data;
     } catch (error) {
       console.error('Reject event error:', error);
+      throw error;
+    }
+  },
+
+  updateEvent: async (eventId, eventData) => {
+    try {
+      const response = await api.put(`/events/${eventId}`, eventData);
+      return response.data;
+    } catch (error) {
+      console.error('Update event error:', error);
       throw error;
     }
   },
