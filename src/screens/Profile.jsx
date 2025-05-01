@@ -272,7 +272,9 @@ const Profile = ({navigation}) => {
                         </Text>
                         <Text style={styles.documentDate}>
                           Uploaded on{' '}
-                          {new Date(doc.uploadDate).toLocaleDateString()}
+                          {doc.upload_date
+                            ? new Date(doc.upload_date).toLocaleDateString()
+                            : 'Unknown date'}
                         </Text>
                       </View>
                       <View
