@@ -277,21 +277,33 @@ const Profile = ({navigation}) => {
                             : 'Unknown date'}
                         </Text>
                       </View>
-                      <View
+                      {/* <View
                         style={[
                           styles.documentBadge,
                           {
                             backgroundColor: doc.verified
                               ? '#e8f5e9'
                               : '#fff3e0',
+                            paddingHorizontal: 8,
+                            width: 'auto',
+                            height: 'auto',
                           },
                         ]}>
                         <Icon
                           name={doc.verified ? 'check-circle' : 'clock-outline'}
                           size={12}
                           color={doc.verified ? '#2e7d32' : '#e65100'}
+                          style={{marginRight: 4}}
                         />
-                      </View>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: doc.verified ? '#2e7d32' : '#e65100',
+                            fontWeight: '500',
+                          }}>
+                          {doc.verified ? 'Verified' : 'Pending'}
+                        </Text>
+                      </View> */}
                     </TouchableOpacity>
                   ))}
                 </>
