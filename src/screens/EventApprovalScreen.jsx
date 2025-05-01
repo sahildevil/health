@@ -149,7 +149,7 @@ const EventApprovalScreen = ({ navigation }) => {
       <View style={styles.actionButtons}>
         <TouchableOpacity 
           style={styles.viewButton}
-          onPress={() => handleViewDetails(item._id)}
+          onPress={() => handleViewDetails(item.id)}
         >
           <Icon name="eye" size={16} color="#2e7af5" />
           <Text style={styles.viewButtonText}>View Details</Text>
