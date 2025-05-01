@@ -2,7 +2,7 @@ import axios from 'axios';
 
 
 // Base URL for API calls
-const API_URL = 'http://192.168.1.4:5000/api';
+const API_URL = 'http://192.168.1.11:5000/api';
 
 // Create axios instance
 const api = axios.create({
@@ -71,14 +71,14 @@ export const adminService = {
   },
 
   // Verify a doctor
-  verifyDoctor: async doctorId => {
-    try {
-      const response = await api.put(`/admin/doctors/${doctorId}/verify`);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
+  // verifyDoctor: async doctorId => {
+  //   try {
+  //     const response = await api.put(`/admin/doctors/${doctorId}/verify`);
+  //     return response.data;
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // },
 
   // Delete a doctor
   deleteDoctor: async doctorId => {
@@ -91,50 +91,126 @@ export const adminService = {
   },
 
   // Get doctor details
-  getDoctorDetails: async doctorId => {
+  // getDoctorDetails: async doctorId => {
+  //   try {
+  //     const response = await api.get(`/admin/doctors/${doctorId}`);
+  //     return response.data;
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // },
+
+  // Get doctor documents
+  // getDoctorDocuments: async doctorId => {
+  //   try {
+  //     const response = await api.get(`/admin/doctors/${doctorId}/documents`);
+  //     return response.data;
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // },
+
+  // Verify a document
+  // verifyDocument: async (doctorId, documentId, notes = '') => {
+  //   try {
+  //     const response = await api.put(
+  //       `/admin/doctors/${doctorId}/documents/${documentId}/verify`,
+  //       {notes},
+  //     );
+  //     return response.data;
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // },
+
+  // Reject a document
+  // rejectDocument: async (doctorId, documentId, notes = '') => {
+  //   try {
+  //     const response = await api.put(
+  //       `/admin/doctors/${doctorId}/documents/${documentId}/reject`,
+  //       {notes},
+  //     );
+  //     return response.data;
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // },
+  // Get pending doctors that need verification
+  getPendingDoctors: async () => {
+    try {
+      const response = await api.get('/admin/doctors/pending');
+      return response.data;
+    } catch (error) {
+      console.error('Get pending doctors error:', error);
+      throw error;
+    }
+  },
+
+  // Get doctor details by ID
+  getDoctorDetails: async (doctorId) => {
     try {
       const response = await api.get(`/admin/doctors/${doctorId}`);
       return response.data;
     } catch (error) {
+      console.error('Get doctor details error:', error);
       throw error;
     }
   },
 
-  // Get doctor documents
-  getDoctorDocuments: async doctorId => {
+  // Get doctor documents by doctor ID
+  getDoctorDocuments: async (doctorId) => {
     try {
       const response = await api.get(`/admin/doctors/${doctorId}/documents`);
       return response.data;
     } catch (error) {
+      console.error('Get doctor documents error:', error);
       throw error;
     }
   },
 
-  // Verify a document
+  // Verify a doctor
+  verifyDoctor: async (doctorId, notes = '') => {
+    try {
+      const response = await api.put(`/admin/doctors/${doctorId}/verify`, { notes });
+      return response.data;
+    } catch (error) {
+      console.error('Verify doctor error:', error);
+      throw error;
+    }
+  },
+
+  // Reject a doctor
+  rejectDoctor: async (doctorId, notes) => {
+    try {
+      const response = await api.put(`/admin/doctors/${doctorId}/reject`, { notes });
+      return response.data;
+    } catch (error) {
+      console.error('Reject doctor error:', error);
+      throw error;
+    }
+  },
+
+  // Verify a specific document
   verifyDocument: async (doctorId, documentId, notes = '') => {
     try {
-      const response = await api.put(
-        `/admin/doctors/${doctorId}/documents/${documentId}/verify`,
-        {notes},
-      );
+      const response = await api.put(`/admin/doctors/${doctorId}/documents/${documentId}/verify`, { notes });
       return response.data;
     } catch (error) {
+      console.error('Verify document error:', error);
       throw error;
     }
   },
 
-  // Reject a document
-  rejectDocument: async (doctorId, documentId, notes = '') => {
+  // Reject a specific document
+  rejectDocument: async (doctorId, documentId, notes) => {
     try {
-      const response = await api.put(
-        `/admin/doctors/${doctorId}/documents/${documentId}/reject`,
-        {notes},
-      );
+      const response = await api.put(`/admin/doctors/${doctorId}/documents/${documentId}/reject`, { notes });
       return response.data;
     } catch (error) {
+      console.error('Reject document error:', error);
       throw error;
     }
-  },
+  }
 };
 
 // Event services

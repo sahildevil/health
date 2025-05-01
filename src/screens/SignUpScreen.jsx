@@ -215,22 +215,8 @@ const handleUploadDocuments = async () => {
       return;
     }
 
-    if (role === 'doctor' && documents.length === 0) {
-      Alert.alert('Error', 'Please upload your medical certification');
-      return;
-    }
-
     try {
       setIsSubmitting(true);
-
-      // Upload documents first if doctor role
-      let uploadedDocuments = [];
-      if (role === 'doctor' && documents.length > 0) {
-        uploadedDocuments = await handleUploadDocuments();
-        console.log(
-          `Processed ${uploadedDocuments.length} documents for upload`,
-        );
-      }
 
       // Create user data object based on role
       const userData = {
@@ -243,46 +229,60 @@ const handleUploadDocuments = async () => {
       // Add role-specific fields
       if (role === 'doctor') {
         userData.degree = degree;
-        // Ensure documents are properly set
-        if (uploadedDocuments && uploadedDocuments.length > 0) {
-          userData.documents = uploadedDocuments;
-        }
+        // Documents will be uploaded after registration
       } else if (role === 'pharma') {
         userData.company = company;
       }
 
       // Debug log
-      console.log(
-        'Sending user data with documents:',
-        role === 'doctor'
-          ? `${uploadedDocuments.length} documents`
-          : 'No documents',
-      );
+      console.log('Sending user data for registration:', userData);
 
       // Register the user
       await signup(userData);
 
-      // Show success message
-      Alert.alert(
-        'Registration Successful',
-        role === 'doctor'
-          ? 'Your account has been created! An admin will review your documents for verification.'
-          : 'Your account has been created successfully!',
-        [
-          {
-            text: 'Login Now',
-            onPress: async () => {
-              try {
-                // Auto login after signup
-                await login(email, password);
-              } catch (error) {
-                // If auto-login fails, navigate to login screen
-                navigation.replace('Login');
-              }
-            },
-          },
-        ],
-      );
+      // Now handle the document upload if needed
+      if (role === 'doctor' && documents.length > 0) {
+        // Show an intermediate message
+        Alert.alert(
+          'Account Created',
+          'Your account has been created successfully! Now uploading your documents for verification.',
+          [{ text: 'OK' }]
+        );
+
+        try {
+          // Login first to get a valid token
+          await login(email, password);
+          
+          // Now upload the documents with valid authentication
+          const uploadedDocuments = await handleUploadDocuments();
+          
+          if (uploadedDocuments.length > 0) {
+            // Update user profile with documents
+            await userService.uploadDocuments(uploadedDocuments);
+            
+            Alert.alert(
+              'Registration Complete',
+              'Your account and documents have been submitted. An admin will review your documents for verification.',
+              [{ text: 'Continue' }]
+            );
+          }
+        } catch (uploadError) {
+          console.error('Document upload error:', uploadError);
+          Alert.alert(
+            'Document Upload Failed',
+            'Your account was created but we couldn\'t upload your documents. ' +
+            'You can upload them later from your profile.',
+            [{ text: 'OK' }]
+          );
+        }
+      } else {
+        // Show success message for regular users (no documents)
+        Alert.alert(
+          'Registration Successful',
+          'Your account has been created successfully!',
+          [{ text: 'Continue' }]
+        );
+      }
     } catch (error) {
       console.error('Signup error:', error);
       Alert.alert('Signup Failed', error.message || 'Please try again later');

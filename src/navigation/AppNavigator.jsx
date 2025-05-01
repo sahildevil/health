@@ -25,6 +25,7 @@ import MyEventsScreen from '../screens/MyEventsScreen';
 import UploadDocumentsScreen from '../screens/UploadDocumentsScreen';
 import EventRegistrationScreen from '../screens/EventRegistrationScreen';
 import EditEventScreen from '../screens/EditEventScreen';
+import UserVerificationScreen from '../screens/UserVerificationScreen';
 
 const Stack = createStackNavigator();
 const AdminStack = createStackNavigator();
@@ -42,6 +43,7 @@ const AdminNavigator = () => {
       <AdminStack.Screen name="EventDetails" component={EventDetailsScreen} />
       <AdminStack.Screen name="DoctorList" component={DoctorListScreen} />
       <AdminStack.Screen name="DoctorDetails" component={DoctorDetailsScreen} />
+      <Stack.Screen name="UserVerification" component={UserVerificationScreen} />
     </AdminStack.Navigator>
   );
 };
