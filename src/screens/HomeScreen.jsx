@@ -56,6 +56,7 @@ const HomeScreen = ({navigation}) => {
   const {user} = useAuth();
   const insets = useSafeAreaInsets();
   // State for events
+  const [registeredEvents, setRegisteredEvents] = useState([]); // Add this at the top with other states
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -81,6 +82,16 @@ const HomeScreen = ({navigation}) => {
 
     // For non-doctors just use their first name
     return user.name.split(' ')[0];
+  };
+
+  // Add function to fetch registered events
+  const fetchRegisteredEvents = async () => {
+    try {
+      const data = await eventService.getRegisteredEvents();
+      setRegisteredEvents(data.map(event => event.id));
+    } catch (error) {
+      console.error('Failed to fetch registered events:', error);
+    }
   };
 
   // Fetch events
@@ -114,20 +125,23 @@ const HomeScreen = ({navigation}) => {
     }
   };
 
+  // Update useEffect to fetch registered events
   useEffect(() => {
     fetchEvents();
+    fetchRegisteredEvents(); // Add this
 
-    // Refresh events when the screen comes into focus
     const unsubscribe = navigation.addListener('focus', () => {
       fetchEvents();
+      fetchRegisteredEvents(); // Add this
     });
 
     return unsubscribe;
   }, [navigation, activeTab]);
 
+  // Update onRefresh to include registered events
   const onRefresh = () => {
     setRefreshing(true);
-    fetchEvents();
+    Promise.all([fetchEvents(), fetchRegisteredEvents()]); // Update this
   };
 
   // Format date function (reused from MyEventsScreen)
@@ -168,7 +182,9 @@ const HomeScreen = ({navigation}) => {
         <View style={styles.detailItem}>
           <Icon
             name={item.mode === 'Virtual' ? 'video' : 'map-marker'}
-            size={16} color="#666" />
+            size={16}
+            color="#666"
+          />
           <Text style={styles.detailText}>
             {item.mode}: {item.venue}
           </Text>
@@ -178,13 +194,27 @@ const HomeScreen = ({navigation}) => {
       <View style={styles.eventActions}>
         <TouchableOpacity
           style={styles.eventButton}
-          onPress={() => navigation.navigate('EventDetails', {eventId: item.id})}>
+          onPress={() =>
+            navigation.navigate('EventDetails', {eventId: item.id})
+          }>
           <Text style={styles.eventButtonText}>View Details</Text>
         </TouchableOpacity>
-        
+
         {item.status === 'approved' &&
           user?.id !== item.organizer_id &&
-          user?.id !== item.created_by?.id && (
+          user?.id !== item.created_by?.id &&
+          (registeredEvents.includes(item.id) ? (
+            <TouchableOpacity
+              style={[styles.eventButton, styles.registeredButton]}
+              disabled={true}>
+              <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                <Icon name="check-circle" size={14} color="#fff" />
+                <Text style={[styles.registeredButtonText, {marginLeft: 5}]}>
+                  Registered
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
             <TouchableOpacity
               style={[styles.eventButton, styles.registerButton]}
               onPress={() =>
@@ -192,7 +222,7 @@ const HomeScreen = ({navigation}) => {
               }>
               <Text style={styles.registerButtonText}>Register</Text>
             </TouchableOpacity>
-          )}
+          ))}
       </View>
     </TouchableOpacity>
   );
@@ -283,7 +313,7 @@ const HomeScreen = ({navigation}) => {
               Ongoing Events
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={[
               styles.tab,
               activeTab === 'recommended' && styles.activeTab,
@@ -296,7 +326,7 @@ const HomeScreen = ({navigation}) => {
               ]}>
               Recommended
             </Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
         {/* Event Cards */}
@@ -394,6 +424,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
+  },
+  registeredButton: {
+    backgroundColor: '#4caf50',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  registeredButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
   },
   cardHeader: {
     justifyContent: 'center',
