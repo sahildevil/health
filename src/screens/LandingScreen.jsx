@@ -9,8 +9,8 @@ import {
 
 const LandingScreen = ({navigation}) => {
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+<View style={[styles.container]}>
+      <StatusBar barStyle="dark-content" backgroundColor='white'/>
       <View style={styles.logoContainer}>
         <TouchableOpacity onPress={() => navigation.navigate('AdminLogin')}>
           <Text style={styles.logoText}>MedEvent Health</Text>

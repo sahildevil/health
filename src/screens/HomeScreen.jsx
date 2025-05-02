@@ -17,6 +17,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {useAuth} from '../context/AuthContext';
 import {eventService} from '../services/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Event Status Badge Component (reused from MyEventsScreen)
 const EventStatusBadge = ({status}) => {
@@ -53,7 +54,7 @@ const EventStatusBadge = ({status}) => {
 const HomeScreen = ({navigation}) => {
   // Get user from auth context
   const {user} = useAuth();
-
+  const insets = useSafeAreaInsets();
   // State for events
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -197,8 +198,8 @@ const HomeScreen = ({navigation}) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+<SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="dark-content" backgroundColor='white'/>
       {/* Header */}
       <View style={styles.header}>
         <View>
@@ -341,7 +342,6 @@ const HomeScreen = ({navigation}) => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 20,
     flex: 1,
     backgroundColor: '#ffffff',
   },

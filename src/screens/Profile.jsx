@@ -375,7 +375,6 @@ const Profile = ({navigation}) => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 24,
     flex: 1,
     backgroundColor: '#f7f9fc',
   },

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Calendar } from 'react-native-calendars';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MeetingsScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('All Events');
@@ -152,8 +153,8 @@ const MeetingsScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+<SafeAreaView style={[styles.container, { paddingTop: useSafeAreaInsets.top }]}>
+      <StatusBar barStyle="dark-content" backgroundColor='white'/>
       
       {/* Header */}
       <View style={styles.header}>
@@ -242,7 +243,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f7f9fc',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    //paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
     padding: 20,

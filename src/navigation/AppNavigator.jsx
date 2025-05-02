@@ -26,6 +26,9 @@ import UploadDocumentsScreen from '../screens/UploadDocumentsScreen';
 import EventRegistrationScreen from '../screens/EventRegistrationScreen';
 import EditEventScreen from '../screens/EditEventScreen';
 import UserVerificationScreen from '../screens/UserVerificationScreen';
+import DoctorManagementScreen from '../screens/DoctorManagementScreen';
+import PharmaManagementScreen from '../screens/PharmaManagementScreen';
+import PharmaDetailsScreen from '../screens/PharmaDetailsScreen';
 
 const Stack = createStackNavigator();
 const AdminStack = createStackNavigator();
@@ -41,9 +44,21 @@ const AdminNavigator = () => {
       <AdminStack.Screen name="AdminProfile" component={AdminProfileScreen} />
       <AdminStack.Screen name="EventApproval" component={EventApprovalScreen} />
       <AdminStack.Screen name="EventDetails" component={EventDetailsScreen} />
+      <Stack.Screen
+        name="DoctorManagement"
+        component={DoctorManagementScreen}
+      />
       <AdminStack.Screen name="DoctorList" component={DoctorListScreen} />
       <AdminStack.Screen name="DoctorDetails" component={DoctorDetailsScreen} />
-      <Stack.Screen name="UserVerification" component={UserVerificationScreen} />
+      <Stack.Screen
+        name="UserVerification"
+        component={UserVerificationScreen}
+      />
+      <Stack.Screen
+        name="PharmaManagement"
+        component={PharmaManagementScreen}
+      />
+      <Stack.Screen name="PharmaDetails" component={PharmaDetailsScreen} />
     </AdminStack.Navigator>
   );
 };

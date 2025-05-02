@@ -77,8 +77,8 @@ const EventRegistrationScreen = ({ route, navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+<SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="dark-content" backgroundColor='white'/>
       
       {/* Header */}
       <View style={styles.header}>
@@ -116,6 +116,7 @@ const EventRegistrationScreen = ({ route, navigation }) => {
               value={formData.email}
               onChangeText={(text) => setFormData({ ...formData, email: text })}
               placeholder="Enter your email"
+              placeholderTextColor="#999"
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -128,6 +129,7 @@ const EventRegistrationScreen = ({ route, navigation }) => {
               value={formData.phone}
               onChangeText={(text) => setFormData({ ...formData, phone: text })}
               placeholder="Enter your phone number"
+              placeholderTextColor="#999"
               keyboardType="phone-pad"
             />
           </View>
@@ -141,6 +143,7 @@ const EventRegistrationScreen = ({ route, navigation }) => {
                 setFormData({ ...formData, specialization: text })
               }
               placeholder="Enter your specialization"
+              placeholderTextColor="#999"
             />
           </View>
 
@@ -153,6 +156,7 @@ const EventRegistrationScreen = ({ route, navigation }) => {
                 setFormData({ ...formData, organization: text })
               }
               placeholder="Enter your organization"
+              placeholderTextColor="#999"
             />
           </View>
 
@@ -165,6 +169,7 @@ const EventRegistrationScreen = ({ route, navigation }) => {
                 setFormData({ ...formData, additionalNotes: text })
               }
               placeholder="Any additional information you'd like to share"
+              placeholderTextColor="#999"
               multiline
               numberOfLines={4}
             />
@@ -190,6 +195,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    paddingTop: StatusBar.currentHeight,
   },
   loadingContainer: {
     flex: 1,

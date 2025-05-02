@@ -2,8 +2,8 @@ import axios from 'axios';
 
 
 // Base URL for API calls
+// const API_URL = 'https://health-server-fawn.vercel.app/api';
 const API_URL = 'http://192.168.1.11:5000/api';
-
 // Create axios instance
 const api = axios.create({
   baseURL: API_URL,
@@ -60,6 +60,17 @@ export const authService = {
 
 // Admin services
 export const adminService = {
+  // Get dashboard statistics
+  getDashboardStats: async () => {
+    try {
+      const response = await api.get('/admin/dashboard');
+      return response.data;
+    } catch (error) {
+      console.error('Dashboard stats error:', error);
+      throw error;
+    }
+  },
+
   // Get all doctors
   getDoctors: async () => {
     try {
@@ -210,7 +221,51 @@ export const adminService = {
       console.error('Reject document error:', error);
       throw error;
     }
+  },
+  // Get all pharma representatives
+getPharmaReps: async () => {
+  try {
+    const response = await api.get('/admin/pharma');
+    return response.data;
+  } catch (error) {
+    console.error('Get pharma representatives error:', error);
+    throw error;
   }
+},
+
+// Get pharma details by ID
+getPharmaDetails: async (pharmaId) => {
+  try {
+    console.log('Fetching pharma details for ID:', pharmaId);
+    const response = await api.get(`/admin/pharma/${pharmaId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Get pharma details error for ID ${pharmaId}:`, error);
+    throw error;
+  }
+},
+
+// Delete a pharma representative
+deletePharma: async (pharmaId) => {
+  try {
+    const response = await api.delete(`/admin/pharma/${pharmaId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Delete pharma representative error:', error);
+    throw error;
+  }
+},
+
+// Verify a pharma representative
+verifyPharma: async (pharmaId, notes = '') => {
+  try {
+    const response = await api.put(`/admin/pharma/${pharmaId}/verify`, { notes });
+    return response.data;
+  } catch (error) {
+    console.error('Verify pharma representative error:', error);
+    throw error;
+  }
+},
 };
 
 // Event services

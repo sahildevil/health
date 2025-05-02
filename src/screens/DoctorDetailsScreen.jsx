@@ -311,7 +311,7 @@ const DoctorDetailsScreen = ({route, navigation}) => {
                       {new Date(doc.uploadDate).toLocaleDateString()}
                     </Text>
                   </View>
-                  <View
+                  {/* <View
                     style={[
                       styles.documentStatus,
                       {backgroundColor: doc.verified ? '#e8f5e9' : '#fff3e0'},
@@ -329,7 +329,7 @@ const DoctorDetailsScreen = ({route, navigation}) => {
                       ]}>
                       {doc.verified ? 'Verified' : 'Pending'}
                     </Text>
-                  </View>
+                  </View> */}
                 </View>
 
                 {doc.preview && (
@@ -349,7 +349,7 @@ const DoctorDetailsScreen = ({route, navigation}) => {
                   </View>
                 )}
 
-                {!doc.verified ? (
+                {/* {!doc.verified ? (
                   <View style={styles.documentActions}>
                     <TouchableOpacity
                       style={styles.verifyDocButton}
@@ -379,7 +379,7 @@ const DoctorDetailsScreen = ({route, navigation}) => {
                       </Text>
                     )}
                   </View>
-                )}
+                )} */}
               </View>
             ))}
           </View>

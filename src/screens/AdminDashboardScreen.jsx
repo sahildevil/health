@@ -14,7 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
 import api from '../services/api';
-
+import { adminService } from '../services/api';
 const AdminDashboardScreen = ({navigation}) => {
   const {user} = useAuth();
   const [stats, setStats] = useState({
@@ -28,22 +28,33 @@ const AdminDashboardScreen = ({navigation}) => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      // In a real app, you'd fetch this data from your API
-      // const response = await api.get('/admin/dashboard');
-      // setStats(response.data);
       
-      // Simulated data for demonstration
-      setTimeout(() => {
-        setStats({
-          totalDoctors: 24,
-          totalPharma: 12,
-          pendingEvents: 5,
-        });
-        setLoading(false);
-      }, 1000);
+      const data = await adminService.getDashboardStats();
+      
+      setStats({
+        totalDoctors: data.totalDoctors || 0,
+        totalPharma: data.totalPharma || 0,
+        pendingEvents: data.pendingEvents || 0
+      });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      // Keep previous stats or set defaults
+      setStats(prevStats => prevStats || {
+        totalDoctors: 0,
+        totalPharma: 0, 
+        pendingEvents: 0
+      });
+      
+      // Alert user of error if this isn't just an initial load
+      if (!loading) {
+        Alert.alert(
+          'Error Loading Data',
+          'Could not load the latest dashboard statistics. Please try again later.'
+        );
+      }
+    } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -165,7 +176,7 @@ const AdminDashboardScreen = ({navigation}) => {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.sectionHeader}>
+        {/* <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recent Activity</Text>
           <TouchableOpacity>
             <Text style={styles.viewAllText}>View All</Text>
@@ -208,7 +219,7 @@ const AdminDashboardScreen = ({navigation}) => {
               <Text style={styles.activityTime}>2 days ago</Text>
             </View>
           </View>
-        </View>
+        </View> */}
       </ScrollView>
     </SafeAreaView>
   );
@@ -216,7 +227,7 @@ const AdminDashboardScreen = ({navigation}) => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    //paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
     flex: 1,
     backgroundColor: '#f7f9fc',
   },

@@ -202,94 +202,93 @@ const handleUploadDocuments = async () => {
     }
   };
 
-  // Update the handleSignUp function to properly include documents
-  const handleSignUp = async () => {
-    // Simple validation
-    if (!name || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
+// Update the handleSignUp function to treat pharma documents the same as doctor documents
+
+const handleSignUp = async () => {
+  // Simple validation
+  if (!name || !email || !password || !confirmPassword) {
+    Alert.alert('Error', 'Please fill in all fields');
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    Alert.alert('Error', 'Passwords do not match');
+    return;
+  }
+
+  // Make document upload required for both doctor and pharma
+  if ((role === 'doctor' || role === 'pharma') && documents.length === 0) {
+    Alert.alert('Error', 'Please upload at least one document for verification');
+    return;
+  }
+
+  try {
+    setIsSubmitting(true);
+
+    // Create user data object based on role
+    const userData = {
+      name,
+      email,
+      password,
+      role,
+    };
+
+    // Add role-specific fields
+    if (role === 'doctor') {
+      userData.degree = degree;
+    } else if (role === 'pharma') {
+      userData.company = company;
     }
 
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
+    // Debug log
+    console.log('Sending user data for registration:', userData);
 
-    try {
-      setIsSubmitting(true);
+    // Register the user
+    await signup(userData);
 
-      // Create user data object based on role
-      const userData = {
-        name,
-        email,
-        password,
-        role,
-      };
+    // Now handle the document upload if needed - SAME HANDLING FOR BOTH ROLES
+    if ((role === 'doctor' || role === 'pharma') && documents.length > 0) {
+      // Show an intermediate message
+      Alert.alert(
+        'Account Created',
+        'Your account has been created successfully! Now uploading your documents for verification.',
+        [{ text: 'OK' }]
+      );
 
-      // Add role-specific fields
-      if (role === 'doctor') {
-        userData.degree = degree;
-        // Documents will be uploaded after registration
-      } else if (role === 'pharma') {
-        userData.company = company;
-      }
-
-      // Debug log
-      console.log('Sending user data for registration:', userData);
-
-      // Register the user
-      await signup(userData);
-
-      // Now handle the document upload if needed
-      if (role === 'doctor' && documents.length > 0) {
-        // Show an intermediate message
-        Alert.alert(
-          'Account Created',
-          'Your account has been created successfully! Now uploading your documents for verification.',
-          [{ text: 'OK' }]
-        );
-
-        try {
-          // Login first to get a valid token
-          await login(email, password);
+      try {
+        // Login first to get a valid token
+        await login(email, password);
+        
+        // Now upload the documents with valid authentication
+        const uploadedDocuments = await handleUploadDocuments();
+        
+        if (uploadedDocuments.length > 0) {
+          // Update user profile with documents
+          await userService.uploadDocuments(uploadedDocuments);
           
-          // Now upload the documents with valid authentication
-          const uploadedDocuments = await handleUploadDocuments();
-          
-          if (uploadedDocuments.length > 0) {
-            // Update user profile with documents
-            await userService.uploadDocuments(uploadedDocuments);
-            
-            Alert.alert(
-              'Registration Complete',
-              'Your account and documents have been submitted. An admin will review your documents for verification.',
-              [{ text: 'Continue' }]
-            );
-          }
-        } catch (uploadError) {
-          console.error('Document upload error:', uploadError);
           Alert.alert(
-            'Document Upload Failed',
-            'Your account was created but we couldn\'t upload your documents. ' +
-            'You can upload them later from your profile.',
-            [{ text: 'OK' }]
+            'Registration Complete',
+            'Your account and documents have been submitted. An admin will review your documents for verification.',
+            [{ text: 'Continue' }]
           );
         }
-      } else {
-        // Show success message for regular users (no documents)
+      } catch (uploadError) {
+        console.error('Document upload error:', uploadError);
         Alert.alert(
-          'Registration Successful',
-          'Your account has been created successfully!',
-          [{ text: 'Continue' }]
+          'Document Upload Failed',
+          'Your account was created but we couldn\'t upload your documents. ' +
+          'You can upload them later from your profile.',
+          [{ text: 'OK' }]
         );
       }
-    } catch (error) {
-      console.error('Signup error:', error);
-      Alert.alert('Signup Failed', error.message || 'Please try again later');
-    } finally {
-      setIsSubmitting(false);
     }
-  };
+  } catch (error) {
+    console.error('Signup error:', error);
+    Alert.alert('Signup Failed', error.message || 'Please try again later');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   // Role Selection Screen
   if (step === 1) {
@@ -442,17 +441,43 @@ const handleUploadDocuments = async () => {
           </>
         )}
 
-        {role === 'pharma' && (
-          <>
-            <Text style={styles.inputLabel}>Company Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your company name"
-              value={company}
-              onChangeText={setCompany}
-            />
-          </>
-        )}
+{role === 'pharma' && (
+        <>
+          <Text style={styles.inputLabel}>Company Name</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your company name"
+            value={company}
+            onChangeText={setCompany}
+          />
+          
+          <Text style={styles.sectionTitle}>Upload Company Credentials</Text>
+          <Text style={styles.sectionSubtitle}>
+            Please upload company registration, license, or accreditation documents (required)
+          </Text>
+
+          <View style={styles.uploadButtonsContainer}>
+            <TouchableOpacity
+              style={styles.uploadButton}
+              onPress={pickDocument}>
+              <Icon name="file-document-outline" size={24} color="#2e7af5" />
+              <Text style={styles.uploadButtonText}>Browse Files</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.uploadButton} onPress={takePhoto}>
+              <Icon name="camera" size={24} color="#2e7af5" />
+              <Text style={styles.uploadButtonText}>Take Photo</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.uploadButton}
+              onPress={pickFromGallery}>
+              <Icon name="image" size={24} color="#2e7af5" />
+              <Text style={styles.uploadButtonText}>From Gallery</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
 
         <Text style={styles.inputLabel}>Password</Text>
         <TextInput

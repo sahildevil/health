@@ -17,6 +17,7 @@ import AntDesignIcon from 'react-native-vector-icons/AntDesign';
 import {Calendar} from 'react-native-calendars';
 import {eventService} from '../services/api'; // Import the API service
 import {useAuth} from '../context/AuthContext';
+import { SafeAreaInsetsContext, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const ConferencesScreen = ({navigation}) => {
   const {user} = useAuth(); // Get current user
@@ -181,8 +182,8 @@ const ConferencesScreen = ({navigation}) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+<SafeAreaView style={[styles.container, { paddingTop: useSafeAreaInsets.top }]}>
+      <StatusBar barStyle="dark-content" backgroundColor='white'/>
 
       {/* Header */}
       <View style={styles.header}>
@@ -283,7 +284,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f7f9fc',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    //paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
     padding: 20,
