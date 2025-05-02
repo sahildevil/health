@@ -55,9 +55,11 @@ const EventDetailsScreen = ({route, navigation}) => {
   const {user} = useAuth();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [registeredEvents, setRegisteredEvents] = useState([]); // Add this
 
   useEffect(() => {
     fetchEventDetails();
+    fetchRegisteredEvents(); // Add this
   }, [eventId]);
 
   const fetchEventDetails = async () => {
@@ -70,6 +72,16 @@ const EventDetailsScreen = ({route, navigation}) => {
       Alert.alert('Error', 'Failed to load event details.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Add function to fetch registered events
+  const fetchRegisteredEvents = async () => {
+    try {
+      const data = await eventService.getRegisteredEvents();
+      setRegisteredEvents(data.map(event => event.id));
+    } catch (error) {
+      console.error('Failed to fetch registered events:', error);
     }
   };
 
@@ -230,17 +242,30 @@ const EventDetailsScreen = ({route, navigation}) => {
               </TouchableOpacity>
             </>
           ) : (
-            // Show Register and Calendar buttons for other users
+            // Show Register/Registered and Calendar buttons for other users
             <>
               {event.status === 'approved' && (
-                <TouchableOpacity
-                  style={styles.primaryButton}
-                  onPress={() =>
-                    navigation.navigate('EventRegistration', {eventId})
-                  }>
-                  <Icon name="account-plus" size={18} color="#fff" />
-                  <Text style={styles.primaryButtonText}>Register Now</Text>
-                </TouchableOpacity>
+                registeredEvents.includes(event.id) ? (
+                  <TouchableOpacity
+                    style={[styles.primaryButton, {backgroundColor: '#4caf50'}]}
+                    disabled={true}>
+                    <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                      <Icon name="check-circle" size={18} color="#fff" />
+                      <Text style={[styles.primaryButtonText, {marginLeft: 6}]}>
+                        Registered
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={() =>
+                      navigation.navigate('EventRegistration', {eventId})
+                    }>
+                    <Icon name="account-plus" size={18} color="#fff" />
+                    <Text style={styles.primaryButtonText}>  Register Now</Text>
+                  </TouchableOpacity>
+                )
               )}
               <TouchableOpacity style={styles.secondaryButton}>
                 <Icon name="calendar-plus" size={18} color="#2e7af5" />
@@ -570,6 +595,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     marginRight: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  registeredButton: {
+    backgroundColor: '#4caf50',
   },
   primaryButtonText: {
     color: 'white',

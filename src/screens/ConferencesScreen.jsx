@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  RefreshControl
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AntDesignIcon from 'react-native-vector-icons/AntDesign';
@@ -27,6 +28,7 @@ const ConferencesScreen = ({navigation}) => {
   const [events, setEvents] = useState([]); // State for events
   const [loading, setLoading] = useState(true); // State for loading
   const [registeredEvents, setRegisteredEvents] = useState([]); // Add this state
+  const [refreshing, setRefreshing] = useState(false);
 
   const formatDate = dateString => {
     const options = {
@@ -48,12 +50,16 @@ const ConferencesScreen = ({navigation}) => {
     });
   };
 
-  // Fetch events from the database
+  // Modify fetchEvents to sort events by creation date
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const data = await eventService.getAllEvents(); // Fetch events from API
-      setEvents(data);
+      const data = await eventService.getAllEvents();
+      // Sort events by created_at in descending order (newest first)
+      const sortedEvents = data.sort((a, b) => {
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+      setEvents(sortedEvents);
     } catch (error) {
       console.error('Failed to fetch events:', error);
       Alert.alert('Error', 'Failed to load events.');
@@ -61,6 +67,18 @@ const ConferencesScreen = ({navigation}) => {
       setLoading(false);
     }
   };
+
+   // Add onRefresh handler
+   const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([fetchEvents(), fetchRegisteredEvents()]);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   // Add function to fetch registered events
   const fetchRegisteredEvents = async () => {
@@ -77,7 +95,7 @@ const ConferencesScreen = ({navigation}) => {
     fetchRegisteredEvents();
   }, []);
 
-  // Filter events based on active tab, search query, and selected date
+  // Update the filtering logic in the component
   const filteredEvents = events.filter(event => {
     // Filter based on active tab
     if (activeTab === 'Conferences' && event.type !== 'Conference') {
@@ -88,21 +106,43 @@ const ConferencesScreen = ({navigation}) => {
       return false;
     }
 
-    // Filter based on search query
-    if (
-      searchQuery &&
-      !event.title.toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false;
+    // Filter based on search query (search in title, description and organizer)
+    if (searchQuery) {
+      const searchTerm = searchQuery.toLowerCase();
+      const matchesSearch = 
+        event.title.toLowerCase().includes(searchTerm) ||
+        event.description.toLowerCase().includes(searchTerm) ||
+        event.organizer_name.toLowerCase().includes(searchTerm);
+      
+      if (!matchesSearch) {
+        return false;
+      }
     }
 
-    // Filter based on date (if selected)
-    if (selectedDate && !event.start_date.includes(selectedDate)) {
-      return false;
+    // Filter based on selected date
+    if (selectedDate) {
+      const eventStartDate = new Date(event.start_date);
+      const searchDate = new Date(selectedDate);
+      
+      // Check if event date matches selected date
+      if (
+        eventStartDate.getDate() !== searchDate.getDate() ||
+        eventStartDate.getMonth() !== searchDate.getMonth() ||
+        eventStartDate.getFullYear() !== searchDate.getFullYear()
+      ) {
+        return false;
+      }
     }
 
     return true;
   });
+
+  // Add a clear filters function
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedDate('');
+    setActiveTab('All Events');
+  };
 
   const renderEventCard = event => (
     <View style={styles.eventCard} key={event.id}>
@@ -205,28 +245,38 @@ const ConferencesScreen = ({navigation}) => {
       {/* Search and Filter */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
-          <Icon
-            name="magnify"
-            size={20}
-            color="#999"
-            style={styles.searchIcon}
-          />
+          <Icon name="magnify" size={20} color="#999" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search events..."
+            placeholder="Search by title, description or organizer..."
             placeholderTextColor="#999"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
+          {searchQuery ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Icon name="close" size={20} color="#999" />
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <TouchableOpacity
           style={styles.datePickerButton}
           onPress={() => setShowDatePicker(!showDatePicker)}>
-          <Icon name="calendar" size={20} color="#666" />
-          <Text style={styles.datePickerText}>
-            {selectedDate || 'Search by date'}
+          <Icon name="calendar" size={20} color={selectedDate ? '#2e7af5' : '#666'} />
+          <Text style={[styles.datePickerText, selectedDate && { color: '#2e7af5' }]}>
+            {selectedDate ? formatDate(selectedDate) : 'Filter by date'}
           </Text>
+          {selectedDate ? (
+            <TouchableOpacity 
+              onPress={(e) => {
+                e.stopPropagation();
+                setSelectedDate('');
+              }}
+              style={{ marginLeft: 8 }}>
+              <Icon name="close" size={16} color="#666" />
+            </TouchableOpacity>
+          ) : null}
         </TouchableOpacity>
       </View>
 
@@ -241,6 +291,17 @@ const ConferencesScreen = ({navigation}) => {
             [selectedDate]: {selected: true, selectedColor: '#2e7af5'},
           }}
         />
+      )}
+
+      {(searchQuery || selectedDate) && (
+        <View style={styles.activeFiltersContainer}>
+          <Text style={styles.activeFiltersText}>
+            {`${filteredEvents.length} ${filteredEvents.length === 1 ? 'result' : 'results'} found`}
+          </Text>
+          <TouchableOpacity onPress={clearFilters} style={styles.clearFiltersButton}>
+            <Text style={styles.clearFiltersText}>Clear all filters</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* Event Type Tabs */}
@@ -263,18 +324,19 @@ const ConferencesScreen = ({navigation}) => {
 
       {/* Event Cards */}
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color="#2e7af5"
-          style={{marginTop: 20}}
-        />
-      ) : (
-        <ScrollView style={styles.scrollView}>
-          <View style={styles.eventsContainer}>
-            {filteredEvents.map(event => renderEventCard(event))}
-          </View>
-        </ScrollView>
-      )}
+      <ActivityIndicator size="large" color="#2e7af5" style={{marginTop: 20}} />
+    ) : (
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        <View style={styles.eventsContainer}>
+          {filteredEvents.map(event => renderEventCard(event))}
+        </View>
+      </ScrollView>
+    )}
     </SafeAreaView>
   );
 };
@@ -379,6 +441,27 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     marginHorizontal: 20,
     marginBottom: 16,
+  },
+  activeFiltersContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  activeFiltersText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  clearFiltersButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+  },
+  clearFiltersText: {
+    fontSize: 14,
+    color: '#333',
   },
   tabsContainer: {
     flexDirection: 'row',
