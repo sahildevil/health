@@ -442,42 +442,76 @@ const handleSignUp = async () => {
         )}
 
 {role === 'pharma' && (
-        <>
-          <Text style={styles.inputLabel}>Company Name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your company name"
-            value={company}
-            onChangeText={setCompany}
-          />
-          
-          <Text style={styles.sectionTitle}>Upload Company Credentials</Text>
-          <Text style={styles.sectionSubtitle}>
-            Please upload company registration, license, or accreditation documents (required)
-          </Text>
+  <>
+    <Text style={styles.inputLabel}>Company Name</Text>
+    <TextInput
+      style={styles.input}
+      placeholder="Enter your company name"
+      value={company}
+      onChangeText={setCompany}
+    />
 
-          <View style={styles.uploadButtonsContainer}>
+    <Text style={styles.sectionTitle}>Upload Company Credentials</Text>
+    <Text style={styles.sectionSubtitle}>
+      Please upload company registration, license, or accreditation documents (required)
+    </Text>
+
+    <View style={styles.uploadButtonsContainer}>
+      <TouchableOpacity
+        style={styles.uploadButton}
+        onPress={pickDocument}>
+        <Icon name="file-document-outline" size={24} color="#2e7af5" />
+        <Text style={styles.uploadButtonText}>Browse Files</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.uploadButton} onPress={takePhoto}>
+        <Icon name="camera" size={24} color="#2e7af5" />
+        <Text style={styles.uploadButtonText}>Take Photo</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.uploadButton}
+        onPress={pickFromGallery}>
+        <Icon name="image" size={24} color="#2e7af5" />
+        <Text style={styles.uploadButtonText}>From Gallery</Text>
+      </TouchableOpacity>
+    </View>
+
+    {documents.length > 0 && (
+      <View style={styles.documentListContainer}>
+        <Text style={styles.documentListTitle}>
+          Selected Documents ({documents.length})
+        </Text>
+        {documents.map((doc, index) => (
+          <View key={index} style={styles.documentItem}>
+            <View style={styles.documentInfo}>
+              <Icon
+                name={
+                  doc.type.includes('image') ? 'image' : 'file-pdf-box'
+                }
+                size={24}
+                color="#2e7af5"
+              />
+              <View style={styles.documentDetails}>
+                <Text style={styles.documentName} numberOfLines={1}>
+                  {doc.name}
+                </Text>
+                <Text style={styles.documentSize}>
+                  {(doc.size / 1024).toFixed(1)} KB
+                </Text>
+              </View>
+            </View>
             <TouchableOpacity
-              style={styles.uploadButton}
-              onPress={pickDocument}>
-              <Icon name="file-document-outline" size={24} color="#2e7af5" />
-              <Text style={styles.uploadButtonText}>Browse Files</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.uploadButton} onPress={takePhoto}>
-              <Icon name="camera" size={24} color="#2e7af5" />
-              <Text style={styles.uploadButtonText}>Take Photo</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.uploadButton}
-              onPress={pickFromGallery}>
-              <Icon name="image" size={24} color="#2e7af5" />
-              <Text style={styles.uploadButtonText}>From Gallery</Text>
+              onPress={() => removeDocument(index)}
+              style={styles.documentRemove}>
+              <Icon name="close" size={20} color="#ff4c4c" />
             </TouchableOpacity>
           </View>
-        </>
-      )}
+        ))}
+      </View>
+    )}
+  </>
+)}
 
         <Text style={styles.inputLabel}>Password</Text>
         <TextInput
