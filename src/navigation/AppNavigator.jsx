@@ -29,7 +29,7 @@ import UserVerificationScreen from '../screens/UserVerificationScreen';
 import DoctorManagementScreen from '../screens/DoctorManagementScreen';
 import PharmaManagementScreen from '../screens/PharmaManagementScreen';
 import PharmaDetailsScreen from '../screens/PharmaDetailsScreen';
-
+import AdminEditEventScreen from '../screens/admin/AdminEditEventScreen';
 const Stack = createStackNavigator();
 const AdminStack = createStackNavigator();
 
@@ -59,6 +59,11 @@ const AdminNavigator = () => {
         component={PharmaManagementScreen}
       />
       <Stack.Screen name="PharmaDetails" component={PharmaDetailsScreen} />
+      <Stack.Screen
+        name="AdminEditEvent"
+        component={AdminEditEventScreen}
+        options={{headerShown: false}}
+      />
     </AdminStack.Navigator>
   );
 };

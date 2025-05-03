@@ -16,9 +16,11 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-
+import {useAuth} from '../context/AuthContext';
 import { eventService } from '../services/api';
 const CreateConferenceScreen = ({navigation}) => {
+  const {user} = useAuth();
+  const isAdmin = user && user.role === 'admin';
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [venue, setVenue] = useState('');
@@ -158,11 +160,12 @@ const CreateConferenceScreen = ({navigation}) => {
 
   const handleCreateConference = async () => {
     // Validate form
-    if (!title || !description || !venue || !organizerName || !organizerEmail) {
+    if (!title) {
       Alert.alert('Missing Information', 'Please fill all required fields.');
       return;
     }
   
+  if(isAdmin && !venue) {
     if (!validateEmail(organizerEmail)) {
       Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
@@ -180,6 +183,7 @@ const CreateConferenceScreen = ({navigation}) => {
       );
       return;
     }
+  }
   
     // Combine date and time for start and end dates
     const combinedStartDate = new Date(startDate);
@@ -388,16 +392,19 @@ const CreateConferenceScreen = ({navigation}) => {
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Tags (comma separated)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., healthcare, technology, education"
-              placeholderTextColor={'#999'}
-              value={tags}
-              onChangeText={setTags}
-            />
-          </View>
+          {isAdmin && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Tags (comma separated)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., healthcare, technology, education"
+                placeholderTextColor={'#999'}
+                value={tags}
+                onChangeText={setTags}
+              />
+              <Text style={styles.adminOnlyLabel}>Admin only field</Text>
+            </View>
+          )}
 
           {/* Date and Time */}
           <Text style={styles.sectionTitle}>Date and Time</Text>
@@ -480,6 +487,7 @@ const CreateConferenceScreen = ({navigation}) => {
           </View>
 
           {/* Location */}
+          {isAdmin && (<>
           <Text style={styles.sectionTitle}>Location</Text>
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>
@@ -513,58 +521,65 @@ const CreateConferenceScreen = ({navigation}) => {
               />
             </View>
           )}
+          </>)}
 
           {/* Speakers Section */}
-          <Text style={styles.sectionTitle}>Speakers</Text>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Speaker Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter speaker name"
-              placeholderTextColor={'#999'}
-              value={newSpeakerName}
-              onChangeText={setNewSpeakerName}
-            />
-          </View>
+          {isAdmin && (
+            <>
+              <Text style={styles.sectionTitle}>
+                Speakers <Text style={styles.adminOnlyText}>(Admin Only)</Text>
+              </Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Speaker Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter speaker name"
+                  placeholderTextColor={'#999'}
+                  value={newSpeakerName}
+                  onChangeText={setNewSpeakerName}
+                />
+              </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Speaker Title/Role</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., Professor of Computer Science, CEO"
-              placeholderTextColor={'#999'}
-              value={newSpeakerTitle}
-              onChangeText={setNewSpeakerTitle}
-            />
-          </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Speaker Title/Role</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., Professor of Computer Science, CEO"
+                  placeholderTextColor={'#999'}
+                  value={newSpeakerTitle}
+                  onChangeText={setNewSpeakerTitle}
+                />
+              </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Speaker Bio</Text>
-            <TextInput
-              style={[styles.input, styles.textarea]}
-              placeholder="Brief background about the speaker"
-              placeholderTextColor={'#999'}
-              value={newSpeakerBio}
-              onChangeText={setNewSpeakerBio}
-              multiline={true}
-              numberOfLines={3}
-            />
-          </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Speaker Bio</Text>
+                <TextInput
+                  style={[styles.input, styles.textarea]}
+                  placeholder="Brief background about the speaker"
+                  placeholderTextColor={'#999'}
+                  value={newSpeakerBio}
+                  onChangeText={setNewSpeakerBio}
+                  multiline={true}
+                  numberOfLines={3}
+                />
+              </View>
 
-          <TouchableOpacity style={styles.addButton} onPress={addSpeaker}>
-            <Icon name="plus" size={20} color="white" />
-            <Text style={styles.addButtonText}>Add Speaker</Text>
-          </TouchableOpacity>
+              <TouchableOpacity style={styles.addButton} onPress={addSpeaker}>
+                <Icon name="plus" size={20} color="white" />
+                <Text style={styles.addButtonText}>Add Speaker</Text>
+              </TouchableOpacity>
 
-          {speakers.length > 0 && (
-            <View style={styles.listContainer}>
-              <FlatList
-                data={speakers}
-                renderItem={renderSpeakerItem}
-                keyExtractor={item => item.id}
-                scrollEnabled={false}
-              />
-            </View>
+              {speakers.length > 0 && (
+                <View style={styles.listContainer}>
+                  <FlatList
+                    data={speakers}
+                    renderItem={renderSpeakerItem}
+                    keyExtractor={item => item.id}
+                    scrollEnabled={false}
+                  />
+                </View>
+              )}
+            </>
           )}
 
           {/* Sponsors Section */}
@@ -608,73 +623,87 @@ const CreateConferenceScreen = ({navigation}) => {
           )}
 
           {/* Registration */}
-          <Text style={styles.sectionTitle}>Registration</Text>
-          <View style={styles.inputGroup}>
-            <View style={styles.switchContainer}>
-              <Text style={styles.inputLabel}>Free Event</Text>
-              <Switch
-                value={isFree}
-                onValueChange={setIsFree}
-                trackColor={{false: '#767577', true: '#81b0ff'}}
-                thumbColor={isFree ? '#2e7af5' : '#f4f3f4'}
-              />
-            </View>
-          </View>
+          {isAdmin && (
+            <>
+              <Text style={styles.sectionTitle}>
+                Registration <Text style={styles.adminOnlyText}>(Admin Only)</Text>
+              </Text>
+              <View style={styles.inputGroup}>
+                <View style={styles.switchContainer}>
+                  <Text style={styles.inputLabel}>Free Event</Text>
+                  <Switch
+                    value={isFree}
+                    onValueChange={setIsFree}
+                    trackColor={{false: '#767577', true: '#81b0ff'}}
+                    thumbColor={isFree ? '#2e7af5' : '#f4f3f4'}
+                  />
+                </View>
+              </View>
 
-          {!isFree && (
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Registration Fee</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter amount (e.g., 99.99)"
-                placeholderTextColor={'#999'}
-                value={regFee}
-                onChangeText={setRegFee}
-                keyboardType="decimal-pad"
-              />
-            </View>
+              {!isFree && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Registration Fee</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter amount (e.g., 99.99)"
+                    placeholderTextColor={'#999'}
+                    value={regFee}
+                    onChangeText={setRegFee}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+              )}
+            </>
           )}
 
           {/* Organizer */}
-          <Text style={styles.sectionTitle}>Organizer</Text>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Organizer Name*</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., American Medical Association"
-              placeholderTextColor={'#999'}
-              value={organizerName}
-              onChangeText={setOrganizerName}
-            />
-          </View>
+          {isAdmin && (
+            <>
+              <Text style={styles.sectionTitle}>
+                Organizer <Text style={styles.adminOnlyText}>(Admin Only)</Text>
+              </Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Organizer Name*</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., American Medical Association"
+                  placeholderTextColor={'#999'}
+                  value={organizerName}
+                  onChangeText={setOrganizerName}
+                />
+              </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Organizer Email*</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="contact@example.com"
-              placeholderTextColor={'#999'}
-              value={organizerEmail}
-              onChangeText={setOrganizerEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Organizer Email*</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="contact@example.com"
+                  placeholderTextColor={'#999'}
+                  value={organizerEmail}
+                  onChangeText={setOrganizerEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Organizer Phone</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., +1 (555) 123-4567"
-              placeholderTextColor={'#999'}
-              value={organizerPhone}
-              onChangeText={setOrganizerPhone}
-              keyboardType="phone-pad"
-            />
-          </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Organizer Phone</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., +1 (555) 123-4567"
+                  placeholderTextColor={'#999'}
+                  value={organizerPhone}
+                  onChangeText={setOrganizerPhone}
+                  keyboardType="phone-pad"
+                />
+              </View>
+            </>
+          )}
 
           {/* Terms and Conditions */}
-          <Text style={styles.sectionTitle}>Terms and Conditions</Text>
+          {isAdmin &&(
+            <>
+            <Text style={styles.sectionTitle}>Terms and Conditions</Text>
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Terms and Conditions</Text>
             <TextInput
@@ -702,6 +731,8 @@ const CreateConferenceScreen = ({navigation}) => {
               </Text>
             </View>
           </View>
+            </>
+          ) }
 
           {/* Submit Button */}
           <TouchableOpacity

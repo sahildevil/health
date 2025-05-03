@@ -113,6 +113,10 @@ const EventApprovalScreen = ({ navigation }) => {
     navigation.navigate('EventDetails', { eventId });
   };
 
+  const handleEditEvent = (eventId) => {
+    navigation.navigate('AdminEditEvent', { eventId, fromApproval: true });
+  };
+
   const renderEventItem = ({ item }) => (
     <View style={styles.eventCard}>
       <View style={styles.eventHeader}>
@@ -154,6 +158,15 @@ const EventApprovalScreen = ({ navigation }) => {
           <Icon name="eye" size={16} color="#2e7af5" />
           <Text style={styles.viewButtonText}>View Details</Text>
         </TouchableOpacity>
+
+             {/* Add Edit button */}
+      <TouchableOpacity 
+        style={styles.editButton}
+        onPress={() => handleEditEvent(item.id)}
+      >
+        <Icon name="pencil" size={16} color="#fff" />
+        <Text style={styles.editButtonText}>Edit</Text>
+      </TouchableOpacity>
         
         <TouchableOpacity 
           style={styles.approveButton}
@@ -544,6 +557,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 16,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ff9800',
+    borderRadius: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  editButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 4,
   },
 });
 

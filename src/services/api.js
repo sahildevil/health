@@ -408,6 +408,24 @@ export const eventService = {
       throw error;
     }
   },
+  
+  // Approve event with additional data
+  approveEventWithChanges: async (eventId, eventData) => {
+    try {
+      // First update the event
+      await api.put(`/events/${eventId}`, eventData);
+      
+      // Then approve it
+      const response = await api.put(`/admin/events/${eventId}/approve`, { 
+        notes: 'Event edited and approved by admin'
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Approve event with changes error:', error);
+      throw error;
+    }
+  },
 
   // Delete an event
   deleteEvent: async eventId => {
