@@ -88,11 +88,15 @@ const EventDetailsScreen = ({route, navigation}) => {
     }
   };
 
-  // Add function to fetch brochure
+  // Update the fetchEventBrochure function
   const fetchEventBrochure = async () => {
     try {
       const brochureData = await eventService.getEventBrochure(eventId);
-      setBrochure(brochureData);
+      console.log('Fetched brochure data:', brochureData);
+
+      if (brochureData) {
+        setBrochure(brochureData);
+      }
     } catch (error) {
       console.error('Failed to load brochure:', error);
       // Not showing an alert as this is not critical
@@ -213,9 +217,10 @@ const EventDetailsScreen = ({route, navigation}) => {
       </View>
 
       <ScrollView style={styles.scrollView}>
-        {/* PDF Brochure Viewer - Display only if brochure exists */}
+        {/* Brochure Section */}
         {brochure && brochure.url && (
           <View style={styles.brochureContainer}>
+            <Text style={styles.brochureTitle}>Event Brochure</Text>
             <PdfViewer pdfUrl={brochure.url} />
           </View>
         )}
@@ -784,10 +789,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   brochureContainer: {
-    marginBottom: 12,
+    marginTop: 8,
+    marginBottom: 16,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    overflow: 'hidden',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    shadowOffset: {width: 0, height: 1},
+  },
+  brochureTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
-    backgroundColor: 'white',
   },
 });
 
