@@ -17,7 +17,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {useAuth} from '../context/AuthContext';
 import {eventService} from '../services/api';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 // Event Status Badge Component (reused from MyEventsScreen)
 const EventStatusBadge = ({status}) => {
@@ -94,7 +94,8 @@ const HomeScreen = ({navigation}) => {
     }
   };
 
-  // Fetch events
+  // Update the fetchEvents function to include brochure data
+
   const fetchEvents = async () => {
     try {
       setLoading(true);
@@ -105,20 +106,31 @@ const HomeScreen = ({navigation}) => {
           data = await eventService.getMyEvents();
           break;
         case 'ongoing':
-          // Replace with your API call for ongoing events
           data = await eventService.getOngoingEvents();
           break;
         case 'recommended':
-          // Replace with your API call for recommended events
           data = await eventService.getRecommendedEvents();
           break;
         default:
           data = await eventService.getMyEvents();
       }
-      setEvents(data);
+
+      // Fetch brochure info for each event
+      const eventsWithBrochures = await Promise.all(
+        data.map(async event => {
+          try {
+            const brochureData = await eventService.getEventBrochure(event.id);
+            return {...event, brochure: brochureData};
+          } catch (error) {
+            // If no brochure or error, return event without brochure
+            return event;
+          }
+        }),
+      );
+
+      setEvents(eventsWithBrochures);
     } catch (error) {
       console.error('Failed to load events:', error);
-      //Alert.alert('Error', 'Failed to load events.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -154,11 +166,13 @@ const HomeScreen = ({navigation}) => {
     });
   };
 
-  // Render event item (similar to MyEventsScreen)
+  // Update the renderEventItem function to fix the layout
+
   const renderEventItem = ({item}) => (
     <TouchableOpacity
       style={styles.eventCard}
       onPress={() => navigation.navigate('EventDetails', {eventId: item.id})}>
+      {/* Event Header with Status Badge */}
       <View style={styles.eventHeader}>
         <View>
           <Text style={styles.eventType}>{item.type}</Text>
@@ -166,6 +180,20 @@ const HomeScreen = ({navigation}) => {
         </View>
         <EventStatusBadge status={item.status} />
       </View>
+
+      {/* Brochure Preview - Repositioned below the header */}
+      {item.brochure && (
+        <View style={styles.brochureTagContainer}>
+          <TouchableOpacity
+            style={styles.brochureTag}
+            onPress={() =>
+              navigation.navigate('EventDetails', {eventId: item.id})
+            }>
+            <Icon name="file-pdf-box" size={20} color="#e53935" />
+            <Text style={styles.brochureTagText}>View Brochure</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <Text style={styles.eventDescription} numberOfLines={2}>
         {item.description}
@@ -228,8 +256,8 @@ const HomeScreen = ({navigation}) => {
   );
 
   return (
-<SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor='white'/>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
+      <StatusBar barStyle="dark-content" backgroundColor="white" />
       {/* Header */}
       <View style={styles.header}>
         <View>
@@ -607,6 +635,49 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
+  },
+  brochureTagContainer: {
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  brochureTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFF8F8',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+  },
+  brochureTagText: {
+    color: '#e53935',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  brochurePreviewContainer: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    zIndex: 1,
+  },
+  brochurePreview: {
+    backgroundColor: 'rgba(245, 245, 245, 0.95)',
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brochureText: {
+    color: '#e53935',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
   },
 });
 

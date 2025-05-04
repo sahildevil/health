@@ -11,14 +11,17 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-  RefreshControl
+  RefreshControl,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AntDesignIcon from 'react-native-vector-icons/AntDesign';
 import {Calendar} from 'react-native-calendars';
 import {eventService} from '../services/api'; // Import the API service
 import {useAuth} from '../context/AuthContext';
-import { SafeAreaInsetsContext, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaInsetsContext,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
 const ConferencesScreen = ({navigation}) => {
   const {user} = useAuth(); // Get current user
@@ -51,15 +54,30 @@ const ConferencesScreen = ({navigation}) => {
     });
   };
 
-  // Modify fetchEvents to sort events by creation date
+  // Update the fetchEvents function to include brochure data
   const fetchEvents = async () => {
     try {
       setLoading(true);
       const data = await eventService.getAllEvents();
+
+      // Fetch brochure info for each event
+      const eventsWithBrochures = await Promise.all(
+        data.map(async event => {
+          try {
+            const brochureData = await eventService.getEventBrochure(event.id);
+            return {...event, brochure: brochureData};
+          } catch (error) {
+            // If no brochure or error, return event without brochure
+            return event;
+          }
+        }),
+      );
+
       // Sort events by created_at in descending order (newest first)
-      const sortedEvents = data.sort((a, b) => {
+      const sortedEvents = eventsWithBrochures.sort((a, b) => {
         return new Date(b.created_at) - new Date(a.created_at);
       });
+
       setEvents(sortedEvents);
     } catch (error) {
       console.error('Failed to fetch events:', error);
@@ -69,8 +87,8 @@ const ConferencesScreen = ({navigation}) => {
     }
   };
 
-   // Add onRefresh handler
-   const onRefresh = React.useCallback(async () => {
+  // Add onRefresh handler
+  const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
     try {
       await Promise.all([fetchEvents(), fetchRegisteredEvents()]);
@@ -110,11 +128,11 @@ const ConferencesScreen = ({navigation}) => {
     // Filter based on search query (search in title, description and organizer)
     if (searchQuery) {
       const searchTerm = searchQuery.toLowerCase();
-      const matchesSearch = 
+      const matchesSearch =
         event.title.toLowerCase().includes(searchTerm) ||
         event.description.toLowerCase().includes(searchTerm) ||
         event.organizer_name.toLowerCase().includes(searchTerm);
-      
+
       if (!matchesSearch) {
         return false;
       }
@@ -124,7 +142,7 @@ const ConferencesScreen = ({navigation}) => {
     if (selectedDate) {
       const eventStartDate = new Date(event.start_date);
       const searchDate = new Date(selectedDate);
-      
+
       // Check if event date matches selected date
       if (
         eventStartDate.getDate() !== searchDate.getDate() ||
@@ -145,8 +163,23 @@ const ConferencesScreen = ({navigation}) => {
     setActiveTab('All Events');
   };
 
+  // Update the renderEventCard function to include brochure thumbnail
   const renderEventCard = event => (
     <View style={styles.eventCard} key={event.id}>
+      {/* Brochure Preview - Only show if event has a brochure */}
+      {event.brochure && (
+        <View style={styles.brochurePreviewContainer}>
+          <TouchableOpacity
+            style={styles.brochurePreview}
+            onPress={() =>
+              navigation.navigate('EventDetails', {eventId: event.id})
+            }>
+            <Icon name="file-pdf-box" size={36} color="#e53935" />
+            <Text style={styles.brochureText}>View Brochure</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <View style={styles.eventBadgeContainer}>
         <View
           style={[styles.badge, styles[event.type.toLowerCase() + 'Badge']]}>
@@ -204,7 +237,7 @@ const ConferencesScreen = ({navigation}) => {
               <View style={{flexDirection: 'row', alignItems: 'center'}}>
                 <AntDesignIcon name="checkcircle" size={14} color="#fff" />
                 <Text style={[styles.registeredButtonText, {marginLeft: 5}]}>
-                   Registered
+                  Registered
                 </Text>
               </View>
             </TouchableOpacity>
@@ -222,8 +255,9 @@ const ConferencesScreen = ({navigation}) => {
   );
 
   return (
-<SafeAreaView style={[styles.container, { paddingTop: useSafeAreaInsets.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor='white'/>
+    <SafeAreaView
+      style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+      <StatusBar barStyle="dark-content" backgroundColor="white" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -246,7 +280,12 @@ const ConferencesScreen = ({navigation}) => {
       {/* Search and Filter */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
-          <Icon name="magnify" size={20} color="#999" style={styles.searchIcon} />
+          <Icon
+            name="magnify"
+            size={20}
+            color="#999"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by title, description or organizer..."
@@ -264,17 +303,22 @@ const ConferencesScreen = ({navigation}) => {
         <TouchableOpacity
           style={styles.datePickerButton}
           onPress={() => setShowDatePicker(!showDatePicker)}>
-          <Icon name="calendar" size={20} color={selectedDate ? '#2e7af5' : '#666'} />
-          <Text style={[styles.datePickerText, selectedDate && { color: '#2e7af5' }]}>
+          <Icon
+            name="calendar"
+            size={20}
+            color={selectedDate ? '#2e7af5' : '#666'}
+          />
+          <Text
+            style={[styles.datePickerText, selectedDate && {color: '#2e7af5'}]}>
             {selectedDate ? formatDate(selectedDate) : 'Filter by date'}
           </Text>
           {selectedDate ? (
-            <TouchableOpacity 
-              onPress={(e) => {
+            <TouchableOpacity
+              onPress={e => {
                 e.stopPropagation();
                 setSelectedDate('');
               }}
-              style={{ marginLeft: 8 }}>
+              style={{marginLeft: 8}}>
               <Icon name="close" size={16} color="#666" />
             </TouchableOpacity>
           ) : null}
@@ -297,9 +341,13 @@ const ConferencesScreen = ({navigation}) => {
       {(searchQuery || selectedDate) && (
         <View style={styles.activeFiltersContainer}>
           <Text style={styles.activeFiltersText}>
-            {`${filteredEvents.length} ${filteredEvents.length === 1 ? 'result' : 'results'} found`}
+            {`${filteredEvents.length} ${
+              filteredEvents.length === 1 ? 'result' : 'results'
+            } found`}
           </Text>
-          <TouchableOpacity onPress={clearFilters} style={styles.clearFiltersButton}>
+          <TouchableOpacity
+            onPress={clearFilters}
+            style={styles.clearFiltersButton}>
             <Text style={styles.clearFiltersText}>Clear all filters</Text>
           </TouchableOpacity>
         </View>
@@ -325,19 +373,22 @@ const ConferencesScreen = ({navigation}) => {
 
       {/* Event Cards */}
       {loading ? (
-      <ActivityIndicator size="large" color="#2e7af5" style={{marginTop: 20}} />
-    ) : (
-      <ScrollView 
-        style={styles.scrollView}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        <View style={styles.eventsContainer}>
-          {filteredEvents.map(event => renderEventCard(event))}
-        </View>
-      </ScrollView>
-    )}
+        <ActivityIndicator
+          size="large"
+          color="#2e7af5"
+          style={{marginTop: 20}}
+        />
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }>
+          <View style={styles.eventsContainer}>
+            {filteredEvents.map(event => renderEventCard(event))}
+          </View>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 };
@@ -501,6 +552,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
+  },
+  brochurePreviewContainer: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    zIndex: 1,
+  },
+  brochurePreview: {
+    backgroundColor: 'rgba(245, 245, 245, 0.95)',
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brochureText: {
+    color: '#e53935',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
   },
   eventBadgeContainer: {
     flexDirection: 'row',

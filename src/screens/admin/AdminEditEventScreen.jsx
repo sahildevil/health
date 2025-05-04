@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -15,15 +15,15 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { eventService } from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
-
-const AdminEditEventScreen = ({ route, navigation }) => {
-  const { eventId, fromApproval } = route.params;
-  const { user } = useAuth();
+import {eventService} from '../../services/api';
+import {useAuth} from '../../context/AuthContext';
+import BrochureUploader from '../../components/BrochureUploader';
+const AdminEditEventScreen = ({route, navigation}) => {
+  const {eventId, fromApproval} = route.params;
+  const {user} = useAuth();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  
+  const [brochure, setBrochure] = useState(null);
   // Speaker fields
   const [newSpeakerName, setNewSpeakerName] = useState('');
   const [newSpeakerTitle, setNewSpeakerTitle] = useState('');
@@ -76,6 +76,11 @@ const AdminEditEventScreen = ({ route, navigation }) => {
         speakers: data.speakers || [],
         sponsors: data.sponsors || [],
       });
+
+      // Set brochure if it exists
+      if (data.brochure) {
+        setBrochure(data.brochure);
+      }
     } catch (error) {
       console.error('Failed to fetch event details:', error);
       Alert.alert('Error', 'Failed to load event details');
@@ -100,9 +105,9 @@ const AdminEditEventScreen = ({ route, navigation }) => {
 
     setEventData(prev => ({
       ...prev,
-      speakers: [...prev.speakers, newSpeaker]
+      speakers: [...prev.speakers, newSpeaker],
     }));
-    
+
     // Clear form fields
     setNewSpeakerName('');
     setNewSpeakerTitle('');
@@ -110,44 +115,54 @@ const AdminEditEventScreen = ({ route, navigation }) => {
   };
 
   // Remove a speaker
-  const removeSpeaker = (speakerId) => {
+  const removeSpeaker = speakerId => {
     setEventData(prev => ({
       ...prev,
-      speakers: prev.speakers.filter(speaker => speaker.id !== speakerId)
+      speakers: prev.speakers.filter(speaker => speaker.id !== speakerId),
     }));
   };
 
   const handleSave = async () => {
     try {
       setSubmitting(true);
-      
+
+      // Log the current brochure state to debug
+      console.log('Current brochure state:', brochure);
+
       const updatedEventData = {
         ...eventData,
         registrationFee: eventData.isFree ? '0' : eventData.registrationFee,
-        tags: eventData.tags ? eventData.tags.split(',').map(tag => tag.trim()) : []
+        tags: eventData.tags
+          ? eventData.tags.split(',').map(tag => tag.trim())
+          : [],
+        // Explicitly include brochure in the update
+        brochure: brochure,
       };
 
+      console.log('Sending updated data:', JSON.stringify(updatedEventData));
+
       await eventService.updateEvent(eventId, updatedEventData);
-      
+
+      // Rest of your code remains the same
       if (fromApproval) {
         Alert.alert(
-          'Event Updated', 
+          'Event Updated',
           'Event has been updated successfully. Would you like to approve it now?',
           [
-            { 
-              text: 'Not Yet', 
+            {
+              text: 'Not Yet',
               style: 'cancel',
-              onPress: () => navigation.goBack()
+              onPress: () => navigation.goBack(),
             },
             {
               text: 'Approve Now',
-              onPress: () => handleApproveEvent()
-            }
-          ]
+              onPress: () => handleApproveEvent(),
+            },
+          ],
         );
       } else {
         Alert.alert('Success', 'Event updated successfully', [
-          { text: 'OK', onPress: () => navigation.goBack() }
+          {text: 'OK', onPress: () => navigation.goBack()},
         ]);
       }
     } catch (error) {
@@ -162,9 +177,11 @@ const AdminEditEventScreen = ({ route, navigation }) => {
     try {
       setSubmitting(true);
       await eventService.approveEvent(eventId);
-      Alert.alert('Success', 'Event has been approved and is now visible to all users', [
-        { text: 'OK', onPress: () => navigation.navigate('EventApproval') }
-      ]);
+      Alert.alert(
+        'Success',
+        'Event has been approved and is now visible to all users',
+        [{text: 'OK', onPress: () => navigation.goBack()}],
+      );
     } catch (error) {
       console.error('Failed to approve event:', error);
       Alert.alert('Error', 'Failed to approve event');
@@ -174,16 +191,18 @@ const AdminEditEventScreen = ({ route, navigation }) => {
 
   const handleDateChange = (event, selectedDate, type) => {
     if (event.type === 'dismissed') {
-      type === 'start' ? setShowStartDatePicker(false) : setShowEndDatePicker(false);
+      type === 'start'
+        ? setShowStartDatePicker(false)
+        : setShowEndDatePicker(false);
       return;
     }
 
     if (selectedDate) {
       if (type === 'start') {
-        setEventData(prev => ({ ...prev, startDate: selectedDate }));
+        setEventData(prev => ({...prev, startDate: selectedDate}));
         setShowStartDatePicker(false);
       } else {
-        setEventData(prev => ({ ...prev, endDate: selectedDate }));
+        setEventData(prev => ({...prev, endDate: selectedDate}));
         setShowEndDatePicker(false);
       }
     }
@@ -191,37 +210,38 @@ const AdminEditEventScreen = ({ route, navigation }) => {
 
   const handleTimeChange = (event, selectedTime, type) => {
     if (event.type === 'dismissed') {
-      type === 'start' ? setShowStartTimePicker(false) : setShowEndTimePicker(false);
+      type === 'start'
+        ? setShowStartTimePicker(false)
+        : setShowEndTimePicker(false);
       return;
     }
 
     if (selectedTime) {
       const timeString = selectedTime.toTimeString().split(' ')[0];
       if (type === 'start') {
-        setEventData(prev => ({ ...prev, start_time: timeString }));
+        setEventData(prev => ({...prev, start_time: timeString}));
         setShowStartTimePicker(false);
       } else {
-        setEventData(prev => ({ ...prev, end_time: timeString }));
+        setEventData(prev => ({...prev, end_time: timeString}));
         setShowEndTimePicker(false);
       }
     }
   };
 
-  const formatDate = (date) => {
+  const formatDate = date => {
     return date.toISOString().split('T')[0];
   };
 
   // Render speaker item for the list
-  const renderSpeakerItem = ({ item }) => (
+  const renderSpeakerItem = ({item}) => (
     <View style={styles.speakerItem}>
       <View style={styles.speakerInfo}>
         <Text style={styles.speakerName}>{item.name}</Text>
         {item.title && <Text style={styles.speakerTitle}>{item.title}</Text>}
       </View>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.removeButton}
-        onPress={() => removeSpeaker(item.id)}
-      >
+        onPress={() => removeSpeaker(item.id)}>
         <Icon name="close-circle" size={20} color="#ff4c4c" />
       </TouchableOpacity>
     </View>
@@ -239,7 +259,7 @@ const AdminEditEventScreen = ({ route, navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      
+
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -264,16 +284,20 @@ const AdminEditEventScreen = ({ route, navigation }) => {
           {/* Event Status Badge */}
           <View style={styles.statusBadge}>
             <Text style={styles.statusText}>
-              {eventData.status === 'approved' ? 'Approved' : 
-               eventData.status === 'rejected' ? 'Rejected' : 'Pending Approval'}
+              {eventData.status === 'approved'
+                ? 'Approved'
+                : eventData.status === 'rejected'
+                ? 'Rejected'
+                : 'Pending Approval'}
             </Text>
           </View>
-          
+
           {/* Original Submitter */}
           <View style={styles.submitterSection}>
             <Text style={styles.submitterLabel}>Submitted by:</Text>
             <Text style={styles.submitterValue}>
-              {eventData.createdBy?.name || 'Unknown'} ({eventData.createdBy?.role || 'user'})
+              {eventData.createdBy?.name || 'Unknown'} (
+              {eventData.createdBy?.role || 'user'})
             </Text>
           </View>
 
@@ -285,9 +309,13 @@ const AdminEditEventScreen = ({ route, navigation }) => {
                 styles.radioButton,
                 eventData.type === 'Conference' && styles.radioButtonSelected,
               ]}
-              onPress={() => setEventData(prev => ({ ...prev, type: 'Conference' }))}>
+              onPress={() =>
+                setEventData(prev => ({...prev, type: 'Conference'}))
+              }>
               <View style={styles.radioCircle}>
-                {eventData.type === 'Conference' && <View style={styles.radioDot} />}
+                {eventData.type === 'Conference' && (
+                  <View style={styles.radioDot} />
+                )}
               </View>
               <Text style={styles.radioText}>Conference</Text>
             </TouchableOpacity>
@@ -297,9 +325,13 @@ const AdminEditEventScreen = ({ route, navigation }) => {
                 styles.radioButton,
                 eventData.type === 'Meeting' && styles.radioButtonSelected,
               ]}
-              onPress={() => setEventData(prev => ({ ...prev, type: 'Meeting' }))}>
+              onPress={() =>
+                setEventData(prev => ({...prev, type: 'Meeting'}))
+              }>
               <View style={styles.radioCircle}>
-                {eventData.type === 'Meeting' && <View style={styles.radioDot} />}
+                {eventData.type === 'Meeting' && (
+                  <View style={styles.radioDot} />
+                )}
               </View>
               <Text style={styles.radioText}>Meeting</Text>
             </TouchableOpacity>
@@ -313,9 +345,13 @@ const AdminEditEventScreen = ({ route, navigation }) => {
                 styles.radioButton,
                 eventData.mode === 'In-Person' && styles.radioButtonSelected,
               ]}
-              onPress={() => setEventData(prev => ({ ...prev, mode: 'In-Person' }))}>
+              onPress={() =>
+                setEventData(prev => ({...prev, mode: 'In-Person'}))
+              }>
               <View style={styles.radioCircle}>
-                {eventData.mode === 'In-Person' && <View style={styles.radioDot} />}
+                {eventData.mode === 'In-Person' && (
+                  <View style={styles.radioDot} />
+                )}
               </View>
               <Text style={styles.radioText}>In-Person</Text>
             </TouchableOpacity>
@@ -325,9 +361,13 @@ const AdminEditEventScreen = ({ route, navigation }) => {
                 styles.radioButton,
                 eventData.mode === 'Virtual' && styles.radioButtonSelected,
               ]}
-              onPress={() => setEventData(prev => ({ ...prev, mode: 'Virtual' }))}>
+              onPress={() =>
+                setEventData(prev => ({...prev, mode: 'Virtual'}))
+              }>
               <View style={styles.radioCircle}>
-                {eventData.mode === 'Virtual' && <View style={styles.radioDot} />}
+                {eventData.mode === 'Virtual' && (
+                  <View style={styles.radioDot} />
+                )}
               </View>
               <Text style={styles.radioText}>Virtual</Text>
             </TouchableOpacity>
@@ -340,7 +380,9 @@ const AdminEditEventScreen = ({ route, navigation }) => {
             <TextInput
               style={styles.input}
               value={eventData.title}
-              onChangeText={text => setEventData(prev => ({ ...prev, title: text }))}
+              onChangeText={text =>
+                setEventData(prev => ({...prev, title: text}))
+              }
               placeholder="Enter event title"
             />
           </View>
@@ -350,7 +392,9 @@ const AdminEditEventScreen = ({ route, navigation }) => {
             <TextInput
               style={[styles.input, styles.textarea]}
               value={eventData.description}
-              onChangeText={text => setEventData(prev => ({ ...prev, description: text }))}
+              onChangeText={text =>
+                setEventData(prev => ({...prev, description: text}))
+              }
               placeholder="Describe the event"
               multiline={true}
               numberOfLines={4}
@@ -362,7 +406,9 @@ const AdminEditEventScreen = ({ route, navigation }) => {
             <TextInput
               style={styles.input}
               value={eventData.tags}
-              onChangeText={text => setEventData(prev => ({ ...prev, tags: text }))}
+              onChangeText={text =>
+                setEventData(prev => ({...prev, tags: text}))
+              }
               placeholder="e.g., healthcare, technology, education"
             />
           </View>
@@ -419,7 +465,9 @@ const AdminEditEventScreen = ({ route, navigation }) => {
               </TouchableOpacity>
               {showStartTimePicker && (
                 <DateTimePicker
-                  value={new Date(`2020-01-01T${eventData.start_time || '00:00:00'}`)}
+                  value={
+                    new Date(`2020-01-01T${eventData.start_time || '00:00:00'}`)
+                  }
                   mode="time"
                   is24Hour={true}
                   display="default"
@@ -438,7 +486,9 @@ const AdminEditEventScreen = ({ route, navigation }) => {
               </TouchableOpacity>
               {showEndTimePicker && (
                 <DateTimePicker
-                  value={new Date(`2020-01-01T${eventData.end_time || '00:00:00'}`)}
+                  value={
+                    new Date(`2020-01-01T${eventData.end_time || '00:00:00'}`)
+                  }
                   mode="time"
                   is24Hour={true}
                   display="default"
@@ -452,12 +502,16 @@ const AdminEditEventScreen = ({ route, navigation }) => {
           <Text style={styles.sectionTitle}>Location</Text>
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>
-              {eventData.mode === 'Virtual' ? 'Platform/Link*' : 'Venue/Address*'}
+              {eventData.mode === 'Virtual'
+                ? 'Platform/Link*'
+                : 'Venue/Address*'}
             </Text>
             <TextInput
               style={styles.input}
               value={eventData.venue}
-              onChangeText={text => setEventData(prev => ({ ...prev, venue: text }))}
+              onChangeText={text =>
+                setEventData(prev => ({...prev, venue: text}))
+              }
               placeholder={
                 eventData.mode === 'Virtual'
                   ? 'e.g., Zoom, Google Meet, or platform link'
@@ -472,8 +526,11 @@ const AdminEditEventScreen = ({ route, navigation }) => {
               <TextInput
                 style={styles.input}
                 value={eventData.capacity?.toString()}
-                onChangeText={text => 
-                  setEventData(prev => ({ ...prev, capacity: text ? parseInt(text) : null }))
+                onChangeText={text =>
+                  setEventData(prev => ({
+                    ...prev,
+                    capacity: text ? parseInt(text) : null,
+                  }))
                 }
                 placeholder="Maximum number of attendees"
                 keyboardType="number-pad"
@@ -481,10 +538,29 @@ const AdminEditEventScreen = ({ route, navigation }) => {
             </View>
           )}
 
+          {/* Brochure Upload Section - Admin Only */}
+          <View style={styles.adminSection}>
+            <Text style={styles.sectionTitle}>
+              Event Brochure{' '}
+              <Text style={styles.adminOnlyText}>(Admin Only)</Text>
+            </Text>
+            <Text style={styles.sectionSubtitle}>
+              Upload a PDF brochure with detailed information about the event
+            </Text>
+
+            <BrochureUploader
+              currentBrochure={brochure}
+              onBrochureUploaded={setBrochure}
+              eventId={eventId} // Add this line
+            />
+          </View>
+
           {/* ADMIN ONLY: Speakers Section */}
           <View style={styles.adminSection}>
-            <Text style={styles.sectionTitle}>Speakers <Text style={styles.adminOnlyText}>(Admin Only)</Text></Text>
-            
+            <Text style={styles.sectionTitle}>
+              Speakers <Text style={styles.adminOnlyText}>(Admin Only)</Text>
+            </Text>
+
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Speaker Name*</Text>
               <TextInput
@@ -494,7 +570,7 @@ const AdminEditEventScreen = ({ route, navigation }) => {
                 placeholder="Enter speaker name"
               />
             </View>
-            
+
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Speaker Title/Role</Text>
               <TextInput
@@ -504,7 +580,7 @@ const AdminEditEventScreen = ({ route, navigation }) => {
                 placeholder="e.g., Professor of Medicine, CEO"
               />
             </View>
-            
+
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Speaker Bio</Text>
               <TextInput
@@ -516,15 +592,17 @@ const AdminEditEventScreen = ({ route, navigation }) => {
                 numberOfLines={3}
               />
             </View>
-            
+
             <TouchableOpacity style={styles.addButton} onPress={addSpeaker}>
               <Icon name="plus" size={20} color="white" />
               <Text style={styles.addButtonText}>Add Speaker</Text>
             </TouchableOpacity>
-            
+
             {eventData.speakers.length > 0 && (
               <View style={styles.listContainer}>
-                <Text style={styles.listTitle}>Added Speakers ({eventData.speakers.length})</Text>
+                <Text style={styles.listTitle}>
+                  Added Speakers ({eventData.speakers.length})
+                </Text>
                 <FlatList
                   data={eventData.speakers}
                   renderItem={renderSpeakerItem}
@@ -537,18 +615,21 @@ const AdminEditEventScreen = ({ route, navigation }) => {
 
           {/* ADMIN ONLY: Registration Section */}
           <View style={styles.adminSection}>
-            <Text style={styles.sectionTitle}>Registration <Text style={styles.adminOnlyText}>(Admin Only)</Text></Text>
-            
+            <Text style={styles.sectionTitle}>
+              Registration{' '}
+              <Text style={styles.adminOnlyText}>(Admin Only)</Text>
+            </Text>
+
             <View style={styles.inputGroup}>
               <View style={styles.switchContainer}>
                 <Text style={styles.inputLabel}>Free Event</Text>
                 <Switch
                   value={eventData.isFree}
-                  onValueChange={value => 
-                    setEventData(prev => ({ 
-                      ...prev, 
+                  onValueChange={value =>
+                    setEventData(prev => ({
+                      ...prev,
                       isFree: value,
-                      registrationFee: value ? '0' : prev.registrationFee 
+                      registrationFee: value ? '0' : prev.registrationFee,
                     }))
                   }
                   trackColor={{false: '#767577', true: '#81b0ff'}}
@@ -563,8 +644,8 @@ const AdminEditEventScreen = ({ route, navigation }) => {
                 <TextInput
                   style={styles.input}
                   value={eventData.registrationFee}
-                  onChangeText={text => 
-                    setEventData(prev => ({ ...prev, registrationFee: text }))
+                  onChangeText={text =>
+                    setEventData(prev => ({...prev, registrationFee: text}))
                   }
                   placeholder="Enter amount (e.g., 99.99)"
                   keyboardType="decimal-pad"
@@ -580,8 +661,8 @@ const AdminEditEventScreen = ({ route, navigation }) => {
             <TextInput
               style={styles.input}
               value={eventData.organizerName}
-              onChangeText={text => 
-                setEventData(prev => ({ ...prev, organizerName: text }))
+              onChangeText={text =>
+                setEventData(prev => ({...prev, organizerName: text}))
               }
               placeholder="Enter organizer name"
             />
@@ -592,8 +673,8 @@ const AdminEditEventScreen = ({ route, navigation }) => {
             <TextInput
               style={styles.input}
               value={eventData.organizerEmail}
-              onChangeText={text => 
-                setEventData(prev => ({ ...prev, organizerEmail: text }))
+              onChangeText={text =>
+                setEventData(prev => ({...prev, organizerEmail: text}))
               }
               placeholder="Enter organizer email"
               keyboardType="email-address"
@@ -606,8 +687,8 @@ const AdminEditEventScreen = ({ route, navigation }) => {
             <TextInput
               style={styles.input}
               value={eventData.organizerPhone}
-              onChangeText={text => 
-                setEventData(prev => ({ ...prev, organizerPhone: text }))
+              onChangeText={text =>
+                setEventData(prev => ({...prev, organizerPhone: text}))
               }
               placeholder="Enter organizer phone"
               keyboardType="phone-pad"
@@ -615,35 +696,39 @@ const AdminEditEventScreen = ({ route, navigation }) => {
           </View>
 
           {/* Terms and Conditions */}
-          <Text style={styles.sectionTitle}>Terms and Conditions <Text style={styles.adminOnlyText}>(Admin Only)</Text></Text>
+          <Text style={styles.sectionTitle}>
+            Terms and Conditions{' '}
+            <Text style={styles.adminOnlyText}>(Admin Only)</Text>
+          </Text>
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Terms and Conditions</Text>
             <TextInput
               style={[styles.input, styles.termsTextarea]}
               value={eventData.termsAndConditions}
-              onChangeText={text => 
-                setEventData(prev => ({ ...prev, termsAndConditions: text }))
+              onChangeText={text =>
+                setEventData(prev => ({...prev, termsAndConditions: text}))
               }
               placeholder="Enter terms and conditions"
               multiline={true}
               numberOfLines={6}
             />
           </View>
-          
+
           {/* Admin Actions */}
           {fromApproval && (
             <View style={styles.adminActionButtons}>
-              <TouchableOpacity 
-                style={styles.approveButton} 
+              <TouchableOpacity
+                style={styles.approveButton}
                 onPress={handleApproveEvent}
-                disabled={submitting}
-              >
+                disabled={submitting}>
                 {submitting ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <>
                     <Icon name="check-circle" size={20} color="#fff" />
-                    <Text style={styles.approveButtonText}>Save & Approve Event</Text>
+                    <Text style={styles.approveButtonText}>
+                      Save & Approve Event
+                    </Text>
                   </>
                 )}
               </TouchableOpacity>

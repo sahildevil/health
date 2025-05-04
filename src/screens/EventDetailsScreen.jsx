@@ -17,6 +17,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {eventService} from '../services/api';
 import {useAuth} from '../context/AuthContext';
+import PdfViewer from '../components/PdfViewer';
 
 // Event Status Badge Component (reused from HomeScreen)
 const EventStatusBadge = ({status}) => {
@@ -56,10 +57,13 @@ const EventDetailsScreen = ({route, navigation}) => {
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [registeredEvents, setRegisteredEvents] = useState([]); // Add this
+  const [brochure, setBrochure] = useState(null);
+  const [brochureLoading, setBrochureLoading] = useState(false); // Add this
 
   useEffect(() => {
     fetchEventDetails();
-    fetchRegisteredEvents(); // Add this
+    fetchEventBrochure(); // Ensure this is called
+    fetchRegisteredEvents();
   }, [eventId]);
 
   const fetchEventDetails = async () => {
@@ -82,6 +86,24 @@ const EventDetailsScreen = ({route, navigation}) => {
       setRegisteredEvents(data.map(event => event.id));
     } catch (error) {
       console.error('Failed to fetch registered events:', error);
+    }
+  };
+
+  // Update the fetchEventBrochure function
+  const fetchEventBrochure = async () => {
+    try {
+      setBrochureLoading(true);
+      const brochureData = await eventService.getEventBrochure(eventId);
+      console.log('Fetched brochure data:', brochureData);
+
+      if (brochureData) {
+        setBrochure(brochureData);
+      }
+    } catch (error) {
+      console.error('Failed to load brochure:', error);
+      // Not showing an alert as this is not critical
+    } finally {
+      setBrochureLoading(false);
     }
   };
 
@@ -199,6 +221,14 @@ const EventDetailsScreen = ({route, navigation}) => {
       </View>
 
       <ScrollView style={styles.scrollView}>
+        {/* Brochure Section */}
+        {brochure && brochure.url && (
+          <View style={styles.brochureContainer}>
+            <Text style={styles.brochureTitle}>Event Brochure</Text>
+            <PdfViewer pdfUrl={brochure.url} />
+          </View>
+        )}
+
         {/* Event Header Section */}
         <View style={styles.eventHeaderSection}>
           <View style={styles.eventTypeAndStatus}>
@@ -244,8 +274,8 @@ const EventDetailsScreen = ({route, navigation}) => {
           ) : (
             // Show Register/Registered and Calendar buttons for other users
             <>
-              {event.status === 'approved' && (
-                registeredEvents.includes(event.id) ? (
+              {event.status === 'approved' &&
+                (registeredEvents.includes(event.id) ? (
                   <TouchableOpacity
                     style={[styles.primaryButton, {backgroundColor: '#4caf50'}]}
                     disabled={true}>
@@ -263,10 +293,9 @@ const EventDetailsScreen = ({route, navigation}) => {
                       navigation.navigate('EventRegistration', {eventId})
                     }>
                     <Icon name="account-plus" size={18} color="#fff" />
-                    <Text style={styles.primaryButtonText}>  Register Now</Text>
+                    <Text style={styles.primaryButtonText}> Register Now</Text>
                   </TouchableOpacity>
-                )
-              )}
+                ))}
               <TouchableOpacity style={styles.secondaryButton}>
                 <Icon name="calendar-plus" size={18} color="#2e7af5" />
                 <Text style={styles.secondaryButtonText}>Add to Calendar</Text>
@@ -454,7 +483,6 @@ const EventDetailsScreen = ({route, navigation}) => {
         )}
       </ScrollView>
 
-    
       {/* {event.status === 'approved' && (
         <View style={styles.bottomButtonContainer}>
           <TouchableOpacity
@@ -763,6 +791,26 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  brochureContainer: {
+    marginTop: 8,
+    marginBottom: 16,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    overflow: 'hidden',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    shadowOffset: {width: 0, height: 1},
+  },
+  brochureTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
 });
 
