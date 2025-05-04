@@ -58,11 +58,12 @@ const EventDetailsScreen = ({route, navigation}) => {
   const [loading, setLoading] = useState(true);
   const [registeredEvents, setRegisteredEvents] = useState([]); // Add this
   const [brochure, setBrochure] = useState(null);
+  const [brochureLoading, setBrochureLoading] = useState(false); // Add this
 
   useEffect(() => {
     fetchEventDetails();
-    fetchEventBrochure();
-    fetchRegisteredEvents(); // Add this
+    fetchEventBrochure(); // Ensure this is called
+    fetchRegisteredEvents();
   }, [eventId]);
 
   const fetchEventDetails = async () => {
@@ -91,6 +92,7 @@ const EventDetailsScreen = ({route, navigation}) => {
   // Update the fetchEventBrochure function
   const fetchEventBrochure = async () => {
     try {
+      setBrochureLoading(true);
       const brochureData = await eventService.getEventBrochure(eventId);
       console.log('Fetched brochure data:', brochureData);
 
@@ -100,6 +102,8 @@ const EventDetailsScreen = ({route, navigation}) => {
     } catch (error) {
       console.error('Failed to load brochure:', error);
       // Not showing an alert as this is not critical
+    } finally {
+      setBrochureLoading(false);
     }
   };
 
