@@ -14,6 +14,7 @@ import AdminProfileScreen from '../screens/AdminProfileScreen';
 import EventApprovalScreen from '../screens/EventApprovalScreen';
 import DoctorListScreen from '../screens/DoctorListScreen';
 import DoctorDetailsScreen from '../screens/DoctorDetailsScreen';
+import ChatScreen from '../screens/ChatScreen';
 import EventDetailsScreen from '../screens/EventDetailsScreen';
 
 // Import regular user flow
@@ -129,6 +130,7 @@ const AppNavigator = () => {
               component={EditEventScreen}
               options={{headerShown: false}}
             />
+            <Stack.Screen name="Chat" component={ChatScreen} />
           </>
         )
       ) : (
