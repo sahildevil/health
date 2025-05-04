@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-
 // Base URL for API calls
 // const API_URL = 'https://health-server-fawn.vercel.app/api';
 const API_URL = 'http://192.168.1.11:5000/api';
@@ -21,11 +20,14 @@ api.interceptors.response.use(
 
     if (!error.response) {
       return Promise.reject({
-        message: 'Network error - check your connection and make sure the server is running',
+        message:
+          'Network error - check your connection and make sure the server is running',
       });
     }
 
-    return Promise.reject(error.response.data || { message: 'An error occurred with the request' });
+    return Promise.reject(
+      error.response.data || {message: 'An error occurred with the request'},
+    );
   },
 );
 
@@ -158,7 +160,7 @@ export const adminService = {
   },
 
   // Get doctor details by ID
-  getDoctorDetails: async (doctorId) => {
+  getDoctorDetails: async doctorId => {
     try {
       const response = await api.get(`/admin/doctors/${doctorId}`);
       return response.data;
@@ -169,7 +171,7 @@ export const adminService = {
   },
 
   // Get doctor documents by doctor ID
-  getDoctorDocuments: async (doctorId) => {
+  getDoctorDocuments: async doctorId => {
     try {
       const response = await api.get(`/admin/doctors/${doctorId}/documents`);
       return response.data;
@@ -182,7 +184,9 @@ export const adminService = {
   // Verify a doctor
   verifyDoctor: async (doctorId, notes = '') => {
     try {
-      const response = await api.put(`/admin/doctors/${doctorId}/verify`, { notes });
+      const response = await api.put(`/admin/doctors/${doctorId}/verify`, {
+        notes,
+      });
       return response.data;
     } catch (error) {
       console.error('Verify doctor error:', error);
@@ -193,7 +197,9 @@ export const adminService = {
   // Reject a doctor
   rejectDoctor: async (doctorId, notes) => {
     try {
-      const response = await api.put(`/admin/doctors/${doctorId}/reject`, { notes });
+      const response = await api.put(`/admin/doctors/${doctorId}/reject`, {
+        notes,
+      });
       return response.data;
     } catch (error) {
       console.error('Reject doctor error:', error);
@@ -204,7 +210,10 @@ export const adminService = {
   // Verify a specific document
   verifyDocument: async (doctorId, documentId, notes = '') => {
     try {
-      const response = await api.put(`/admin/doctors/${doctorId}/documents/${documentId}/verify`, { notes });
+      const response = await api.put(
+        `/admin/doctors/${doctorId}/documents/${documentId}/verify`,
+        {notes},
+      );
       return response.data;
     } catch (error) {
       console.error('Verify document error:', error);
@@ -215,7 +224,10 @@ export const adminService = {
   // Reject a specific document
   rejectDocument: async (doctorId, documentId, notes) => {
     try {
-      const response = await api.put(`/admin/doctors/${doctorId}/documents/${documentId}/reject`, { notes });
+      const response = await api.put(
+        `/admin/doctors/${doctorId}/documents/${documentId}/reject`,
+        {notes},
+      );
       return response.data;
     } catch (error) {
       console.error('Reject document error:', error);
@@ -223,49 +235,51 @@ export const adminService = {
     }
   },
   // Get all pharma representatives
-getPharmaReps: async () => {
-  try {
-    const response = await api.get('/admin/pharma');
-    return response.data;
-  } catch (error) {
-    console.error('Get pharma representatives error:', error);
-    throw error;
-  }
-},
+  getPharmaReps: async () => {
+    try {
+      const response = await api.get('/admin/pharma');
+      return response.data;
+    } catch (error) {
+      console.error('Get pharma representatives error:', error);
+      throw error;
+    }
+  },
 
-// Get pharma details by ID
-getPharmaDetails: async (pharmaId) => {
-  try {
-    console.log('Fetching pharma details for ID:', pharmaId);
-    const response = await api.get(`/admin/pharma/${pharmaId}`);
-    return response.data;
-  } catch (error) {
-    console.error(`Get pharma details error for ID ${pharmaId}:`, error);
-    throw error;
-  }
-},
+  // Get pharma details by ID
+  getPharmaDetails: async pharmaId => {
+    try {
+      console.log('Fetching pharma details for ID:', pharmaId);
+      const response = await api.get(`/admin/pharma/${pharmaId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Get pharma details error for ID ${pharmaId}:`, error);
+      throw error;
+    }
+  },
 
-// Delete a pharma representative
-deletePharma: async (pharmaId) => {
-  try {
-    const response = await api.delete(`/admin/pharma/${pharmaId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Delete pharma representative error:', error);
-    throw error;
-  }
-},
+  // Delete a pharma representative
+  deletePharma: async pharmaId => {
+    try {
+      const response = await api.delete(`/admin/pharma/${pharmaId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Delete pharma representative error:', error);
+      throw error;
+    }
+  },
 
-// Verify a pharma representative
-verifyPharma: async (pharmaId, notes = '') => {
-  try {
-    const response = await api.put(`/admin/pharma/${pharmaId}/verify`, { notes });
-    return response.data;
-  } catch (error) {
-    console.error('Verify pharma representative error:', error);
-    throw error;
-  }
-},
+  // Verify a pharma representative
+  verifyPharma: async (pharmaId, notes = '') => {
+    try {
+      const response = await api.put(`/admin/pharma/${pharmaId}/verify`, {
+        notes,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Verify pharma representative error:', error);
+      throw error;
+    }
+  },
 };
 
 // Event services
@@ -274,7 +288,7 @@ export const eventService = {
   createEvent: async eventData => {
     try {
       console.log('Attempting to create event with data:', eventData);
-      
+
       // Use the API to send to backend, not directly to Supabase
       const response = await api.post('/events', eventData);
       console.log('Event created successfully:', response.data);
@@ -287,7 +301,10 @@ export const eventService = {
 
   registerForEvent: async (eventId, registrationData) => {
     try {
-      const response = await axios.post(`/events/${eventId}/register`, registrationData);
+      const response = await axios.post(
+        `/events/${eventId}/register`,
+        registrationData,
+      );
       return response.data;
     } catch (error) {
       console.error('Error registering for event:', error);
@@ -298,10 +315,10 @@ export const eventService = {
   // Get all events
   getAllEvents: async () => {
     try {
-      const response = await api.get("/events"); // Call the backend API
+      const response = await api.get('/events'); // Call the backend API
       return response.data;
     } catch (error) {
-      console.error("Get all events error:", error);
+      console.error('Get all events error:', error);
       throw error;
     }
   },
@@ -380,7 +397,9 @@ export const eventService = {
     }
 
     try {
-      const response = await api.put(`/admin/events/${eventId}/approve`, { notes });
+      const response = await api.put(`/admin/events/${eventId}/approve`, {
+        notes,
+      });
       return response.data;
     } catch (error) {
       console.error('Approve event error:', error);
@@ -399,8 +418,26 @@ export const eventService = {
     }
   },
 
+  // updateEvent: async (eventId, eventData) => {
+  //   try {
+  //     const response = await api.put(`/events/${eventId}`, eventData);
+  //     return response.data;
+  //   } catch (error) {
+  //     console.error('Update event error:', error);
+  //     throw error;
+  //   }
+  // },
+
   updateEvent: async (eventId, eventData) => {
     try {
+      console.log(
+        'Updating event with data:',
+        JSON.stringify({
+          ...eventData,
+          brochure: eventData.brochure,
+        }),
+      );
+
       const response = await api.put(`/events/${eventId}`, eventData);
       return response.data;
     } catch (error) {
@@ -408,18 +445,18 @@ export const eventService = {
       throw error;
     }
   },
-  
+
   // Approve event with additional data
   approveEventWithChanges: async (eventId, eventData) => {
     try {
       // First update the event
       await api.put(`/events/${eventId}`, eventData);
-      
+
       // Then approve it
-      const response = await api.put(`/admin/events/${eventId}/approve`, { 
-        notes: 'Event edited and approved by admin'
+      const response = await api.put(`/admin/events/${eventId}/approve`, {
+        notes: 'Event edited and approved by admin',
       });
-      
+
       return response.data;
     } catch (error) {
       console.error('Approve event with changes error:', error);
@@ -445,6 +482,20 @@ export const eventService = {
       return response.data;
     } catch (error) {
       console.error('Event registration error:', error);
+      throw error;
+    }
+  },
+
+  // Get event brochure
+  getEventBrochure: async eventId => {
+    try {
+      const response = await api.get(`/events/${eventId}/brochure`);
+      return response.data;
+    } catch (error) {
+      // If 404, it means no brochure found, which is not an error
+      if (error.response && error.response.status === 404) {
+        return null;
+      }
       throw error;
     }
   },
