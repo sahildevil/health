@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -13,11 +13,11 @@ import {
   Linking,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { eventService, adminService } from '../../services/api';
+import {eventService, adminService} from '../../services/api';
 import PdfViewer from '../../components/PdfViewer';
 
 // Event Status Badge Component
-const EventStatusBadge = ({ status }) => {
+const EventStatusBadge = ({status}) => {
   let bgColor = '#FFF3E0'; // Default pending color
   let textColor = '#E65100';
   let iconName = 'clock-outline';
@@ -36,20 +36,20 @@ const EventStatusBadge = ({ status }) => {
   }
 
   return (
-    <View style={[styles.badge, { backgroundColor: bgColor }]}>
+    <View style={[styles.badge, {backgroundColor: bgColor}]}>
       <Icon
         name={iconName}
         size={12}
         color={textColor}
-        style={{ marginRight: 4 }}
+        style={{marginRight: 4}}
       />
-      <Text style={[styles.badgeText, { color: textColor }]}>{label}</Text>
+      <Text style={[styles.badgeText, {color: textColor}]}>{label}</Text>
     </View>
   );
 };
 
-const AdminEventDetails = ({ route, navigation }) => {
-  const { eventId } = route.params;
+const AdminEventDetails = ({route, navigation}) => {
+  const {eventId} = route.params;
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [registrations, setRegistrations] = useState([]);
@@ -124,14 +124,14 @@ const AdminEventDetails = ({ route, navigation }) => {
   };
 
   const handleEditEvent = () => {
-    navigation.navigate('AdminEditEvent', { 
+    navigation.navigate('AdminEditEvent', {
       eventId: eventId,
-      fromManagement: true 
+      fromManagement: true,
     });
   };
 
   const handleViewRegistrations = () => {
-    navigation.navigate('EventRegistrations', { eventId: eventId });
+    navigation.navigate('EventRegistrations', {eventId: eventId});
   };
 
   const handleApproveEvent = async () => {
@@ -145,26 +145,22 @@ const AdminEventDetails = ({ route, navigation }) => {
   };
 
   const handleRejectEvent = async () => {
-    Alert.alert(
-      'Reject Event',
-      'Are you sure you want to reject this event?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Reject',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await eventService.rejectEvent(eventId);
-              Alert.alert('Success', 'Event has been rejected');
-              fetchEventDetails(); // Refresh details
-            } catch (error) {
-              Alert.alert('Error', 'Failed to reject event');
-            }
+    Alert.alert('Reject Event', 'Are you sure you want to reject this event?', [
+      {text: 'Cancel', style: 'cancel'},
+      {
+        text: 'Reject',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await eventService.rejectEvent(eventId);
+            Alert.alert('Success', 'Event has been rejected');
+            fetchEventDetails(); // Refresh details
+          } catch (error) {
+            Alert.alert('Error', 'Failed to reject event');
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
   };
 
   const handleDeleteEvent = async () => {
@@ -172,29 +168,27 @@ const AdminEventDetails = ({ route, navigation }) => {
       'Delete Event',
       'Are you sure you want to delete this event? This action cannot be undone.',
       [
-        { text: 'Cancel', style: 'cancel' },
-        { 
+        {text: 'Cancel', style: 'cancel'},
+        {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
               await eventService.deleteEvent(eventId);
-              Alert.alert(
-                'Success', 
-                'Event deleted successfully', 
-                [{ text: 'OK', onPress: () => navigation.goBack() }]
-              );
+              Alert.alert('Success', 'Event deleted successfully', [
+                {text: 'OK', onPress: () => navigation.goBack()},
+              ]);
             } catch (error) {
               Alert.alert('Error', 'Failed to delete event');
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
   // Render speaker item
-  const renderSpeakerItem = ({ item }) => (
+  const renderSpeakerItem = ({item}) => (
     <View style={styles.speakerCard}>
       <View style={styles.speakerIconContainer}>
         <Icon name="account" size={24} color="#2e7af5" />
@@ -208,7 +202,7 @@ const AdminEventDetails = ({ route, navigation }) => {
   );
 
   // Render sponsor item
-  const renderSponsorItem = ({ item }) => (
+  const renderSponsorItem = ({item}) => (
     <View style={styles.sponsorCard}>
       <Text style={styles.sponsorName}>{item.name}</Text>
       {item.level && (
@@ -218,7 +212,7 @@ const AdminEventDetails = ({ route, navigation }) => {
   );
 
   // Render registration item
-  const renderRegistrationItem = ({ item }) => (
+  const renderRegistrationItem = ({item}) => (
     <View style={styles.registrationItem}>
       <View style={styles.registrationHeader}>
         <Text style={styles.registrationName}>{item.user.name}</Text>
@@ -277,7 +271,9 @@ const AdminEventDetails = ({ route, navigation }) => {
           <Icon name="arrow-left" size={24} color="#2e7af5" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Event Details</Text>
-        <TouchableOpacity style={styles.headerActionButton} onPress={handleEditEvent}>
+        <TouchableOpacity
+          style={styles.headerActionButton}
+          onPress={handleEditEvent}>
           <Icon name="pencil" size={24} color="#2e7af5" />
         </TouchableOpacity>
       </View>
@@ -289,33 +285,29 @@ const AdminEventDetails = ({ route, navigation }) => {
           <View style={styles.adminActionButtons}>
             {event.status === 'pending' && (
               <>
-                <TouchableOpacity 
-                  style={[styles.adminButton, styles.approveButton]} 
-                  onPress={handleApproveEvent}
-                >
+                <TouchableOpacity
+                  style={[styles.adminButton, styles.approveButton]}
+                  onPress={handleApproveEvent}>
                   <Icon name="check-circle" size={18} color="#fff" />
                   <Text style={styles.adminButtonText}>Approve</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.adminButton, styles.rejectButton]}
-                  onPress={handleRejectEvent}
-                >
+                  onPress={handleRejectEvent}>
                   <Icon name="close-circle" size={18} color="#fff" />
                   <Text style={styles.adminButtonText}>Reject</Text>
                 </TouchableOpacity>
               </>
             )}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.adminButton, styles.registrationsButton]}
-              onPress={handleViewRegistrations}
-            >
+              onPress={handleViewRegistrations}>
               <Icon name="clipboard-list" size={18} color="#fff" />
               <Text style={styles.adminButtonText}>Registrations</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.adminButton, styles.deleteButton]}
-              onPress={handleDeleteEvent}
-            >
+              onPress={handleDeleteEvent}>
               <Icon name="delete" size={18} color="#fff" />
               <Text style={styles.adminButtonText}>Delete</Text>
             </TouchableOpacity>
@@ -377,7 +369,8 @@ const AdminEventDetails = ({ route, navigation }) => {
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabel}>Start Date</Text>
               <Text style={styles.detailText}>
-                {formatDate(event.startDate)} at {event.start_time || formatTime(event.startDate)}
+                {formatDate(event.startDate)} at{' '}
+                {event.start_time || formatTime(event.startDate)}
               </Text>
             </View>
           </View>
@@ -386,7 +379,8 @@ const AdminEventDetails = ({ route, navigation }) => {
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabel}>End Date</Text>
               <Text style={styles.detailText}>
-                {formatDate(event.endDate)} at {event.end_time || formatTime(event.endDate)}
+                {formatDate(event.endDate)} at{' '}
+                {event.end_time || formatTime(event.endDate)}
               </Text>
             </View>
           </View>
@@ -461,20 +455,23 @@ const AdminEventDetails = ({ route, navigation }) => {
         <View style={styles.detailSection}>
           <Text style={styles.sectionTitle}>Recent Registrations</Text>
           {registrationsLoading ? (
-            <ActivityIndicator size="small" color="#2e7af5" style={{marginVertical: 16}} />
+            <ActivityIndicator
+              size="small"
+              color="#2e7af5"
+              style={{marginVertical: 16}}
+            />
           ) : registrations.length > 0 ? (
             <>
               <FlatList
                 data={registrations.slice(0, 3)} // Show only the most recent 3
                 renderItem={renderRegistrationItem}
-                keyExtractor={(item) => item.id}
+                keyExtractor={item => item.id}
                 scrollEnabled={false}
               />
               {registrations.length > 3 && (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.viewAllButton}
-                  onPress={handleViewRegistrations}
-                >
+                  onPress={handleViewRegistrations}>
                   <Text style={styles.viewAllButtonText}>
                     View All {registrations.length} Registrations
                   </Text>
@@ -561,7 +558,7 @@ const AdminEventDetails = ({ route, navigation }) => {
             <Text style={styles.description}>{event.termsAndConditions}</Text>
           </View>
         )}
-        
+
         {/* Admin Information */}
         <View style={styles.detailSection}>
           <Text style={styles.sectionTitle}>Admin Information</Text>
@@ -569,30 +566,36 @@ const AdminEventDetails = ({ route, navigation }) => {
             <Icon name="calendar-plus" size={20} color="#2e7af5" />
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabel}>Created</Text>
-              <Text style={styles.detailText}>{formatDate(event.created_at)}</Text>
+              <Text style={styles.detailText}>
+                {formatDate(event.created_at)}
+              </Text>
             </View>
           </View>
-          
+
           {event.verified_at && (
             <View style={styles.detailRow}>
               <Icon name="check-circle" size={20} color="#2e7af5" />
               <View style={styles.detailTextContainer}>
                 <Text style={styles.detailLabel}>Verified</Text>
-                <Text style={styles.detailText}>{formatDate(event.verified_at)}</Text>
+                <Text style={styles.detailText}>
+                  {formatDate(event.verified_at)}
+                </Text>
               </View>
             </View>
           )}
-          
+
           {event.admin_edited && (
             <View style={styles.detailRow}>
               <Icon name="pencil" size={20} color="#2e7af5" />
               <View style={styles.detailTextContainer}>
                 <Text style={styles.detailLabel}>Last Edited by Admin</Text>
-                <Text style={styles.detailText}>{formatDate(event.admin_edited_at)}</Text>
+                <Text style={styles.detailText}>
+                  {formatDate(event.admin_edited_at)}
+                </Text>
               </View>
             </View>
           )}
-          
+
           {/* Add verification notes if any */}
           {event.verification_notes && (
             <View style={styles.notesContainer}>
@@ -907,7 +910,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: {width: 0, height: 1},
   },
   brochureTitle: {
     fontSize: 16,

@@ -163,6 +163,8 @@ const ChatScreen = () => {
         socketRef.current.emit('join_room', roomId);
       });
 
+      // Update the receive_message event handler
+
       socketRef.current.on('receive_message', (message) => {
         console.log('Received message:', message);
         
@@ -177,20 +179,14 @@ const ChatScreen = () => {
           roomId: message.roomId || message.room_id
         };
         
-        // Avoid duplicates by checking if message already exists
+        // Immediately update messages without checking for duplicates
+        // This ensures all incoming messages appear right away
         setMessages((prevMessages) => {
-          const messageExists = prevMessages.some(
-            msg => msg.id === newMessage.id || 
-              (msg.senderId === newMessage.senderId && 
-               msg.timestamp === newMessage.timestamp && 
-               msg.text === newMessage.text)
-          );
-          
-          if (!messageExists) {
-            // Update current messages
+          // Only add if it's not already in the list (check by ID)
+          if (!prevMessages.some(msg => msg.id === newMessage.id)) {
             const updatedMessages = [newMessage, ...prevMessages];
             
-            // Also update chat history for this room
+            // Also update chat history
             setChatHistory(prev => ({
               ...prev,
               [newMessage.roomId]: updatedMessages
@@ -243,69 +239,74 @@ const ChatScreen = () => {
     }
   }, [selectedDoctor, user]);
 
-  const sendMessage = () => {
-    if (newMessage.trim().length === 0 || !selectedDoctor || !user) {
-      return;
-    }
+  // Update the sendMessage function
 
-    const roomId = [user.id, selectedDoctor.id].sort().join('-');
-    const messageData = {
-      // Use both fields for compatibility
-      text: newMessage.trim(),
-      content: newMessage.trim(), // Add content for backend
-      senderId: user.id,
-      sender_id: user.id, // Add sender_id for backend
-      senderName: user.name,
-      sender_name: user.name, // Add sender_name for backend
-      receiverId: selectedDoctor.id,
-      receiver_id: selectedDoctor.id, // Add receiver_id for backend
-      timestamp: new Date().toISOString(),
-      created_at: new Date().toISOString(), // Add created_at for backend
-      roomId: roomId,
-      room_id: roomId, // Add room_id for backend
-    };
+const sendMessage = () => {
+  if (newMessage.trim().length === 0 || !selectedDoctor || !user) {
+    return;
+  }
 
-    console.log('Sending message:', messageData);
-    
-    // Clear input field immediately
-    setNewMessage('');
-    
-    // Create temporary message with pending status to display immediately
-    const tempMessage = {
-      ...messageData,
-      id: `temp-${Date.now()}`,
-      pending: true
-    };
-    
-    // Add message to UI immediately
-    setMessages(prevMessages => [tempMessage, ...prevMessages]);
-    
-    // Also update chat history
-    setChatHistory(prev => {
-      const currentMessages = prev[roomId] || [];
-      return {
-        ...prev,
-        [roomId]: [tempMessage, ...currentMessages]
-      };
-    });
-    
-    // Try to send via socket first
-    if (socketConnected) {
-      try {
-        socketRef.current.emit('send_message', messageData);
-      } catch (socketError) {
-        console.error('Error sending message via socket:', socketError);
-        // Fall back to HTTP if socket fails
-        sendMessageViaHttp(messageData);
-      }
-    } else {
-      // Socket not connected, use HTTP
-      sendMessageViaHttp(messageData);
-    }
+  const roomId = [user.id, selectedDoctor.id].sort().join('-');
+  const tempId = `temp-${Date.now()}`;
+  
+  const messageData = {
+    // Use both fields for compatibility
+    text: newMessage.trim(),
+    content: newMessage.trim(), // Add content for backend
+    senderId: user.id,
+    sender_id: user.id, // Add sender_id for backend
+    senderName: user.name,
+    sender_name: user.name, // Add sender_name for backend
+    receiverId: selectedDoctor.id,
+    receiver_id: selectedDoctor.id, // Add receiver_id for backend
+    timestamp: new Date().toISOString(),
+    created_at: new Date().toISOString(), // Add created_at for backend
+    roomId: roomId,
+    room_id: roomId, // Add room_id for backend
+  };
+
+  console.log('Sending message:', messageData);
+  
+  // Clear input field immediately
+  setNewMessage('');
+  
+  // Create temporary message with pending status to display immediately
+  const tempMessage = {
+    ...messageData,
+    id: tempId,
+    pending: true
   };
   
+  // Add message to UI immediately - Force an update to the UI
+  setMessages(prevMessages => [tempMessage, ...prevMessages]);
+  
+  // Also update chat history
+  setChatHistory(prev => {
+    const currentMessages = prev[roomId] || [];
+    return {
+      ...prev,
+      [roomId]: [tempMessage, ...currentMessages]
+    };
+  });
+  
+  // Try to send via socket first
+  if (socketConnected) {
+    try {
+      // Add the temp ID to help with matching the response later
+      socketRef.current.emit('send_message', {...messageData, tempId});
+    } catch (socketError) {
+      console.error('Error sending message via socket:', socketError);
+      // Fall back to HTTP if socket fails
+      sendMessageViaHttp(messageData, tempId);
+    }
+  } else {
+    // Socket not connected, use HTTP
+    sendMessageViaHttp(messageData, tempId);
+  }
+};
+  
   // Fallback HTTP method to send messages
-  const sendMessageViaHttp = async (messageData) => {
+  const sendMessageViaHttp = async (messageData, tempId) => {
     try {
       const response = await axios.post(`${API_URL}/api/messages`, messageData);
       console.log('Message sent via HTTP fallback:', response.data);
@@ -314,7 +315,8 @@ const ChatScreen = () => {
         // Replace the pending message with the confirmed one
         const confirmedMessage = {
           ...messageData,
-          id: response.data.id || messageData.id || `http-${Date.now()}`,
+          id: response.data.id || messageData.id,
+          tempId: tempId, // Include tempId to help with matching
           pending: false
         };
         
@@ -326,73 +328,69 @@ const ChatScreen = () => {
     }
   };
   
-  // Update message status (from pending to confirmed)
-  const updateMessageStatus = (confirmedMessage) => {
-    console.log('Updating message status:', confirmedMessage);
-    const roomId = confirmedMessage.roomId || confirmedMessage.room_id;
-    
-    // Ensure we have a valid room ID
-    if (!roomId) {
-      console.error('No room ID in confirmed message:', confirmedMessage);
-      return;
-    }
+  // Improve the updateMessageStatus function
 
-    // Update displayed messages if this is the current room
-    if (currentRoomIdRef.current === roomId) {
-      setMessages(prevMessages => {
-        // Create a new array with the updated message
-        return prevMessages.map(msg => {
-          // Look for pending messages with matching content
-          if (msg.pending && 
-              msg.text === (confirmedMessage.text || confirmedMessage.content) && 
-              msg.senderId === (confirmedMessage.senderId || confirmedMessage.sender_id)) {
-            // Replace with confirmed message
-            return { 
-              id: confirmedMessage.id,
-              text: confirmedMessage.text || confirmedMessage.content,
-              senderId: confirmedMessage.senderId || confirmedMessage.sender_id,
-              senderName: confirmedMessage.senderName || confirmedMessage.sender_name,
-              receiverId: confirmedMessage.receiverId || confirmedMessage.receiver_id,
-              timestamp: confirmedMessage.timestamp || confirmedMessage.created_at,
-              roomId: confirmedMessage.roomId || confirmedMessage.room_id,
-              pending: false
-            };
-          }
-          return msg;
-        });
-      });
-    }
-    
-    // Always update the chat history
-    setChatHistory(prev => {
-      const roomMessages = prev[roomId] || [];
-      
-      // Update pending messages in this room
-      const updatedRoomMessages = roomMessages.map(msg => {
-        if (msg.pending && 
-            msg.text === (confirmedMessage.text || confirmedMessage.content) && 
-            msg.senderId === (confirmedMessage.senderId || confirmedMessage.sender_id)) {
-          // Replace with confirmed message
-          return { 
-            id: confirmedMessage.id,
-            text: confirmedMessage.text || confirmedMessage.content,
-            senderId: confirmedMessage.senderId || confirmedMessage.sender_id,
-            senderName: confirmedMessage.senderName || confirmedMessage.sender_name,
-            receiverId: confirmedMessage.receiverId || confirmedMessage.receiver_id,
-            timestamp: confirmedMessage.timestamp || confirmedMessage.created_at,
-            roomId: confirmedMessage.roomId || confirmedMessage.room_id,
-            pending: false
-          };
+const updateMessageStatus = (confirmedMessage) => {
+  console.log('Updating message status:', confirmedMessage);
+  const roomId = confirmedMessage.roomId || confirmedMessage.room_id;
+  const tempId = confirmedMessage.tempId; // Look for tempId if available
+  
+  // Ensure we have a valid room ID
+  if (!roomId) {
+    console.error('No room ID in confirmed message:', confirmedMessage);
+    return;
+  }
+
+  // Create the confirmed message object with consistent field names
+  const updatedMessage = { 
+    id: confirmedMessage.id,
+    text: confirmedMessage.text || confirmedMessage.content,
+    senderId: confirmedMessage.senderId || confirmedMessage.sender_id,
+    senderName: confirmedMessage.senderName || confirmedMessage.sender_name,
+    receiverId: confirmedMessage.receiverId || confirmedMessage.receiver_id,
+    timestamp: confirmedMessage.timestamp || confirmedMessage.created_at,
+    roomId: confirmedMessage.roomId || confirmedMessage.room_id,
+    pending: false
+  };
+
+  // Update displayed messages if this is the current room
+  if (currentRoomIdRef.current === roomId) {
+    setMessages(prevMessages => {
+      return prevMessages.map(msg => {
+        // Match by tempId if available, otherwise by content and sender
+        if ((tempId && msg.id === tempId) || 
+            (msg.pending && 
+             msg.text === updatedMessage.text && 
+             msg.senderId === updatedMessage.senderId)) {
+          return updatedMessage;
         }
         return msg;
       });
-      
-      return {
-        ...prev,
-        [roomId]: updatedRoomMessages
-      };
     });
-  };
+  }
+  
+  // Always update the chat history
+  setChatHistory(prev => {
+    const roomMessages = prev[roomId] || [];
+    
+    // Update pending messages in this room
+    const updatedRoomMessages = roomMessages.map(msg => {
+      // Match by tempId if available, otherwise by content and sender
+      if ((tempId && msg.id === tempId) || 
+          (msg.pending && 
+           msg.text === updatedMessage.text && 
+           msg.senderId === updatedMessage.senderId)) {
+        return updatedMessage;
+      }
+      return msg;
+    });
+    
+    return {
+      ...prev,
+      [roomId]: updatedRoomMessages
+    };
+  });
+};
 
   const renderDoctor = ({ item }) => (
     <TouchableOpacity
