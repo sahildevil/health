@@ -31,6 +31,9 @@ import DoctorManagementScreen from '../screens/DoctorManagementScreen';
 import PharmaManagementScreen from '../screens/PharmaManagementScreen';
 import PharmaDetailsScreen from '../screens/PharmaDetailsScreen';
 import AdminEditEventScreen from '../screens/admin/AdminEditEventScreen';
+import AdminEventManagementScreen from '../screens/admin/AdminEventManagementScreen';
+import EventRegistrationsScreen from '../screens/admin/EventRegistrationsScreen';
+import AdminEventDetails from '../screens/admin/AdminEventDetails';
 const Stack = createStackNavigator();
 const AdminStack = createStackNavigator();
 
@@ -65,6 +68,15 @@ const AdminNavigator = () => {
         component={AdminEditEventScreen}
         options={{headerShown: false}}
       />
+      <Stack.Screen
+        name="AdminEventManagement"
+        component={AdminEventManagementScreen}
+      />
+      <Stack.Screen
+        name="EventRegistrations"
+        component={EventRegistrationsScreen}
+      />
+      <Stack.Screen name="AdminEventDetails" component={AdminEventDetails} />
     </AdminStack.Navigator>
   );
 };

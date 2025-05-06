@@ -14,7 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
 import api from '../services/api';
-import { adminService } from '../services/api';
+import {adminService} from '../services/api';
 const AdminDashboardScreen = ({navigation}) => {
   const {user} = useAuth();
   const [stats, setStats] = useState({
@@ -28,28 +28,31 @@ const AdminDashboardScreen = ({navigation}) => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
+
       const data = await adminService.getDashboardStats();
-      
+
       setStats({
         totalDoctors: data.totalDoctors || 0,
         totalPharma: data.totalPharma || 0,
-        pendingEvents: data.pendingEvents || 0
+        pendingEvents: data.pendingEvents || 0,
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       // Keep previous stats or set defaults
-      setStats(prevStats => prevStats || {
-        totalDoctors: 0,
-        totalPharma: 0, 
-        pendingEvents: 0
-      });
-      
+      setStats(
+        prevStats =>
+          prevStats || {
+            totalDoctors: 0,
+            totalPharma: 0,
+            pendingEvents: 0,
+          },
+      );
+
       // Alert user of error if this isn't just an initial load
       if (!loading) {
         Alert.alert(
           'Error Loading Data',
-          'Could not load the latest dashboard statistics. Please try again later.'
+          'Could not load the latest dashboard statistics. Please try again later.',
         );
       }
     } finally {
@@ -100,10 +103,9 @@ const AdminDashboardScreen = ({navigation}) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }>
         <View style={styles.statsContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.statsCard}
-            onPress={() => navigation.navigate('DoctorManagement')}
-          >
+            onPress={() => navigation.navigate('DoctorManagement')}>
             <View style={[styles.iconContainer, {backgroundColor: '#e3f2fd'}]}>
               <Icon name="doctor" size={28} color="#1976d2" />
             </View>
@@ -111,10 +113,9 @@ const AdminDashboardScreen = ({navigation}) => {
             <Text style={styles.statsLabel}>Registered Doctors</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.statsCard}
-            onPress={() => navigation.navigate('PharmaManagement')}
-          >
+            onPress={() => navigation.navigate('PharmaManagement')}>
             <View style={[styles.iconContainer, {backgroundColor: '#e8f5e9'}]}>
               <Icon name="pill" size={28} color="#2e7d32" />
             </View>
@@ -122,10 +123,9 @@ const AdminDashboardScreen = ({navigation}) => {
             <Text style={styles.statsLabel}>Pharmaceutical Reps</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.statsCard}
-            onPress={() => navigation.navigate('EventApproval')}
-          >
+            onPress={() => navigation.navigate('EventApproval')}>
             <View style={[styles.iconContainer, {backgroundColor: '#fff3e0'}]}>
               <Icon name="calendar-clock" size={28} color="#e65100" />
             </View>
@@ -139,39 +139,43 @@ const AdminDashboardScreen = ({navigation}) => {
         </View>
 
         <View style={styles.quickActionsContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.quickActionButton}
-            onPress={() => navigation.navigate('EventApproval')}
-          >
+            onPress={() => navigation.navigate('EventApproval')}>
             <Icon name="calendar-check" size={24} color="#2e7af5" />
             <Text style={styles.quickActionText}>Review Event Requests</Text>
             <Icon name="chevron-right" size={24} color="#ccc" />
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          {/* <TouchableOpacity
             style={styles.quickActionButton}
-            onPress={() => navigation.navigate('UserVerification')}
-          >
+            onPress={() => navigation.navigate('UserVerification')}>
             <Icon name="account-check" size={24} color="#2e7af5" />
             <Text style={styles.quickActionText}>Verify Users</Text>
             <Icon name="chevron-right" size={24} color="#ccc" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
-          <TouchableOpacity 
+          {/* <TouchableOpacity
             style={styles.quickActionButton}
-            onPress={() => navigation.navigate('ContentManagement')}
-          >
+            onPress={() => navigation.navigate('ContentManagement')}>
             <Icon name="file-document-edit" size={24} color="#2e7af5" />
             <Text style={styles.quickActionText}>Manage Content</Text>
             <Icon name="chevron-right" size={24} color="#ccc" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.quickActionButton}
-            onPress={() => navigation.navigate('SystemSettings')}
-          >
+            onPress={() => navigation.navigate('SystemSettings')}>
             <Icon name="cog" size={24} color="#2e7af5" />
             <Text style={styles.quickActionText}>System Settings</Text>
+            <Icon name="chevron-right" size={24} color="#ccc" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            onPress={() => navigation.navigate('AdminEventManagement')}>
+            <Icon name="calendar-multiple" size={24} color="#2e7af5" />
+            <Text style={styles.quickActionText}>Manage All Events</Text>
             <Icon name="chevron-right" size={24} color="#ccc" />
           </TouchableOpacity>
         </View>

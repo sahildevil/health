@@ -16,8 +16,8 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
 // Update these URLs to match your server configuration
-const SOCKET_URL = 'http://192.168.1.9:5000';
-const API_URL = 'http://192.168.1.9:5000';
+const SOCKET_URL = 'http://192.168.1.11:5000';
+const API_URL = 'http://192.168.1.11:5000';
 
 const ChatScreen = () => {
   const { user } = useAuth();

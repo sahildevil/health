@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Base URL for API calls
 // const API_URL = 'https://health-server-fawn.vercel.app/api';
-const API_URL = 'http://192.168.1.9:5000/api';
+const API_URL = 'http://192.168.1.11:5000/api';
 // Create axios instance
 const api = axios.create({
   baseURL: API_URL,
@@ -277,6 +277,74 @@ export const adminService = {
       return response.data;
     } catch (error) {
       console.error('Verify pharma representative error:', error);
+      throw error;
+    }
+  },
+
+  // Add these methods to adminService for event management
+  getAllEvents: async () => {
+    try {
+      const response = await api.get('/admin/events');
+      return response.data;
+    } catch (error) {
+      console.error('Get all events error:', error);
+      throw error;
+    }
+  },
+
+  getEventRegistrations: async eventId => {
+    try {
+      const response = await api.get(`/admin/events/${eventId}/registrations`);
+      return response.data;
+    } catch (error) {
+      console.error('Get event registrations error:', error);
+      throw error;
+    }
+  },
+
+  updateEventAfterApproval: async (eventId, eventData) => {
+    try {
+      const response = await api.put(
+        `/admin/events/${eventId}/update`,
+        eventData,
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Admin update event error:', error);
+      throw error;
+    }
+  },
+
+  cancelEventRegistration: async (eventId, userId) => {
+    try {
+      const response = await api.delete(
+        `/admin/events/${eventId}/registrations/${userId}`,
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Cancel registration error:', error);
+      throw error;
+    }
+  },
+
+  exportEventRegistrations: async eventId => {
+    try {
+      const response = await api.get(
+        `/admin/events/${eventId}/registrations/export`,
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Export registrations error:', error);
+      throw error;
+    }
+  },
+
+  getEventById: async (eventId) => {
+    try {
+      const response = await api.get(`/admin/events/${eventId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get event details error:', error);
       throw error;
     }
   },
