@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   Text,
@@ -13,14 +13,14 @@ import {
 } from 'react-native';
 import io from 'socket.io-client';
 import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
+import {useAuth} from '../context/AuthContext';
 
 // Update these URLs to match your server configuration
 const SOCKET_URL = 'http://192.168.1.11:5000';
 const API_URL = 'http://192.168.1.11:5000';
 
 const ChatScreen = () => {
-  const { user } = useAuth();
+  const {user} = useAuth();
   const [messages, setMessages] = useState([]);
   const [chatHistory, setChatHistory] = useState({}); // Store messages by roomId
   const [newMessage, setNewMessage] = useState('');
@@ -44,17 +44,21 @@ const ChatScreen = () => {
         console.log('Fetching doctors from:', `${API_URL}/api/doctors`);
         const response = await axios.get(`${API_URL}/api/doctors`);
         console.log('Doctors response:', response.data);
-        
+
         // Make sure to filter only if user exists and has an id
-        const filteredDoctors = user && user.id 
-          ? response.data.filter(doc => doc.id !== user.id)
-          : response.data;
-          
+        const filteredDoctors =
+          user && user.id
+            ? response.data.filter(doc => doc.id !== user.id)
+            : response.data;
+
         setDoctors(filteredDoctors);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching doctors:', error);
-        Alert.alert('Error', 'Failed to fetch doctors. Please check your connection.');
+        Alert.alert(
+          'Error',
+          'Failed to fetch doctors. Please check your connection.',
+        );
         setLoading(false);
       }
     };
@@ -81,21 +85,21 @@ const ChatScreen = () => {
 
   const fetchMessageHistory = async () => {
     if (!selectedDoctor || !user) return;
-    
+
     try {
       const roomId = [user.id, selectedDoctor.id].sort().join('-');
       console.log('Fetching messages for room:', roomId);
-      
+
       // Check if we already have messages for this room in our chat history
       if (chatHistory[roomId] && chatHistory[roomId].length > 0) {
         console.log('Using cached messages for room:', roomId);
         setMessages(chatHistory[roomId]);
       }
-      
+
       // Fetch messages from the server regardless (to ensure we have the latest)
       const response = await axios.get(`${API_URL}/api/messages/${roomId}`);
       console.log('Message history response:', response.data);
-      
+
       if (response.data && Array.isArray(response.data)) {
         // Transform data to match UI expectations
         const formattedMessages = response.data.map(msg => ({
@@ -105,20 +109,23 @@ const ChatScreen = () => {
           senderName: msg.sender_name || msg.senderName,
           receiverId: msg.receiver_id || msg.receiverId,
           timestamp: msg.created_at || msg.timestamp,
-          roomId: msg.room_id || msg.roomId
+          roomId: msg.room_id || msg.roomId,
         }));
-        
+
         // Update both the current messages and the chat history
         setMessages(formattedMessages);
         setChatHistory(prev => ({
           ...prev,
-          [roomId]: formattedMessages
+          [roomId]: formattedMessages,
         }));
       }
     } catch (error) {
       console.error('Error fetching message history:', error);
-      Alert.alert('Error', 'Failed to load message history. Will try to continue with cached messages.');
-      
+      Alert.alert(
+        'Error',
+        'Failed to load message history. Will try to continue with cached messages.',
+      );
+
       // If we have cached messages, use those
       const roomId = [user.id, selectedDoctor.id].sort().join('-');
       if (chatHistory[roomId]) {
@@ -134,14 +141,14 @@ const ChatScreen = () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
       }
-      
+
       // Clear any pending reconnect timeouts
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
-      
+
       console.log('Connecting to socket at:', SOCKET_URL);
-      
+
       // Configure socket with proper options
       socketRef.current = io(SOCKET_URL, {
         reconnection: true,
@@ -152,11 +159,11 @@ const ChatScreen = () => {
         transports: ['websocket', 'polling'], // Try WebSocket first, fallback to polling
         forceNew: true,
       });
-      
+
       socketRef.current.on('connect', () => {
         console.log('Socket connected');
         setSocketConnected(true);
-        
+
         // Create a unique room for the chat
         const roomId = [user.id, selectedDoctor.id].sort().join('-');
         console.log('Joining room:', roomId);
@@ -165,9 +172,9 @@ const ChatScreen = () => {
 
       // Update the receive_message event handler
 
-      socketRef.current.on('receive_message', (message) => {
+      socketRef.current.on('receive_message', message => {
         console.log('Received message:', message);
-        
+
         // Handle received message
         const newMessage = {
           id: message.id,
@@ -176,22 +183,22 @@ const ChatScreen = () => {
           senderName: message.senderName || message.sender_name,
           receiverId: message.receiverId || message.receiver_id,
           timestamp: message.timestamp || message.created_at,
-          roomId: message.roomId || message.room_id
+          roomId: message.roomId || message.room_id,
         };
-        
+
         // Immediately update messages without checking for duplicates
         // This ensures all incoming messages appear right away
-        setMessages((prevMessages) => {
+        setMessages(prevMessages => {
           // Only add if it's not already in the list (check by ID)
           if (!prevMessages.some(msg => msg.id === newMessage.id)) {
             const updatedMessages = [newMessage, ...prevMessages];
-            
+
             // Also update chat history
             setChatHistory(prev => ({
               ...prev,
-              [newMessage.roomId]: updatedMessages
+              [newMessage.roomId]: updatedMessages,
             }));
-            
+
             return updatedMessages;
           }
           return prevMessages;
@@ -199,15 +206,15 @@ const ChatScreen = () => {
       });
 
       // Listen for message confirmation
-      socketRef.current.on('message_confirmed', (confirmedMessage) => {
+      socketRef.current.on('message_confirmed', confirmedMessage => {
         console.log('Message confirmed:', confirmedMessage);
         updateMessageStatus(confirmedMessage);
       });
-      
-      socketRef.current.on('connect_error', (error) => {
+
+      socketRef.current.on('connect_error', error => {
         console.error('Socket connection error:', error);
         setSocketConnected(false);
-        
+
         // Implement retry logic with backoff
         if (!reconnectTimeoutRef.current) {
           reconnectTimeoutRef.current = setTimeout(() => {
@@ -217,11 +224,11 @@ const ChatScreen = () => {
           }, 3000); // Wait 3 seconds before trying to reconnect
         }
       });
-      
-      socketRef.current.on('disconnect', (reason) => {
+
+      socketRef.current.on('disconnect', reason => {
         console.log('Socket disconnected:', reason);
         setSocketConnected(false);
-        
+
         // If the server closed the connection, don't try to reconnect automatically
         if (reason === 'io server disconnect') {
           socketRef.current.connect();
@@ -241,186 +248,195 @@ const ChatScreen = () => {
 
   // Update the sendMessage function
 
-const sendMessage = () => {
-  if (newMessage.trim().length === 0 || !selectedDoctor || !user) {
-    return;
-  }
+  const sendMessage = () => {
+    if (newMessage.trim().length === 0 || !selectedDoctor || !user) {
+      return;
+    }
 
-  const roomId = [user.id, selectedDoctor.id].sort().join('-');
-  const tempId = `temp-${Date.now()}`;
-  
-  const messageData = {
-    // Use both fields for compatibility
-    text: newMessage.trim(),
-    content: newMessage.trim(), // Add content for backend
-    senderId: user.id,
-    sender_id: user.id, // Add sender_id for backend
-    senderName: user.name,
-    sender_name: user.name, // Add sender_name for backend
-    receiverId: selectedDoctor.id,
-    receiver_id: selectedDoctor.id, // Add receiver_id for backend
-    timestamp: new Date().toISOString(),
-    created_at: new Date().toISOString(), // Add created_at for backend
-    roomId: roomId,
-    room_id: roomId, // Add room_id for backend
-  };
+    const roomId = [user.id, selectedDoctor.id].sort().join('-');
+    const tempId = `temp-${Date.now()}`;
 
-  console.log('Sending message:', messageData);
-  
-  // Clear input field immediately
-  setNewMessage('');
-  
-  // Create temporary message with pending status to display immediately
-  const tempMessage = {
-    ...messageData,
-    id: tempId,
-    pending: true
-  };
-  
-  // Add message to UI immediately - Force an update to the UI
-  setMessages(prevMessages => [tempMessage, ...prevMessages]);
-  
-  // Also update chat history
-  setChatHistory(prev => {
-    const currentMessages = prev[roomId] || [];
-    return {
-      ...prev,
-      [roomId]: [tempMessage, ...currentMessages]
+    const messageData = {
+      // Use both fields for compatibility
+      text: newMessage.trim(),
+      content: newMessage.trim(), // Add content for backend
+      senderId: user.id,
+      sender_id: user.id, // Add sender_id for backend
+      senderName: user.name,
+      sender_name: user.name, // Add sender_name for backend
+      receiverId: selectedDoctor.id,
+      receiver_id: selectedDoctor.id, // Add receiver_id for backend
+      timestamp: new Date().toISOString(),
+      created_at: new Date().toISOString(), // Add created_at for backend
+      roomId: roomId,
+      room_id: roomId, // Add room_id for backend
     };
-  });
-  
-  // Try to send via socket first
-  if (socketConnected) {
-    try {
-      // Add the temp ID to help with matching the response later
-      socketRef.current.emit('send_message', {...messageData, tempId});
-    } catch (socketError) {
-      console.error('Error sending message via socket:', socketError);
-      // Fall back to HTTP if socket fails
+
+    console.log('Sending message:', messageData);
+
+    // Clear input field immediately
+    setNewMessage('');
+
+    // Create temporary message with pending status to display immediately
+    const tempMessage = {
+      ...messageData,
+      id: tempId,
+      pending: true,
+    };
+
+    // Add message to UI immediately - Force an update to the UI
+    setMessages(prevMessages => [tempMessage, ...prevMessages]);
+
+    // Also update chat history
+    setChatHistory(prev => {
+      const currentMessages = prev[roomId] || [];
+      return {
+        ...prev,
+        [roomId]: [tempMessage, ...currentMessages],
+      };
+    });
+
+    // Try to send via socket first
+    if (socketConnected) {
+      try {
+        // Add the temp ID to help with matching the response later
+        socketRef.current.emit('send_message', {...messageData, tempId});
+      } catch (socketError) {
+        console.error('Error sending message via socket:', socketError);
+        // Fall back to HTTP if socket fails
+        sendMessageViaHttp(messageData, tempId);
+      }
+    } else {
+      // Socket not connected, use HTTP
       sendMessageViaHttp(messageData, tempId);
     }
-  } else {
-    // Socket not connected, use HTTP
-    sendMessageViaHttp(messageData, tempId);
-  }
-};
-  
+  };
+
   // Fallback HTTP method to send messages
   const sendMessageViaHttp = async (messageData, tempId) => {
     try {
       const response = await axios.post(`${API_URL}/api/messages`, messageData);
       console.log('Message sent via HTTP fallback:', response.data);
-      
+
       if (response.data && response.data.success) {
         // Replace the pending message with the confirmed one
         const confirmedMessage = {
           ...messageData,
           id: response.data.id || messageData.id,
           tempId: tempId, // Include tempId to help with matching
-          pending: false
+          pending: false,
         };
-        
+
         updateMessageStatus(confirmedMessage);
       }
     } catch (error) {
       console.error('Error sending message via HTTP:', error);
-      Alert.alert('Message Delivery Issue', 'Your message may not have been saved. Please try again.');
+      Alert.alert(
+        'Message Delivery Issue',
+        'Your message may not have been saved. Please try again.',
+      );
     }
   };
-  
+
   // Improve the updateMessageStatus function
 
-const updateMessageStatus = (confirmedMessage) => {
-  console.log('Updating message status:', confirmedMessage);
-  const roomId = confirmedMessage.roomId || confirmedMessage.room_id;
-  const tempId = confirmedMessage.tempId; // Look for tempId if available
-  
-  // Ensure we have a valid room ID
-  if (!roomId) {
-    console.error('No room ID in confirmed message:', confirmedMessage);
-    return;
-  }
+  const updateMessageStatus = confirmedMessage => {
+    console.log('Updating message status:', confirmedMessage);
+    const roomId = confirmedMessage.roomId || confirmedMessage.room_id;
+    const tempId = confirmedMessage.tempId; // Look for tempId if available
 
-  // Create the confirmed message object with consistent field names
-  const updatedMessage = { 
-    id: confirmedMessage.id,
-    text: confirmedMessage.text || confirmedMessage.content,
-    senderId: confirmedMessage.senderId || confirmedMessage.sender_id,
-    senderName: confirmedMessage.senderName || confirmedMessage.sender_name,
-    receiverId: confirmedMessage.receiverId || confirmedMessage.receiver_id,
-    timestamp: confirmedMessage.timestamp || confirmedMessage.created_at,
-    roomId: confirmedMessage.roomId || confirmedMessage.room_id,
-    pending: false
-  };
+    // Ensure we have a valid room ID
+    if (!roomId) {
+      console.error('No room ID in confirmed message:', confirmedMessage);
+      return;
+    }
 
-  // Update displayed messages if this is the current room
-  if (currentRoomIdRef.current === roomId) {
-    setMessages(prevMessages => {
-      return prevMessages.map(msg => {
+    // Create the confirmed message object with consistent field names
+    const updatedMessage = {
+      id: confirmedMessage.id,
+      text: confirmedMessage.text || confirmedMessage.content,
+      senderId: confirmedMessage.senderId || confirmedMessage.sender_id,
+      senderName: confirmedMessage.senderName || confirmedMessage.sender_name,
+      receiverId: confirmedMessage.receiverId || confirmedMessage.receiver_id,
+      timestamp: confirmedMessage.timestamp || confirmedMessage.created_at,
+      roomId: confirmedMessage.roomId || confirmedMessage.room_id,
+      pending: false,
+    };
+
+    // Update displayed messages if this is the current room
+    if (currentRoomIdRef.current === roomId) {
+      setMessages(prevMessages => {
+        return prevMessages.map(msg => {
+          // Match by tempId if available, otherwise by content and sender
+          if (
+            (tempId && msg.id === tempId) ||
+            (msg.pending &&
+              msg.text === updatedMessage.text &&
+              msg.senderId === updatedMessage.senderId)
+          ) {
+            return updatedMessage;
+          }
+          return msg;
+        });
+      });
+    }
+
+    // Always update the chat history
+    setChatHistory(prev => {
+      const roomMessages = prev[roomId] || [];
+
+      // Update pending messages in this room
+      const updatedRoomMessages = roomMessages.map(msg => {
         // Match by tempId if available, otherwise by content and sender
-        if ((tempId && msg.id === tempId) || 
-            (msg.pending && 
-             msg.text === updatedMessage.text && 
-             msg.senderId === updatedMessage.senderId)) {
+        if (
+          (tempId && msg.id === tempId) ||
+          (msg.pending &&
+            msg.text === updatedMessage.text &&
+            msg.senderId === updatedMessage.senderId)
+        ) {
           return updatedMessage;
         }
         return msg;
       });
-    });
-  }
-  
-  // Always update the chat history
-  setChatHistory(prev => {
-    const roomMessages = prev[roomId] || [];
-    
-    // Update pending messages in this room
-    const updatedRoomMessages = roomMessages.map(msg => {
-      // Match by tempId if available, otherwise by content and sender
-      if ((tempId && msg.id === tempId) || 
-          (msg.pending && 
-           msg.text === updatedMessage.text && 
-           msg.senderId === updatedMessage.senderId)) {
-        return updatedMessage;
-      }
-      return msg;
-    });
-    
-    return {
-      ...prev,
-      [roomId]: updatedRoomMessages
-    };
-  });
-};
 
-  const renderDoctor = ({ item }) => (
+      return {
+        ...prev,
+        [roomId]: updatedRoomMessages,
+      };
+    });
+  };
+
+  const renderDoctor = ({item}) => (
     <TouchableOpacity
       style={[
         styles.doctorItem,
-        selectedDoctor?.id === item.id && styles.selectedDoctor
+        selectedDoctor?.id === item.id && styles.selectedDoctor,
       ]}
-      onPress={() => setSelectedDoctor(item)}
-    >
-      <Text style={[
-        styles.doctorName,
-        selectedDoctor?.id === item.id && styles.selectedDoctorText
-      ]}>
+      onPress={() => setSelectedDoctor(item)}>
+      <Text
+        style={[
+          styles.doctorName,
+          selectedDoctor?.id === item.id && styles.selectedDoctorText,
+        ]}>
         {item.name || 'Unknown'}
       </Text>
-      <Text style={[
-        styles.doctorSpecialization,
-        selectedDoctor?.id === item.id && styles.selectedDoctorText
-      ]}>
+      <Text
+        style={[
+          styles.doctorSpecialization,
+          selectedDoctor?.id === item.id && styles.selectedDoctorText,
+        ]}>
         {item.degree || 'General'}
       </Text>
     </TouchableOpacity>
   );
 
-  const renderMessage = ({ item }) => (
-    <View style={[
-      styles.messageContainer,
-      item.senderId === user?.id ? styles.ownMessage : styles.otherMessage,
-      item.pending && styles.pendingMessage
-    ]}>
+  const renderMessage = ({item}) => (
+    <View
+      style={[
+        styles.messageContainer,
+        item.senderId === user?.id ? styles.ownMessage : styles.otherMessage,
+        item.pending && styles.pendingMessage,
+      ]}>
       <Text style={styles.senderName}>
         {item.senderId === user?.id ? 'You' : item.senderName || 'User'}
       </Text>
@@ -429,9 +445,7 @@ const updateMessageStatus = (confirmedMessage) => {
         <Text style={styles.timestamp}>
           {new Date(item.timestamp).toLocaleTimeString()}
         </Text>
-        {item.pending && (
-          <Text style={styles.pendingText}>sending...</Text>
-        )}
+        {item.pending && <Text style={styles.pendingText}>sending...</Text>}
       </View>
     </View>
   );
@@ -459,13 +473,13 @@ const updateMessageStatus = (confirmedMessage) => {
         horizontal
         data={doctors}
         renderItem={renderDoctor}
-        keyExtractor={(item) => item.id?.toString()}
+        keyExtractor={item => item.id?.toString()}
         style={styles.doctorsList}
         ListEmptyComponent={
           <Text style={styles.emptyListText}>No doctors available</Text>
         }
       />
-      
+
       {selectedDoctor ? (
         <>
           <View style={styles.chatHeader}>
@@ -473,17 +487,19 @@ const updateMessageStatus = (confirmedMessage) => {
               Chat with Dr. {selectedDoctor.name || 'Unknown'}
             </Text>
             <View style={styles.connectionStatusContainer}>
-              <Text style={[
-                styles.connectionStatus,
-                socketConnected ? styles.connectedText : styles.disconnectedText
-              ]}>
+              <Text
+                style={[
+                  styles.connectionStatus,
+                  socketConnected
+                    ? styles.connectedText
+                    : styles.disconnectedText,
+                ]}>
                 {socketConnected ? '• Connected' : '• Disconnected'}
               </Text>
               {!socketConnected && (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.retryButton}
-                  onPress={retryConnection}
-                >
+                  onPress={retryConnection}>
                   <Text style={styles.retryButtonText}>Retry</Text>
                 </TouchableOpacity>
               )}
@@ -493,7 +509,9 @@ const updateMessageStatus = (confirmedMessage) => {
           <FlatList
             data={messages}
             renderItem={renderMessage}
-            keyExtractor={(item, index) => item.id?.toString() || `${item.timestamp}-${index}`}
+            keyExtractor={(item, index) =>
+              item.id?.toString() || `${item.timestamp}-${index}`
+            }
             inverted
             style={styles.messagesList}
             ListEmptyComponent={
@@ -503,8 +521,7 @@ const updateMessageStatus = (confirmedMessage) => {
 
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.inputContainer}
-          >
+            style={styles.inputContainer}>
             <TextInput
               style={styles.input}
               value={newMessage}
@@ -515,11 +532,10 @@ const updateMessageStatus = (confirmedMessage) => {
             <TouchableOpacity
               style={[
                 styles.sendButton,
-                !newMessage.trim() && styles.sendButtonDisabled
+                !newMessage.trim() && styles.sendButtonDisabled,
               ]}
               onPress={sendMessage}
-              disabled={!newMessage.trim()}
-            >
+              disabled={!newMessage.trim()}>
               <Text style={styles.sendButtonText}>Send</Text>
             </TouchableOpacity>
           </KeyboardAvoidingView>
