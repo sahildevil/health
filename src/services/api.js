@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base URL for API calls
-// const API_URL = 'https://health-server-fawn.vercel.app/api';
+//const API_URL = 'https://health-server-fawn.vercel.app/api';
 const API_URL = 'http://192.168.1.11:5000/api';
 // Create axios instance
 const api = axios.create({
@@ -44,6 +44,7 @@ export const authService = {
 
   signup: async userData => {
     try {
+      // Make sure all fields from the form are included
       const response = await api.post('/auth/signup', userData);
       return response.data;
     } catch (error) {
@@ -339,7 +340,7 @@ export const adminService = {
     }
   },
 
-  getEventById: async (eventId) => {
+  getEventById: async eventId => {
     try {
       const response = await api.get(`/admin/events/${eventId}`);
       return response.data;

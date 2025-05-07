@@ -18,7 +18,8 @@ import {useAuth} from '../context/AuthContext';
 // Update these URLs to match your server configuration
 const SOCKET_URL = 'http://192.168.1.11:5000';
 const API_URL = 'http://192.168.1.11:5000';
-
+//const API_URL = 'https://health-server-fawn.vercel.app';
+//const SOCKET_URL = 'https://health-server-fawn.vercel.app';
 const ChatScreen = () => {
   const {user} = useAuth();
   const [messages, setMessages] = useState([]);
