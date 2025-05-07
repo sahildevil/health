@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // Base URL for API calls
-//const API_URL = 'https://health-server-fawn.vercel.app/api';
-const API_URL = 'http://192.168.1.11:5000/api';
+const API_URL = 'https://health-server-fawn.vercel.app/api';
+//const API_URL = 'http://192.168.1.11:5000/api';
 // Create axios instance
 const api = axios.create({
   baseURL: API_URL,
@@ -57,6 +57,24 @@ export const authService = {
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
       delete api.defaults.headers.common['Authorization'];
+    }
+  },
+
+  resendVerificationEmail: async email => {
+    try {
+      const response = await api.post('/auth/resend-verification', {email});
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  verifyEmail: async token => {
+    try {
+      const response = await api.get(`/auth/verify-email?token=${token}`);
+      return response.data;
+    } catch (error) {
+      throw error;
     }
   },
 };

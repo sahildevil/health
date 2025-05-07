@@ -35,21 +35,29 @@ export const AuthProvider = ({children}) => {
     try {
       setError(null);
       setLoading(true);
+
       const response = await authService.login(email, password);
-      
-      // Check if login is for a specific role (like admin)
+
+      // Check if user has required role if specified
       if (requiredRole && response.user.role !== requiredRole) {
-        throw new Error(`Access denied: You must be a ${requiredRole} to login here`);
+        throw {
+          message: `Access denied. You don't have ${requiredRole} privileges.`,
+        };
       }
 
-      // Store user info and token in AsyncStorage
-      await AsyncStorage.setItem('@user', JSON.stringify(response.user));
-      await AsyncStorage.setItem('@token', response.token);
+      // Check if email is verified
+      if (!response.user.email_verified && response.user.role !== 'admin') {
+        throw {
+          needsVerification: true,
+          message: 'Please verify your email before logging in.',
+          email: email,
+        };
+      }
 
       // Set auth header for future API calls
       authService.setAuthToken(response.token);
       setUser(response.user);
-      return response;
+      return response; // Return the response for additional handling
     } catch (error) {
       setError(error.message || 'Login failed');
       throw error;
@@ -59,7 +67,7 @@ export const AuthProvider = ({children}) => {
   };
 
   // Modified signup to handle admin signup
-  const signup = async (userData) => {
+  const signup = async userData => {
     try {
       setError(null);
       setLoading(true);
@@ -83,6 +91,21 @@ export const AuthProvider = ({children}) => {
     }
   };
 
+  // Add this new function to your AuthProvider component
+  const resendVerification = async email => {
+    try {
+      setError(null);
+      setLoading(true);
+      const response = await authService.resendVerificationEmail(email);
+      return response;
+    } catch (error) {
+      setError(error.message || 'Failed to resend verification email');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -92,6 +115,7 @@ export const AuthProvider = ({children}) => {
         login,
         signup,
         logout,
+        resendVerification, // Add this line
         isAuthenticated: !!user,
       }}>
       {children}

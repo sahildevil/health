@@ -15,24 +15,73 @@ const LoginScreen = ({navigation}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const {login} = useAuth();
+  const {login, resendVerification} = useAuth();
 
   const handleLogin = async () => {
-    // Simple validation
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Error', 'Please enter email and password');
       return;
     }
 
     try {
       setIsSubmitting(true);
-      await login(email, password);
-      // Navigation will be handled by the App.tsx when authentication state changes
+      const response = await login(email, password);
+
+      // Check user verification status
+      if (response && response.user) {
+        if (!response.user.email_verified) {
+          // Navigate to verification screen for unverified accounts
+          navigation.navigate('EmailVerification', {email});
+          return;
+        }
+      }
+
+      // Success case is handled by AppNavigator
     } catch (error) {
-      Alert.alert(
-        'Login Failed',
-        error.message || 'Please check your credentials and try again',
-      );
+      console.log('Login error:', error);
+
+      if (error.needsVerification) {
+        // Check if EmailVerification is available in navigation
+        if (navigation.getState().routeNames.includes('EmailVerification')) {
+          // If the user hasn't verified their email, navigate to verification screen
+          navigation.navigate('EmailVerification', {email});
+        } else {
+          // Fallback in case screen isn't registered
+          Alert.alert(
+            'Email Verification Required',
+            'Please check your email for a verification link or request a new one.',
+            [
+              {
+                text: 'OK',
+                onPress: () => console.log('OK Pressed'),
+              },
+              {
+                text: 'Resend Verification Email',
+                onPress: async () => {
+                  try {
+                    await resendVerification(email);
+                    Alert.alert(
+                      'Verification Email Sent',
+                      'A new verification link has been sent to your email address.',
+                    );
+                  } catch (resendError) {
+                    Alert.alert(
+                      'Error',
+                      resendError.message ||
+                        'Failed to resend verification email',
+                    );
+                  }
+                },
+              },
+            ],
+          );
+        }
+      } else {
+        Alert.alert(
+          'Login Failed',
+          error.message || 'Please check your credentials',
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }

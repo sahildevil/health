@@ -16,7 +16,7 @@ import DoctorListScreen from '../screens/DoctorListScreen';
 import DoctorDetailsScreen from '../screens/DoctorDetailsScreen';
 import ChatScreen from '../screens/ChatScreen';
 import EventDetailsScreen from '../screens/EventDetailsScreen';
-
+import EmailVerificationScreen from '../screens/EmailVerificationScreen';
 // Import regular user flow
 import BottomTabNavigator from './BottomTabNavigator';
 import Profile from '../screens/Profile';
@@ -153,6 +153,13 @@ const AppNavigator = () => {
           <Stack.Screen name="SignUp" component={SignUpScreen} />
           <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
           <Stack.Screen name="AdminSignUp" component={AdminSignUpScreen} />
+          <Stack.Screen
+            name="EmailVerification"
+            component={EmailVerificationScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
         </>
       )}
     </Stack.Navigator>
