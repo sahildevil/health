@@ -10,27 +10,33 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Image,
+  StatusBar,
+  SafeAreaView,
 } from 'react-native';
 import io from 'socket.io-client';
 import axios from 'axios';
 import {useAuth} from '../context/AuthContext';
 
 // Update these URLs to match your server configuration
-const SOCKET_URL = 'http://192.168.1.11:5000';
-const API_URL = 'http://192.168.1.11:5000';
+const SOCKET_URL = 'http://192.168.1.9:5000';
+const API_URL = 'http://192.168.1.9:5000';
 
 const ChatScreen = () => {
   const {user} = useAuth();
   const [messages, setMessages] = useState([]);
-  const [chatHistory, setChatHistory] = useState({}); // Store messages by roomId
+  const [chatHistory, setChatHistory] = useState({});
   const [newMessage, setNewMessage] = useState('');
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchVisible, setSearchVisible] = useState(false);
   const socketRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
-  const currentRoomIdRef = useRef(null); // Track the current room ID
+  const currentRoomIdRef = useRef(null);
+  const flatListRef = useRef(null);
 
   // Debug output for current user
   useEffect(() => {
@@ -170,15 +176,13 @@ const ChatScreen = () => {
         socketRef.current.emit('join_room', roomId);
       });
 
-      // Update the receive_message event handler
-
       socketRef.current.on('receive_message', message => {
         console.log('Received message:', message);
 
         // Handle received message
         const newMessage = {
           id: message.id,
-          text: message.text || message.content, // Handle different field names
+          text: message.text || message.content,
           senderId: message.senderId || message.sender_id,
           senderName: message.senderName || message.sender_name,
           receiverId: message.receiverId || message.receiver_id,
@@ -187,7 +191,6 @@ const ChatScreen = () => {
         };
 
         // Immediately update messages without checking for duplicates
-        // This ensures all incoming messages appear right away
         setMessages(prevMessages => {
           // Only add if it's not already in the list (check by ID)
           if (!prevMessages.some(msg => msg.id === newMessage.id)) {
@@ -245,8 +248,6 @@ const ChatScreen = () => {
       };
     }
   }, [selectedDoctor, user]);
-
-  // Update the sendMessage function
 
   const sendMessage = () => {
     if (newMessage.trim().length === 0 || !selectedDoctor || !user) {
@@ -339,7 +340,6 @@ const ChatScreen = () => {
   };
 
   // Improve the updateMessageStatus function
-
   const updateMessageStatus = confirmedMessage => {
     console.log('Updating message status:', confirmedMessage);
     const roomId = confirmedMessage.roomId || confirmedMessage.room_id;
@@ -406,6 +406,22 @@ const ChatScreen = () => {
     });
   };
 
+  // Search functionality
+  const getFilteredMessages = () => {
+    if (!searchQuery.trim()) return messages;
+    
+    return messages.filter(message => 
+      message.text.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  };
+
+  const toggleSearch = () => {
+    setSearchVisible(!searchVisible);
+    if (searchVisible) {
+      setSearchQuery('');
+    }
+  };
+
   const renderDoctor = ({item}) => (
     <TouchableOpacity
       style={[
@@ -413,42 +429,54 @@ const ChatScreen = () => {
         selectedDoctor?.id === item.id && styles.selectedDoctor,
       ]}
       onPress={() => setSelectedDoctor(item)}>
-      <Text
-        style={[
-          styles.doctorName,
-          selectedDoctor?.id === item.id && styles.selectedDoctorText,
-        ]}>
-        {item.name || 'Unknown'}
-      </Text>
-      <Text
-        style={[
-          styles.doctorSpecialization,
-          selectedDoctor?.id === item.id && styles.selectedDoctorText,
-        ]}>
-        {item.degree || 'General'}
-      </Text>
+      <View style={styles.avatarContainer}>
+        <Text style={styles.avatarText}>{item.name ? item.name.charAt(0) : '?'}</Text>
+      </View>
+      <View style={styles.doctorInfo}>
+        <Text
+          style={[
+            styles.doctorName,
+            selectedDoctor?.id === item.id && styles.selectedDoctorText,
+          ]}>
+          {item.name || 'Unknown'}
+        </Text>
+        <Text
+          style={[
+            styles.doctorSpecialization,
+            selectedDoctor?.id === item.id && styles.selectedDoctorText,
+          ]}>
+          {item.degree || 'General'}
+        </Text>
+      </View>
     </TouchableOpacity>
   );
 
-  const renderMessage = ({item}) => (
-    <View
-      style={[
-        styles.messageContainer,
-        item.senderId === user?.id ? styles.ownMessage : styles.otherMessage,
-        item.pending && styles.pendingMessage,
-      ]}>
-      <Text style={styles.senderName}>
-        {item.senderId === user?.id ? 'You' : item.senderName || 'User'}
-      </Text>
-      <Text style={styles.messageText}>{item.text}</Text>
-      <View style={styles.messageFooter}>
-        <Text style={styles.timestamp}>
-          {new Date(item.timestamp).toLocaleTimeString()}
-        </Text>
-        {item.pending && <Text style={styles.pendingText}>sending...</Text>}
+  const renderMessage = ({item}) => {
+    const isOwnMessage = item.senderId === user?.id;
+    const messageTime = new Date(item.timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    
+    return (
+      <View
+        style={[
+          styles.messageContainer,
+          isOwnMessage ? styles.ownMessage : styles.otherMessage,
+          item.pending && styles.pendingMessage,
+        ]}>
+        <Text style={styles.messageText}>{item.text}</Text>
+        <View style={styles.messageFooter}>
+          <Text style={styles.timestamp}>{messageTime}</Text>
+          {isOwnMessage && (
+            <Text style={[styles.statusIcon, item.pending ? styles.pendingIcon : styles.deliveredIcon]}>
+              {item.pending ? '⌛' : '✓✓'}
+            </Text>
+          )}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   // Function to retry connecting to the server
   const retryConnection = () => {
@@ -461,269 +489,366 @@ const ChatScreen = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2e7af5" />
+        <ActivityIndicator size="large" color="#128C7E" />
       </View>
     );
   }
 
+  // WhatsApp-style header with doctor name and actions
+  const renderChatHeader = () => {
+    if (!selectedDoctor) return null;
+    
+    return (
+      <View style={styles.chatHeader}>
+        <TouchableOpacity 
+          style={styles.headerBackButton}
+          onPress={() => setSelectedDoctor(null)}>
+          <Text style={styles.headerBackIcon}>←</Text>
+        </TouchableOpacity>
+        
+        <View style={styles.avatarContainer}>
+          <Text style={styles.avatarText}>{selectedDoctor.name ? selectedDoctor.name.charAt(0) : '?'}</Text>
+        </View>
+        
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>{selectedDoctor.name}</Text>
+          <Text style={styles.headerSubtitle}>
+            {socketConnected ? 'online' : 'offline'}
+          </Text>
+        </View>
+        
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerButton} onPress={toggleSearch}>
+            <Text style={styles.headerIcon}>🔍</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerButton}>
+            <Text style={styles.headerIcon}>⋮</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Available Doctors</Text>
-      <FlatList
-        horizontal
-        data={doctors}
-        renderItem={renderDoctor}
-        keyExtractor={item => item.id?.toString()}
-        style={styles.doctorsList}
-        ListEmptyComponent={
-          <Text style={styles.emptyListText}>No doctors available</Text>
-        }
-      />
-
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar backgroundColor="#fff" barStyle="dark-content" />
+      
       {selectedDoctor ? (
-        <>
-          <View style={styles.chatHeader}>
-            <Text style={styles.chatHeaderText}>
-              Chat with Dr. {selectedDoctor.name || 'Unknown'}
-            </Text>
-            <View style={styles.connectionStatusContainer}>
-              <Text
-                style={[
-                  styles.connectionStatus,
-                  socketConnected
-                    ? styles.connectedText
-                    : styles.disconnectedText,
-                ]}>
-                {socketConnected ? '• Connected' : '• Disconnected'}
-              </Text>
-              {!socketConnected && (
-                <TouchableOpacity
-                  style={styles.retryButton}
-                  onPress={retryConnection}>
-                  <Text style={styles.retryButtonText}>Retry</Text>
-                </TouchableOpacity>
-              )}
+        <View style={styles.container}>
+          {renderChatHeader()}
+          
+          {searchVisible && (
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search messages..."
+                autoFocus
+              />
+              <TouchableOpacity style={styles.searchCancelButton} onPress={toggleSearch}>
+                <Text style={styles.searchCancelText}>Cancel</Text>
+              </TouchableOpacity>
             </View>
-          </View>
-
+          )}
+          
           <FlatList
-            data={messages}
+            ref={flatListRef}
+            data={getFilteredMessages()}
             renderItem={renderMessage}
             keyExtractor={(item, index) =>
               item.id?.toString() || `${item.timestamp}-${index}`
             }
             inverted
             style={styles.messagesList}
+            contentContainerStyle={styles.messagesListContent}
             ListEmptyComponent={
-              <Text style={styles.emptyMessagesText}>No messages yet</Text>
+              <Text style={styles.emptyMessagesText}>
+                {searchQuery ? 'No messages match your search' : 'No messages yet'}
+              </Text>
             }
           />
 
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              value={newMessage}
-              onChangeText={setNewMessage}
-              placeholder="Type your message..."
-              multiline
-            />
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                !newMessage.trim() && styles.sendButtonDisabled,
-              ]}
-              onPress={sendMessage}
-              disabled={!newMessage.trim()}>
-              <Text style={styles.sendButtonText}>Send</Text>
-            </TouchableOpacity>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                value={newMessage}
+                onChangeText={setNewMessage}
+                placeholder="Message"
+                multiline
+              />
+              <TouchableOpacity
+                style={styles.sendButton}
+                onPress={sendMessage}
+                disabled={!newMessage.trim()}>
+                <Text style={styles.sendButtonIcon}>{newMessage.trim() ? '➤' : '➤'}</Text>
+              </TouchableOpacity>
+            </View>
           </KeyboardAvoidingView>
-        </>
+        </View>
       ) : (
-        <View style={styles.selectDoctorContainer}>
-          <Text style={styles.selectDoctorText}>
-            Select a doctor to start chatting
-          </Text>
+        <View style={styles.container}>
+          <View style={styles.whatsappHeader}>
+            <Text style={styles.whatsappTitle}>Health Insights</Text>
+            <View style={styles.headerActions}>
+              <TouchableOpacity style={styles.headerButton}>
+                <Text style={styles.headerIcon}>🔍</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.headerButton}>
+                <Text style={styles.headerIcon}>⋮</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          <FlatList
+            data={doctors}
+            renderItem={renderDoctor}
+            keyExtractor={item => item.id?.toString()}
+            style={styles.doctorsList}
+            contentContainerStyle={styles.doctorsListContent}
+            ListEmptyComponent={
+              <Text style={styles.emptyListText}>No doctors available</Text>
+            }
+          />
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 };
-
+//2e7af5
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#075E54',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#E5DDD5',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#E5DDD5',
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    padding: 16,
-    color: '#333',
-  },
-  doctorsList: {
-    maxHeight: 100,
-  },
-  doctorItem: {
-    backgroundColor: '#fff',
-    padding: 12,
-    marginHorizontal: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    width: 120,
-    alignItems: 'center',
-  },
-  selectedDoctor: {
-    backgroundColor: '#2e7af5',
-    borderColor: '#2e7af5',
-  },
-  doctorName: {
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  doctorSpecialization: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-  },
-  selectedDoctorText: {
-    color: '#fff',
-  },
-  chatHeader: {
+  whatsappHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#eee',
+    backgroundColor: '#fff', 
+    paddingVertical: 16,
+    paddingHorizontal: 16,
   },
-  chatHeaderText: {
-    fontSize: 16,
+  whatsappTitle: {
+    fontSize: 23,
     fontWeight: 'bold',
+    color: 'black',
   },
-  connectionStatusContainer: {
+  doctorsList: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  doctorsListContent: {
+    paddingVertical: 8,
+  },
+  doctorItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2F2F2',
   },
-  connectionStatus: {
-    fontSize: 12,
-    marginRight: 8,
+  selectedDoctor: {
+    backgroundColor: '#EBEBEB',
   },
-  connectedText: {
-    color: 'green',
-  },
-  disconnectedText: {
-    color: 'red',
-  },
-  retryButton: {
+  avatarContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 20,
     backgroundColor: '#2e7af5',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
-  retryButtonText: {
-    color: '#fff',
+  avatarText: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  doctorInfo: {
+    flex: 1,
+  },
+  doctorName: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#000000',
+  },
+  doctorSpecialization: {
+    fontSize: 14,
+    color: '#666666',
+    marginTop: 2,
+  },
+  selectedDoctorText: {
+    color: '#075E54',
+  },
+  chatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+  },
+  headerBackButton: {
+    padding: 8,
+  },
+  headerBackIcon: {
+    fontSize: 24,
+    color: 'black',
+  },
+  headerTitleContainer: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000000',
+  },
+  headerSubtitle: {
     fontSize: 12,
+    color: 'grey',
+  },
+  headerActions: {
+    flexDirection: 'row',
+  },
+  headerButton: {
+    padding: 8,
+    marginLeft: 5,
+  },
+  headerIcon: {
+    fontSize: 20,
+    color: '#FFFFFF',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 16,
+  },
+  searchCancelButton: {
+    paddingHorizontal: 10,
+  },
+  searchCancelText: {
+    color: '#075E54',
+    fontSize: 16,
   },
   messagesList: {
     flex: 1,
-    padding: 8,
+    backgroundColor: '#edf6f9', // Add this line
+  },
+  messagesListContent: {
+    padding: 10,
   },
   messageContainer: {
-    padding: 10,
     borderRadius: 8,
-    marginVertical: 4,
+    marginVertical: 2,
     maxWidth: '80%',
+    padding: 8,
+    paddingBottom: 4,
   },
   ownMessage: {
-    backgroundColor: '#dcf8c6',
+    backgroundColor: '#d6e5fd',//'#DCF8C6',
+    borderRadius: 10,
     alignSelf: 'flex-end',
+    marginLeft: '15%',
   },
   otherMessage: {
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     alignSelf: 'flex-start',
+    marginRight: '15%',
   },
   pendingMessage: {
     opacity: 0.7,
   },
-  senderName: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 2,
-  },
   messageText: {
-    fontSize: 14,
+    fontSize: 16,
+    color: '#000000',
   },
   messageFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 2,
   },
   timestamp: {
-    fontSize: 10,
-    color: '#999',
+    fontSize: 11,
+    color: '#7C7C7C',
+    marginRight: 4,
   },
-  pendingText: {
-    fontSize: 10,
-    fontStyle: 'italic',
-    color: '#999',
+  statusIcon: {
+    fontSize: 12,
+    marginLeft: 2,
+  },
+  pendingIcon: {
+    color: '#7C7C7C',
+  },
+  deliveredIcon: {
+    color: '#53BDEB',
   },
   inputContainer: {
+    backgroundColor: '#F0F0F0',
+  },
+  inputRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     padding: 8,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
   },
   input: {
     flex: 1,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     marginRight: 8,
     maxHeight: 100,
+    fontSize: 16,
   },
   sendButton: {
-    backgroundColor: '#2e7af5',
+    backgroundColor: '#2e7af5', //'#128C7E',
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-  },
-  sendButtonDisabled: {
-    backgroundColor: '#a0c0f0',
-  },
-  sendButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  selectDoctorContainer: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
   },
-  selectDoctorText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+  sendButtonIcon: {
+    color: '#FFFFFF',
+    fontSize: 18,
   },
   emptyListText: {
-    padding: 16,
+    padding: 20,
     textAlign: 'center',
-    color: '#666',
+    color: '#666666',
+    fontSize: 16,
   },
   emptyMessagesText: {
-    padding: 16,
+    padding: 20,
     textAlign: 'center',
-    color: '#666',
+    color: '#666666',
+    fontSize: 16,
   },
 });
 
