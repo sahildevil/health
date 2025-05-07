@@ -44,6 +44,7 @@ export const authService = {
 
   signup: async userData => {
     try {
+      // Make sure all fields from the form are included
       const response = await api.post('/auth/signup', userData);
       return response.data;
     } catch (error) {
@@ -339,7 +340,7 @@ export const adminService = {
     }
   },
 
-  getEventById: async (eventId) => {
+  getEventById: async eventId => {
     try {
       const response = await api.get(`/admin/events/${eventId}`);
       return response.data;

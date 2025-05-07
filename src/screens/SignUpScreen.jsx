@@ -18,13 +18,15 @@ import RNFS from 'react-native-fs';
 // Import the WebView document picker
 import WebViewDocumentPicker from '../components/WebViewDocumentPicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import api, { userService } from '../services/api';
+import api, {userService} from '../services/api';
 
 const SignUpScreen = ({navigation}) => {
   const [step, setStep] = useState(1);
   const [role, setRole] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [roleInCompany, setRoleInCompany] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -124,72 +126,78 @@ const SignUpScreen = ({navigation}) => {
 
   // Update the handleUploadDocuments function with a non-Expo approach
 
-// In handleUploadDocuments function
+  // In handleUploadDocuments function
 
-const handleUploadDocuments = async () => {
-  if (documents.length === 0) {
-    return [];
-  }
-
-  setUploading(true);
-
-  try {
-    const uploadedDocs = [];
-    const token = await getAuthToken();
-
-    for (const doc of documents) {
-      console.log(`Uploading document: ${doc.name}`);
-      
-      // Create form data
-      const formData = new FormData();
-      
-      // Add file to form data
-      formData.append('document', {
-        uri: Platform.OS === 'ios' ? doc.uri.replace('file://', '') : doc.uri,
-        type: doc.type || 'application/octet-stream',
-        name: doc.name || `file-${Date.now()}.${doc.uri.split('.').pop()}`
-      });
-      
-      // Upload to our server endpoint
-      const response = await fetch(`${api.defaults.baseURL}/uploads/document`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          // Don't set Content-Type for multipart/form-data
-        },
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Upload failed:', errorText);
-        throw new Error(`Upload failed: ${response.status} ${errorText}`);
-      }
-      
-      const result = await response.json();
-      console.log('Upload result:', result);
-      
-      uploadedDocs.push({
-        name: doc.name,
-        type: doc.type,
-        size: doc.size,
-        url: result.url,
-        storage_path: result.storage_path,
-        upload_date: new Date().toISOString(),
-        verified: false,
-      });
+  const handleUploadDocuments = async () => {
+    if (documents.length === 0) {
+      return [];
     }
 
-    console.log(`Successfully uploaded ${uploadedDocs.length} documents`);
-    return uploadedDocs;
-  } catch (error) {
-    console.error('Document upload error:', error);
-    Alert.alert('Upload Error', 'Failed to upload documents: ' + error.message);
-    return [];
-  } finally {
-    setUploading(false);
-  }
-};
+    setUploading(true);
+
+    try {
+      const uploadedDocs = [];
+      const token = await getAuthToken();
+
+      for (const doc of documents) {
+        console.log(`Uploading document: ${doc.name}`);
+
+        // Create form data
+        const formData = new FormData();
+
+        // Add file to form data
+        formData.append('document', {
+          uri: Platform.OS === 'ios' ? doc.uri.replace('file://', '') : doc.uri,
+          type: doc.type || 'application/octet-stream',
+          name: doc.name || `file-${Date.now()}.${doc.uri.split('.').pop()}`,
+        });
+
+        // Upload to our server endpoint
+        const response = await fetch(
+          `${api.defaults.baseURL}/uploads/document`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              // Don't set Content-Type for multipart/form-data
+            },
+            body: formData,
+          },
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Upload failed:', errorText);
+          throw new Error(`Upload failed: ${response.status} ${errorText}`);
+        }
+
+        const result = await response.json();
+        console.log('Upload result:', result);
+
+        uploadedDocs.push({
+          name: doc.name,
+          type: doc.type,
+          size: doc.size,
+          url: result.url,
+          storage_path: result.storage_path,
+          upload_date: new Date().toISOString(),
+          verified: false,
+        });
+      }
+
+      console.log(`Successfully uploaded ${uploadedDocs.length} documents`);
+      return uploadedDocs;
+    } catch (error) {
+      console.error('Document upload error:', error);
+      Alert.alert(
+        'Upload Error',
+        'Failed to upload documents: ' + error.message,
+      );
+      return [];
+    } finally {
+      setUploading(false);
+    }
+  };
 
   // Helper function to get the auth token
   const getAuthToken = async () => {
@@ -202,93 +210,98 @@ const handleUploadDocuments = async () => {
     }
   };
 
-// Update the handleSignUp function to treat pharma documents the same as doctor documents
+  // Update the handleSignUp function to treat pharma documents the same as doctor documents
 
-const handleSignUp = async () => {
-  // Simple validation
-  if (!name || !email || !password || !confirmPassword) {
-    Alert.alert('Error', 'Please fill in all fields');
-    return;
-  }
-
-  if (password !== confirmPassword) {
-    Alert.alert('Error', 'Passwords do not match');
-    return;
-  }
-
-  // Make document upload required for both doctor and pharma
-  if ((role === 'doctor' || role === 'pharma') && documents.length === 0) {
-    Alert.alert('Error', 'Please upload at least one document for verification');
-    return;
-  }
-
-  try {
-    setIsSubmitting(true);
-
-    // Create user data object based on role
-    const userData = {
-      name,
-      email,
-      password,
-      role,
-    };
-
-    // Add role-specific fields
-    if (role === 'doctor') {
-      userData.degree = degree;
-    } else if (role === 'pharma') {
-      userData.company = company;
+  const handleSignUp = async () => {
+    // Simple validation
+    if (!name || !email || !password || !confirmPassword) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
     }
 
-    // Debug log
-    console.log('Sending user data for registration:', userData);
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
 
-    // Register the user
-    await signup(userData);
-
-    // Now handle the document upload if needed - SAME HANDLING FOR BOTH ROLES
-    if ((role === 'doctor' || role === 'pharma') && documents.length > 0) {
-      // Show an intermediate message
+    // Make document upload required for both doctor and pharma
+    if (role === 'doctor' && documents.length === 0) {
       Alert.alert(
-        'Account Created',
-        'Your account has been created successfully! Now uploading your documents for verification.',
-        [{ text: 'OK' }]
+        'Error',
+        'Please upload at least one document for verification',
       );
+      return;
+    }
 
-      try {
-        // Login first to get a valid token
-        await login(email, password);
-        
-        // Now upload the documents with valid authentication
-        const uploadedDocuments = await handleUploadDocuments();
-        
-        if (uploadedDocuments.length > 0) {
-          // Update user profile with documents
-          await userService.uploadDocuments(uploadedDocuments);
-          
+    try {
+      setIsSubmitting(true);
+
+      // Create user data object based on role
+      const userData = {
+        name,
+        email,
+        password,
+        role,
+        phone,
+      };
+
+      // Add role-specific fields
+      if (role === 'doctor') {
+        userData.degree = degree;
+      } else if (role === 'pharma') {
+        userData.company = company;
+        userData.roleInCompany = roleInCompany; // Use the correct field name
+      }
+
+      // Debug log
+      console.log('Sending user data for registration:', userData);
+
+      // Register the user
+      await signup(userData);
+
+      // Now handle the document upload if needed - SAME HANDLING FOR BOTH ROLES
+      if ((role === 'doctor' || role === 'pharma') && documents.length > 0) {
+        // Show an intermediate message
+        Alert.alert(
+          'Account Created',
+          'Your account has been created successfully! Now uploading your documents for verification.',
+          [{text: 'OK'}],
+        );
+
+        try {
+          // Login first to get a valid token
+          await login(email, password);
+
+          // Now upload the documents with valid authentication
+          const uploadedDocuments = await handleUploadDocuments();
+
+          if (uploadedDocuments.length > 0) {
+            // Update user profile with documents
+            await userService.uploadDocuments(uploadedDocuments);
+
+            Alert.alert(
+              'Registration Complete',
+              'Your account and documents have been submitted. An admin will review your documents for verification.',
+              [{text: 'Continue'}],
+            );
+          }
+        } catch (uploadError) {
+          console.error('Document upload error:', uploadError);
           Alert.alert(
-            'Registration Complete',
-            'Your account and documents have been submitted. An admin will review your documents for verification.',
-            [{ text: 'Continue' }]
+            'Document Upload Failed',
+            "Your account was created but we couldn't upload your documents. " +
+              'You can upload them later from your profile.',
+            [{text: 'OK'}],
           );
         }
-      } catch (uploadError) {
-        console.error('Document upload error:', uploadError);
-        Alert.alert(
-          'Document Upload Failed',
-          'Your account was created but we couldn\'t upload your documents. ' +
-          'You can upload them later from your profile.',
-          [{ text: 'OK' }]
-        );
       }
+    } catch (error) {
+      console.error('Signup error:', error);
+      Alert.alert('Signup Failed', error.message || 'Please try again later');
+    } finally {
+      setIsSubmitting(false);
     }
-  } catch (error) {
-    console.error('Signup error:', error);
-    Alert.alert('Signup Failed', error.message || 'Please try again later');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
   // Role Selection Screen
   if (step === 1) {
@@ -357,7 +370,14 @@ const handleSignUp = async () => {
           value={name}
           onChangeText={setName}
         />
-
+        <Text style={styles.inputLabel}>Phone Number</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter your phone number"
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+        />
         <Text style={styles.inputLabel}>Email</Text>
         <TextInput
           style={styles.input}
@@ -441,77 +461,85 @@ const handleSignUp = async () => {
           </>
         )}
 
-{role === 'pharma' && (
-  <>
-    <Text style={styles.inputLabel}>Company Name</Text>
-    <TextInput
-      style={styles.input}
-      placeholder="Enter your company name"
-      value={company}
-      onChangeText={setCompany}
-    />
+        {role === 'pharma' && (
+          <>
+            <Text style={styles.inputLabel}>Company Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your company name"
+              value={company}
+              onChangeText={setCompany}
+            />
+            <Text style={styles.inputLabel}>Role in Company</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your role in the company"
+              value={roleInCompany}
+              onChangeText={setRoleInCompany}
+            />
 
-    <Text style={styles.sectionTitle}>Upload Company Credentials</Text>
-    <Text style={styles.sectionSubtitle}>
-      Please upload company registration, license, or accreditation documents (required)
-    </Text>
+            <Text style={styles.sectionTitle}>Upload Company Credentials</Text>
+            <Text style={styles.sectionSubtitle}>
+              Please upload company registration, license, or accreditation
+              documents (Optional)
+            </Text>
 
-    <View style={styles.uploadButtonsContainer}>
-      <TouchableOpacity
-        style={styles.uploadButton}
-        onPress={pickDocument}>
-        <Icon name="file-document-outline" size={24} color="#2e7af5" />
-        <Text style={styles.uploadButtonText}>Browse Files</Text>
-      </TouchableOpacity>
+            <View style={styles.uploadButtonsContainer}>
+              <TouchableOpacity
+                style={styles.uploadButton}
+                onPress={pickDocument}>
+                <Icon name="file-document-outline" size={24} color="#2e7af5" />
+                <Text style={styles.uploadButtonText}>Browse Files</Text>
+              </TouchableOpacity>
 
-      <TouchableOpacity style={styles.uploadButton} onPress={takePhoto}>
-        <Icon name="camera" size={24} color="#2e7af5" />
-        <Text style={styles.uploadButtonText}>Take Photo</Text>
-      </TouchableOpacity>
+              <TouchableOpacity style={styles.uploadButton} onPress={takePhoto}>
+                <Icon name="camera" size={24} color="#2e7af5" />
+                <Text style={styles.uploadButtonText}>Take Photo</Text>
+              </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.uploadButton}
-        onPress={pickFromGallery}>
-        <Icon name="image" size={24} color="#2e7af5" />
-        <Text style={styles.uploadButtonText}>From Gallery</Text>
-      </TouchableOpacity>
-    </View>
-
-    {documents.length > 0 && (
-      <View style={styles.documentListContainer}>
-        <Text style={styles.documentListTitle}>
-          Selected Documents ({documents.length})
-        </Text>
-        {documents.map((doc, index) => (
-          <View key={index} style={styles.documentItem}>
-            <View style={styles.documentInfo}>
-              <Icon
-                name={
-                  doc.type.includes('image') ? 'image' : 'file-pdf-box'
-                }
-                size={24}
-                color="#2e7af5"
-              />
-              <View style={styles.documentDetails}>
-                <Text style={styles.documentName} numberOfLines={1}>
-                  {doc.name}
-                </Text>
-                <Text style={styles.documentSize}>
-                  {(doc.size / 1024).toFixed(1)} KB
-                </Text>
-              </View>
+              <TouchableOpacity
+                style={styles.uploadButton}
+                onPress={pickFromGallery}>
+                <Icon name="image" size={24} color="#2e7af5" />
+                <Text style={styles.uploadButtonText}>From Gallery</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              onPress={() => removeDocument(index)}
-              style={styles.documentRemove}>
-              <Icon name="close" size={20} color="#ff4c4c" />
-            </TouchableOpacity>
-          </View>
-        ))}
-      </View>
-    )}
-  </>
-)}
+
+            {documents.length > 0 && (
+              <View style={styles.documentListContainer}>
+                <Text style={styles.documentListTitle}>
+                  Selected Documents ({documents.length})
+                </Text>
+                {documents.map((doc, index) => (
+                  <View key={index} style={styles.documentItem}>
+                    <View style={styles.documentInfo}>
+                      <Icon
+                        name={
+                          doc.type.includes('image') ? 'image' : 'file-pdf-box'
+                        }
+                        size={24}
+                        color="#2e7af5"
+                      />
+                      <View style={styles.documentDetails}>
+                        <Text style={styles.documentName} numberOfLines={1}>
+                          {doc.name}
+                        </Text>
+                        <Text style={styles.documentSize}>
+                          {(doc.size / 1024).toFixed(1)} KB
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => removeDocument(index)}
+                      style={styles.documentRemove}>
+                      <Icon name="close" size={20} color="#ff4c4c" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+          </>
+        )}
 
         <Text style={styles.inputLabel}>Password</Text>
         <TextInput
@@ -757,4 +785,3 @@ const styles = StyleSheet.create({
 });
 
 export default SignUpScreen;
-
