@@ -35,16 +35,16 @@ export const AuthProvider = ({children}) => {
     try {
       setError(null);
       setLoading(true);
-
+  
       const response = await authService.login(email, password);
-
+  
       // Check if user has required role if specified
       if (requiredRole && response.user.role !== requiredRole) {
         throw {
           message: `Access denied. You don't have ${requiredRole} privileges.`,
         };
       }
-
+  
       // Check if email is verified
       if (!response.user.email_verified && response.user.role !== 'admin') {
         throw {
@@ -53,11 +53,18 @@ export const AuthProvider = ({children}) => {
           email: email,
         };
       }
-
+  
       // Set auth header for future API calls
       authService.setAuthToken(response.token);
+      
+      // Save token and user to AsyncStorage
+      await AsyncStorage.setItem('@token', response.token);
+      await AsyncStorage.setItem('@user', JSON.stringify(response.user));
+      
+      // Set user in state
       setUser(response.user);
-      return response; // Return the response for additional handling
+      
+      return response;
     } catch (error) {
       setError(error.message || 'Login failed');
       throw error;
@@ -105,7 +112,29 @@ export const AuthProvider = ({children}) => {
       setLoading(false);
     }
   };
-
+  const getToken = async () => {
+    try {
+      // Try AsyncStorage first
+      const storedToken = await AsyncStorage.getItem('@token');
+      
+      if (storedToken) {
+        return storedToken;
+      }
+      
+      // If not in AsyncStorage but we have an authorized API, try to get from there
+      const currentToken = authService.getAuthToken?.();
+      if (currentToken) {
+        // Save it to AsyncStorage for next time
+        await AsyncStorage.setItem('@token', currentToken);
+        return currentToken;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error retrieving token:', error);
+      return null;
+    }
+  };
   return (
     <AuthContext.Provider
       value={{
@@ -115,6 +144,7 @@ export const AuthProvider = ({children}) => {
         login,
         signup,
         logout,
+        getToken, 
         resendVerification, // Add this line
         isAuthenticated: !!user,
       }}>

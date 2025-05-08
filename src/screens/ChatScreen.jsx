@@ -13,17 +13,65 @@ import {
   Image,
   StatusBar,
   SafeAreaView,
+  Modal,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import * as ImagePicker from 'react-native-image-picker';
+import WebViewDocumentPicker from '../components/WebViewDocumentPicker';
 import io from 'socket.io-client';
 import axios from 'axios';
 import {useAuth} from '../context/AuthContext';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {Linking} from 'react-native';
+import FastImage from '@d11/react-native-fast-image';
+import RNFS from 'react-native-fs';
 // Update these URLs to match your server configuration
-const SOCKET_URL = 'http://192.168.1.9:5000';
-const API_URL = 'http://192.168.1.9:5000';
+const SOCKET_URL = 'http://192.168.1.4:5000';
+const API_URL = 'http://192.168.1.4:5000';
+
+const downloadAndCacheImage = async (imageUrl, cacheKey) => {
+  try {
+    // Create a unique filename based on the URL
+    const filename = cacheKey || imageUrl.split('/').pop();
+    const localPath = `${RNFS.CachesDirectoryPath}/${filename}`;
+
+    // Check if file already exists in cache
+    const exists = await RNFS.exists(localPath);
+    if (exists) {
+      console.log('Image already cached:', localPath);
+      return `file://${localPath}`;
+    }
+
+    // Download the file
+    console.log('Downloading image:', imageUrl);
+    const options = {
+      fromUrl: imageUrl,
+      toFile: localPath,
+      background: true,
+      begin: res => console.log('Download started:', res),
+      progress: res => {
+        const progress = (res.bytesWritten / res.contentLength) * 100;
+        console.log(`Download progress: ${progress.toFixed(2)}%`);
+      },
+    };
+
+    const response = await RNFS.downloadFile(options).promise;
+
+    if (response.statusCode === 200) {
+      console.log('File downloaded to:', localPath);
+      return `file://${localPath}`;
+    } else {
+      console.error('Download failed with status:', response.statusCode);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error downloading image:', error);
+    return null;
+  }
+};
 
 const ChatScreen = () => {
-  const {user} = useAuth();
+  const {user, getToken} = useAuth();
   const [messages, setMessages] = useState([]);
   const [chatHistory, setChatHistory] = useState({});
   const [newMessage, setNewMessage] = useState('');
@@ -37,12 +85,21 @@ const ChatScreen = () => {
   const reconnectTimeoutRef = useRef(null);
   const currentRoomIdRef = useRef(null);
   const flatListRef = useRef(null);
-
+  const [showAttachmentOptions, setShowAttachmentOptions] = useState(false);
+  const [webViewPickerVisible, setWebViewPickerVisible] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [cachedImages, setCachedImages] = useState({});
+// Add these new state variables near your other state variables
+const [previewVisible, setPreviewVisible] = useState(false);
+const [previewItem, setPreviewItem] = useState(null);
   // Debug output for current user
   useEffect(() => {
     console.log('Current user:', user);
   }, [user]);
-
+  const openPreview = (item) => {
+    setPreviewItem(item);
+    setPreviewVisible(true);
+  };
   // Fetch all doctors
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -249,6 +306,263 @@ const ChatScreen = () => {
     }
   }, [selectedDoctor, user]);
 
+
+  useEffect(() => {
+    const loadImages = async () => {
+      const imagesToLoad = messages.filter(
+        msg => 
+          (msg.isAttachment === true && msg.attachmentType === 'image') || 
+          (msg.fileType && msg.fileType.includes('image')) ||
+          (msg.fileUrl && msg.fileUrl.match(/\.(jpeg|jpg|gif|png)$/i))
+      );
+      
+      for (const msg of imagesToLoad) {
+        if (msg.fileUrl && !cachedImages[msg.fileUrl]) {
+          console.log('Caching image:', msg.fileUrl);
+          try {
+            // Create a unique key based on the URL
+            const cacheKey = msg.fileUrl.split('/').pop();
+            const localUri = await downloadAndCacheImage(msg.fileUrl, cacheKey);
+            
+            if (localUri) {
+              setCachedImages(prev => ({
+                ...prev,
+                [msg.fileUrl]: localUri
+              }));
+            }
+          } catch (error) {
+            console.error('Error caching image:', error);
+          }
+        }
+      }
+    };
+    
+    loadImages();
+  }, [messages]);
+  // Add this function to handle document picking
+  const pickDocument = () => {
+    setShowAttachmentOptions(false);
+    setWebViewPickerVisible(true);
+  };
+
+  // Add this function to handle files selected from WebView
+  const handleWebViewFilesSelected = async files => {
+    setWebViewPickerVisible(false);
+
+    if (files && files.length > 0) {
+      const file = files[0]; // Just use the first file for simplicity
+      await sendFileMessage(file);
+    }
+  };
+
+  // Add this function to handle camera photos
+  const takePhoto = () => {
+    setShowAttachmentOptions(false);
+
+    const options = {
+      mediaType: 'photo',
+      quality: 0.8,
+    };
+
+    ImagePicker.launchCamera(options, async response => {
+      if (response.didCancel) {
+        console.log('User cancelled camera');
+      } else if (response.errorCode) {
+        Alert.alert('Error', 'Camera Error: ' + response.errorMessage);
+      } else {
+        const asset = response.assets[0];
+        const file = {
+          name: `Photo_${new Date().toISOString()}.jpg`,
+          type: asset.type,
+          uri: asset.uri,
+          size: asset.fileSize,
+        };
+        await sendFileMessage(file);
+      }
+    });
+  };
+
+  // Add this function to handle gallery photos
+  const pickFromGallery = () => {
+    setShowAttachmentOptions(false);
+
+    const options = {
+      mediaType: 'photo',
+      quality: 0.8,
+    };
+
+    ImagePicker.launchImageLibrary(options, async response => {
+      if (response.didCancel) {
+        console.log('User cancelled image picker');
+      } else if (response.errorCode) {
+        Alert.alert('Error', 'ImagePicker Error: ' + response.errorMessage);
+      } else {
+        const asset = response.assets[0];
+        const file = {
+          name: asset.fileName || `Image_${new Date().toISOString()}.jpg`,
+          type: asset.type,
+          uri: asset.uri,
+          size: asset.fileSize,
+        };
+        await sendFileMessage(file);
+      }
+    });
+  };
+
+  // Get auth token for file uploads
+  const getAuthToken = async () => {
+    try {
+      // Try to get from AsyncStorage first
+      const token = await AsyncStorage.getItem('@token');
+      if (token) {
+        return token;
+      }
+
+      // If not in AsyncStorage, try to get from context
+      if (user && user.token) {
+        console.log('Using token from user context');
+        return user.token;
+      }
+
+      // Try to get via the auth service
+      const {authService} = require('../services/api');
+      if (authService && authService.getAuthToken) {
+        const serviceToken = authService.getAuthToken();
+        if (serviceToken) {
+          return serviceToken;
+        }
+      }
+      console.log('Token available?', !!token);
+      console.log('User object available?', !!user);
+      console.log('User has token?', !!(user && user.token));
+      console.error('No valid auth token found');
+      return null;
+    } catch (error) {
+      console.error('Failed to get auth token:', error);
+      return null;
+    }
+  };
+
+  const sendFileMessage = async file => {
+    if (!selectedDoctor || !user) return;
+
+    try {
+      setUploading(true);
+
+      // Upload the file first
+      const token = await getToken();
+      if (!token) {
+        Alert.alert('Error', 'Authentication required');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('document', {
+        uri: Platform.OS === 'ios' ? file.uri.replace('file://', '') : file.uri,
+        type: file.type || 'application/octet-stream',
+        name: file.name || `file-${Date.now()}.${file.uri.split('.').pop()}`,
+      });
+
+      // Upload to server
+      const response = await fetch(`${API_URL}/api/uploads/document`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Upload failed:', errorText);
+        throw new Error(`Upload failed: ${response.status} ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('File upload result:', result);
+
+      // Now send a message with the file info
+      const roomId = [user.id, selectedDoctor.id].sort().join('-');
+      const tempId = `temp-${Date.now()}`;
+
+      const isImage = file.type && file.type.includes('image');
+      console.log('File type check:', {
+        fileName: file.name,
+        fileType: file.type,
+        isImage: isImage,
+      });
+
+      const messageData = {
+        text: isImage ? '📷 Image' : '📎 Document: ' + file.name,
+        content: isImage ? '📷 Image' : '📎 Document: ' + file.name,
+        senderId: user.id,
+        sender_id: user.id,
+        senderName: user.name,
+        sender_name: user.name,
+        receiverId: selectedDoctor.id,
+        receiver_id: selectedDoctor.id,
+        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        roomId: roomId,
+        room_id: roomId,
+        // Add file metadata
+        fileType: file.type,
+        fileName: file.name,
+        fileUrl: result.url,
+        fileSize: file.size,
+        isAttachment: true,
+        attachmentType: isImage ? 'image' : 'document',
+      };
+      console.log(
+        'Created message data:',
+        JSON.stringify(
+          {
+            isImage,
+            attachmentType: messageData.attachmentType,
+            fileType: messageData.fileType,
+            fileUrl: messageData.fileUrl,
+          },
+          null,
+          2,
+        ),
+      );
+      // Create temporary message
+      const tempMessage = {
+        ...messageData,
+        id: tempId,
+        pending: true,
+      };
+
+      // Update UI immediately
+      setMessages(prevMessages => [tempMessage, ...prevMessages]);
+
+      // Update chat history
+      setChatHistory(prev => {
+        const currentMessages = prev[roomId] || [];
+        return {
+          ...prev,
+          [roomId]: [tempMessage, ...currentMessages],
+        };
+      });
+
+      // Send via socket or HTTP
+      if (socketConnected) {
+        try {
+          socketRef.current.emit('send_message', {...messageData, tempId});
+        } catch (socketError) {
+          console.error('Error sending file message via socket:', socketError);
+          sendMessageViaHttp(messageData, tempId);
+        }
+      } else {
+        sendMessageViaHttp(messageData, tempId);
+      }
+    } catch (error) {
+      console.error('Error sending file message:', error);
+      Alert.alert('Error', 'Failed to send file: ' + error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
   const sendMessage = () => {
     if (newMessage.trim().length === 0 || !selectedDoctor || !user) {
       return;
@@ -409,9 +723,9 @@ const ChatScreen = () => {
   // Search functionality
   const getFilteredMessages = () => {
     if (!searchQuery.trim()) return messages;
-    
-    return messages.filter(message => 
-      message.text.toLowerCase().includes(searchQuery.toLowerCase())
+
+    return messages.filter(message =>
+      message.text.toLowerCase().includes(searchQuery.toLowerCase()),
     );
   };
 
@@ -430,7 +744,9 @@ const ChatScreen = () => {
       ]}
       onPress={() => setSelectedDoctor(item)}>
       <View style={styles.avatarContainer}>
-        <Text style={styles.avatarText}>{item.name ? item.name.charAt(0) : '?'}</Text>
+        <Text style={styles.avatarText}>
+          {item.name ? item.name.charAt(0) : '?'}
+        </Text>
       </View>
       <View style={styles.doctorInfo}>
         <Text
@@ -457,7 +773,32 @@ const ChatScreen = () => {
       hour: '2-digit',
       minute: '2-digit',
     });
-    
+
+    // Add detailed logging for debugging
+    const isFileAttachment = item.isAttachment === true || item.fileUrl;
+    const isImageAttachment =
+      (isFileAttachment && item.attachmentType === 'image') ||
+      (item.fileType && item.fileType.includes('image')) ||
+      (item.fileUrl && item.fileUrl.match(/\.(jpeg|jpg|gif|png)$/i));
+
+    // Debug logs
+    console.log(
+      'Message item:',
+      JSON.stringify(
+        {
+          id: item.id,
+          isFileAttachment,
+          isImageAttachment,
+          attachmentType: item.attachmentType,
+          fileType: item.fileType,
+          fileUrl: item.fileUrl,
+          isAttachment: item.isAttachment,
+        },
+        null,
+        2,
+      ),
+    );
+
     return (
       <View
         style={[
@@ -465,11 +806,58 @@ const ChatScreen = () => {
           isOwnMessage ? styles.ownMessage : styles.otherMessage,
           item.pending && styles.pendingMessage,
         ]}>
-        <Text style={styles.messageText}>{item.text}</Text>
+{isImageAttachment ? (
+  <TouchableOpacity
+  onPress={() => openPreview(item)}
+  style={styles.imageContainer}
+>
+    {cachedImages[item.fileUrl] ? (
+      <Image
+        source={{ uri: cachedImages[item.fileUrl] }}
+        style={styles.attachedImage}
+        resizeMode="cover"
+      />
+    ) : (
+      <View style={styles.imageLoadingContainer}>
+        <ActivityIndicator size="large" color="#2e7af5" />
+        <Text style={styles.imageLoadingText}>Loading image...</Text>
+      </View>
+    )}
+    <Text style={{textAlign: 'center', marginTop: 4, color: '#666'}}>
+      {item.text || '📷 Image'}
+    </Text>
+  </TouchableOpacity>
+        ) : isFileAttachment ? (
+          // Render document attachment
+<TouchableOpacity
+  onPress={() => openPreview(item)}
+  style={styles.documentContainer}
+>
+            <View style={styles.documentIconContainer}>
+              <Icon name="file-document-outline" size={24} color="#2e7af5" />
+            </View>
+            <View style={styles.documentInfo}>
+              <Text style={styles.documentName} numberOfLines={1}>
+                {item.fileName || 'Document'}
+              </Text>
+              <Text style={styles.documentSize}>
+                {item.fileSize ? `${(item.fileSize / 1024).toFixed(1)} KB` : ''}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          // Render regular text message
+          <Text style={styles.messageText}>{item.text}</Text>
+        )}
+
         <View style={styles.messageFooter}>
           <Text style={styles.timestamp}>{messageTime}</Text>
           {isOwnMessage && (
-            <Text style={[styles.statusIcon, item.pending ? styles.pendingIcon : styles.deliveredIcon]}>
+            <Text
+              style={[
+                styles.statusIcon,
+                item.pending ? styles.pendingIcon : styles.deliveredIcon,
+              ]}>
               {item.pending ? '⌛' : '✓✓'}
             </Text>
           )}
@@ -497,26 +885,28 @@ const ChatScreen = () => {
   // WhatsApp-style header with doctor name and actions
   const renderChatHeader = () => {
     if (!selectedDoctor) return null;
-    
+
     return (
       <View style={styles.chatHeader}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.headerBackButton}
           onPress={() => setSelectedDoctor(null)}>
           <Text style={styles.headerBackIcon}>←</Text>
         </TouchableOpacity>
-        
+
         <View style={styles.avatarContainer}>
-          <Text style={styles.avatarText}>{selectedDoctor.name ? selectedDoctor.name.charAt(0) : '?'}</Text>
+          <Text style={styles.avatarText}>
+            {selectedDoctor.name ? selectedDoctor.name.charAt(0) : '?'}
+          </Text>
         </View>
-        
+
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>{selectedDoctor.name}</Text>
           <Text style={styles.headerSubtitle}>
             {socketConnected ? 'online' : 'offline'}
           </Text>
         </View>
-        
+
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.headerButton} onPress={toggleSearch}>
             <Text style={styles.headerIcon}>🔍</Text>
@@ -532,11 +922,11 @@ const ChatScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar backgroundColor="#fff" barStyle="dark-content" />
-      
+
       {selectedDoctor ? (
         <View style={styles.container}>
           {renderChatHeader()}
-          
+
           {searchVisible && (
             <View style={styles.searchContainer}>
               <TextInput
@@ -546,12 +936,14 @@ const ChatScreen = () => {
                 placeholder="Search messages..."
                 autoFocus
               />
-              <TouchableOpacity style={styles.searchCancelButton} onPress={toggleSearch}>
+              <TouchableOpacity
+                style={styles.searchCancelButton}
+                onPress={toggleSearch}>
                 <Text style={styles.searchCancelText}>Cancel</Text>
               </TouchableOpacity>
             </View>
           )}
-          
+
           <FlatList
             ref={flatListRef}
             data={getFilteredMessages()}
@@ -564,7 +956,9 @@ const ChatScreen = () => {
             contentContainerStyle={styles.messagesListContent}
             ListEmptyComponent={
               <Text style={styles.emptyMessagesText}>
-                {searchQuery ? 'No messages match your search' : 'No messages yet'}
+                {searchQuery
+                  ? 'No messages match your search'
+                  : 'No messages yet'}
               </Text>
             }
           />
@@ -574,6 +968,13 @@ const ChatScreen = () => {
             keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             style={styles.inputContainer}>
             <View style={styles.inputRow}>
+              {/* Add this attachment button */}
+              <TouchableOpacity
+                style={styles.attachButton}
+                onPress={() => setShowAttachmentOptions(true)}>
+                <Icon name="attachment" size={24} color="#757575" />
+              </TouchableOpacity>
+
               <TextInput
                 style={styles.input}
                 value={newMessage}
@@ -584,11 +985,62 @@ const ChatScreen = () => {
               <TouchableOpacity
                 style={styles.sendButton}
                 onPress={sendMessage}
-                disabled={!newMessage.trim()}>
-                <Text style={styles.sendButtonIcon}>{newMessage.trim() ? '➤' : '➤'}</Text>
+                disabled={!newMessage.trim() || uploading}>
+                {uploading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.sendButtonIcon}>
+                    {newMessage.trim() ? '➤' : '➤'}
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           </KeyboardAvoidingView>
+
+          <Modal
+            transparent={true}
+            visible={showAttachmentOptions}
+            animationType="slide"
+            onRequestClose={() => setShowAttachmentOptions(false)}>
+            <TouchableOpacity
+              style={styles.attachmentModalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowAttachmentOptions(false)}>
+              <View style={styles.attachmentModalContainer}>
+                <TouchableOpacity
+                  style={styles.attachmentOption}
+                  onPress={pickDocument}>
+                  <Icon
+                    name="file-document-outline"
+                    size={28}
+                    color="#2e7af5"
+                  />
+                  <Text style={styles.attachmentOptionText}>Document</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.attachmentOption}
+                  onPress={takePhoto}>
+                  <Icon name="camera" size={28} color="#2e7af5" />
+                  <Text style={styles.attachmentOptionText}>Camera</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.attachmentOption}
+                  onPress={pickFromGallery}>
+                  <Icon name="image" size={28} color="#2e7af5" />
+                  <Text style={styles.attachmentOptionText}>Gallery</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+
+          {/* WebView Document Picker */}
+          <WebViewDocumentPicker
+            visible={webViewPickerVisible}
+            onClose={() => setWebViewPickerVisible(false)}
+            onFilesSelected={handleWebViewFilesSelected}
+          />
         </View>
       ) : (
         <View style={styles.container}>
@@ -603,7 +1055,7 @@ const ChatScreen = () => {
               </TouchableOpacity>
             </View>
           </View>
-          
+
           <FlatList
             data={doctors}
             renderItem={renderDoctor}
@@ -616,6 +1068,63 @@ const ChatScreen = () => {
           />
         </View>
       )}
+      <Modal
+  visible={previewVisible}
+  transparent={false}
+  animationType="slide"
+  onRequestClose={() => setPreviewVisible(false)}
+>
+  <SafeAreaView style={styles.previewContainer}>
+    <View style={styles.previewHeader}>
+      <TouchableOpacity 
+        style={styles.previewCloseButton}
+        onPress={() => setPreviewVisible(false)}
+      >
+        <Icon name="close" size={24} color="#333" />
+      </TouchableOpacity>
+      <Text style={styles.previewTitle} numberOfLines={1}>
+        {previewItem?.fileName || 'Preview'}
+      </Text>
+      <TouchableOpacity 
+        style={styles.previewShareButton}
+        onPress={() => previewItem?.fileUrl && Linking.openURL(previewItem.fileUrl)}
+      >
+        <Icon name="open-in-new" size={24} color="#2e7af5" />
+      </TouchableOpacity>
+    </View>
+    <View style={styles.previewContent}>
+      {previewItem && previewItem.fileType && previewItem.fileType.includes('image') ? (
+        // Image preview
+        <Image
+          source={{ uri: cachedImages[previewItem.fileUrl] || previewItem.fileUrl }}
+          style={styles.previewImage}
+          resizeMode="contain"
+        />
+      ) : (
+        // Document preview - basic document info with option to open
+        <View style={styles.documentPreview}>
+          <Icon 
+            name="file-document-outline" 
+            size={80} 
+            color="#2e7af5" 
+          />
+          <Text style={styles.documentPreviewName}>
+            {previewItem?.fileName || 'Document'}
+          </Text>
+          <Text style={styles.documentPreviewSize}>
+            {previewItem?.fileSize ? `${(previewItem.fileSize / 1024).toFixed(1)} KB` : ''}
+          </Text>
+          <TouchableOpacity
+            style={styles.openExternalButton}
+            onPress={() => previewItem?.fileUrl && Linking.openURL(previewItem.fileUrl)}
+          >
+            <Text style={styles.openExternalButtonText}>Open in Browser</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  </SafeAreaView>
+</Modal>
     </SafeAreaView>
   );
 };
@@ -639,7 +1148,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff', 
+    backgroundColor: '#fff',
     paddingVertical: 16,
     paddingHorizontal: 16,
   },
@@ -654,6 +1163,73 @@ const styles = StyleSheet.create({
   },
   doctorsListContent: {
     paddingVertical: 8,
+  },
+  previewContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eeeeee',
+  },
+  previewCloseButton: {
+    padding: 8,
+  },
+  previewShareButton: {
+    padding: 8,
+  },
+  previewTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginHorizontal: 8,
+  },
+  previewContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f7f9fc',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f7f9fc',
+  },
+  documentPreview: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  documentPreviewName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  documentPreviewSize: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+  },
+  openExternalButton: {
+    marginTop: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#2e7af5',
+    borderRadius: 8,
+  },
+  openExternalButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   doctorItem: {
     flexDirection: 'row',
@@ -770,7 +1346,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   ownMessage: {
-    backgroundColor: '#d6e5fd',//'#DCF8C6',
+    backgroundColor: '#d6e5fd', //'#DCF8C6',
     borderRadius: 10,
     alignSelf: 'flex-end',
     marginLeft: '15%',
@@ -850,6 +1426,99 @@ const styles = StyleSheet.create({
     color: '#666666',
     fontSize: 16,
   },
+  attachButton: {
+    padding: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  attachmentModalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  attachmentModalContainer: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  attachmentOption: {
+    alignItems: 'center',
+    padding: 16,
+  },
+  attachmentOptionText: {
+    marginTop: 8,
+    color: '#333',
+    fontSize: 14,
+  },
+  imageContainer: {
+    width: '100%',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  attachedImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  documentContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  documentIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  documentInfo: {
+    flex: 1,
+  },
+  documentName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
+  documentSize: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  imageLoadingContainer: {
+    width: '100%',
+    height: 200,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  imageLoadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666',
+  },
+  // imageContainer: {
+  //   width: '100%',
+  //   borderRadius: 8,
+  //   overflow: 'hidden',
+  //   backgroundColor: '#f0f0f0',
+  // },
+  // attachedImage: {
+  //   width: '100%',
+  //   height: 200,
+  //   borderRadius: 4,
+  //   backgroundColor: '#f0f0f0',
+  // },
 });
 
 export default ChatScreen;

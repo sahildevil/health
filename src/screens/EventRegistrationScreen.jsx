@@ -10,10 +10,12 @@ import {
   ActivityIndicator,
   Alert,
   StatusBar,
+  Switch,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuth } from '../context/AuthContext';
 import { eventService } from '../services/api';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 const EventRegistrationScreen = ({ route, navigation }) => {
   const { eventId } = route.params;
@@ -21,6 +23,7 @@ const EventRegistrationScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [event, setEvent] = useState(null);
+  const [isCompanySponsor, setIsCompanySponsor] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -28,6 +31,12 @@ const EventRegistrationScreen = ({ route, navigation }) => {
     specialization: '',
     organization: '',
     additionalNotes: '',
+    // New fields for company sponsors
+    isCompanySponsor: false,
+    companyName: '',
+    sponsorshipLevel: 'Standard', // Default level
+    contactPerson: '',
+    companyWebsite: '',
   });
 
   useEffect(() => {
@@ -46,10 +55,29 @@ const EventRegistrationScreen = ({ route, navigation }) => {
     }
   };
 
+  const toggleSponsorMode = (value) => {
+    setIsCompanySponsor(value);
+    setFormData({
+      ...formData,
+      isCompanySponsor: value,
+      // Pre-fill contact person with user's name if switching to company mode
+      contactPerson: value && !formData.contactPerson ? formData.name : formData.contactPerson
+    });
+  };
+
   const handleSubmit = async () => {
-    if (!formData.name || !formData.email || !formData.phone) {
-      Alert.alert('Error', 'Please fill in all required fields');
-      return;
+    if (isCompanySponsor) {
+      // Validation for company sponsors
+      if (!formData.companyName || !formData.contactPerson || !formData.email || !formData.phone) {
+        Alert.alert('Error', 'Please fill in all required company fields');
+        return;
+      }
+    } else {
+      // Validation for individual registrations
+      if (!formData.name || !formData.email || !formData.phone) {
+        Alert.alert('Error', 'Please fill in all required fields');
+        return;
+      }
     }
 
     try {
@@ -57,7 +85,9 @@ const EventRegistrationScreen = ({ route, navigation }) => {
       await eventService.registerForEvent(eventId, formData);
       Alert.alert(
         'Success',
-        'Registration successful! You will receive a confirmation email shortly.',
+        isCompanySponsor 
+          ? 'Your company has been registered as a sponsor! You will receive a confirmation email shortly.'
+          : 'Registration successful! You will receive a confirmation email shortly.',
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (error) {
@@ -77,7 +107,7 @@ const EventRegistrationScreen = ({ route, navigation }) => {
   }
 
   return (
-<SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+    <SafeAreaView style={[styles.container, { paddingTop: SafeAreaInsetsContext.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor='white'/>
       
       {/* Header */}
@@ -97,68 +127,184 @@ const EventRegistrationScreen = ({ route, navigation }) => {
           <Text style={styles.eventType}>{event?.type}</Text>
         </View>
 
+        {/* Registration Type Selector */}
+        <View style={styles.registrationTypeContainer}>
+          <Text style={styles.registrationTypeTitle}>Registration Type</Text>
+          
+          <View style={styles.switchContainer}>
+            <Text style={styles.switchLabel}>
+              {isCompanySponsor ? "Registering as Company Sponsor" : "Registering as Individual"}
+            </Text>
+            <Switch
+              value={isCompanySponsor}
+              onValueChange={toggleSponsorMode}
+              trackColor={{ false: '#767577', true: '#81b0ff' }}
+              thumbColor={isCompanySponsor ? '#2e7af5' : '#f4f3f4'}
+            />
+          </View>
+          
+          {isCompanySponsor && (
+            <View style={styles.sponsorNotice}>
+              <Icon name="information-outline" size={18} color="#e36135" />
+              <Text style={styles.sponsorNoticeText}>
+                Your company will be registered as a sponsor for this event
+              </Text>
+            </View>
+          )}
+        </View>
+
         {/* Registration Form */}
         <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name*</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.name}
-              onChangeText={(text) => setFormData({ ...formData, name: text })}
-              placeholder="Enter your full name"
-            />
-          </View>
+          {isCompanySponsor ? (
+            // Company Sponsor Form
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Company Name*</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.companyName}
+                  onChangeText={(text) => setFormData({ ...formData, companyName: text })}
+                  placeholder="Enter your company name"
+                  placeholderTextColor="#999"
+                />
+              </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email*</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.email}
-              onChangeText={(text) => setFormData({ ...formData, email: text })}
-              placeholder="Enter your email"
-              placeholderTextColor="#999"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Contact Person*</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.contactPerson}
+                  onChangeText={(text) => setFormData({ ...formData, contactPerson: text })}
+                  placeholder="Name of company representative"
+                  placeholderTextColor="#999"
+                />
+              </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone Number*</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.phone}
-              onChangeText={(text) => setFormData({ ...formData, phone: text })}
-              placeholder="Enter your phone number"
-              placeholderTextColor="#999"
-              keyboardType="phone-pad"
-            />
-          </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Email*</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.email}
+                  onChangeText={(text) => setFormData({ ...formData, email: text })}
+                  placeholder="Contact email"
+                  placeholderTextColor="#999"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Specialization</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.specialization}
-              onChangeText={(text) =>
-                setFormData({ ...formData, specialization: text })
-              }
-              placeholder="Enter your specialization"
-              placeholderTextColor="#999"
-            />
-          </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Phone Number*</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.phone}
+                  onChangeText={(text) => setFormData({ ...formData, phone: text })}
+                  placeholder="Contact phone number"
+                  placeholderTextColor="#999"
+                  keyboardType="phone-pad"
+                />
+              </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Organization</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.organization}
-              onChangeText={(text) =>
-                setFormData({ ...formData, organization: text })
-              }
-              placeholder="Enter your organization"
-              placeholderTextColor="#999"
-            />
-          </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Company Website</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.companyWebsite}
+                  onChangeText={(text) => setFormData({ ...formData, companyWebsite: text })}
+                  placeholder="https://www.example.com"
+                  placeholderTextColor="#999"
+                  keyboardType="url"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              {/* <View style={styles.inputGroup}>
+                <Text style={styles.label}>Sponsorship Level</Text>
+                <View style={styles.radioContainer}>
+                  {['Gold', 'Silver', 'Bronze', 'Standard'].map((level) => (
+                    <TouchableOpacity
+                      key={level}
+                      style={[
+                        styles.radioButton,
+                        formData.sponsorshipLevel === level && styles.radioButtonSelected
+                      ]}
+                      onPress={() => setFormData({ ...formData, sponsorshipLevel: level })}
+                    >
+                      <View style={styles.radioCircle}>
+                        {formData.sponsorshipLevel === level && <View style={styles.radioDot} />}
+                      </View>
+                      <Text style={styles.radioText}>{level}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View> */}
+            </>
+          ) : (
+            // Individual Registration Form
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Full Name*</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.name}
+                  onChangeText={(text) => setFormData({ ...formData, name: text })}
+                  placeholder="Enter your full name"
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Email*</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.email}
+                  onChangeText={(text) => setFormData({ ...formData, email: text })}
+                  placeholder="Enter your email"
+                  placeholderTextColor="#999"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Phone Number*</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.phone}
+                  onChangeText={(text) => setFormData({ ...formData, phone: text })}
+                  placeholder="Enter your phone number"
+                  placeholderTextColor="#999"
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Specialization</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.specialization}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, specialization: text })
+                  }
+                  placeholder="Enter your specialization"
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Organization</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.organization}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, organization: text })
+                  }
+                  placeholder="Enter your organization"
+                  placeholderTextColor="#999"
+                />
+              </View>
+            </>
+          )}
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Additional Notes</Text>
@@ -168,7 +314,9 @@ const EventRegistrationScreen = ({ route, navigation }) => {
               onChangeText={(text) =>
                 setFormData({ ...formData, additionalNotes: text })
               }
-              placeholder="Any additional information you'd like to share"
+              placeholder={isCompanySponsor 
+                ? "Additional requirements or information about your sponsorship"
+                : "Any additional information you'd like to share"}
               placeholderTextColor="#999"
               multiline
               numberOfLines={4}
@@ -183,7 +331,9 @@ const EventRegistrationScreen = ({ route, navigation }) => {
           {submitting ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>Register</Text>
+            <Text style={styles.submitButtonText}>
+              {isCompanySponsor ? 'Register as Sponsor' : 'Register'}
+            </Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -234,6 +384,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  registrationTypeContainer: {
+    padding: 16,
+    backgroundColor: '#f0f7ff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#dce7f5',
+  },
+  registrationTypeTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  switchLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#2e7af5',
+    flex: 1,
+  },
+  sponsorNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff3e0',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  sponsorNoticeText: {
+    fontSize: 14,
+    color: '#e36135',
+    marginLeft: 8,
+    flex: 1,
+  },
   form: {
     padding: 16,
   },
@@ -256,6 +444,39 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
+  },
+  radioContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  radioButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 20,
+    marginBottom: 12,
+  },
+  radioButtonSelected: {
+    opacity: 1,
+  },
+  radioCircle: {
+    height: 20,
+    width: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#2e7af5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  radioDot: {
+    height: 10,
+    width: 10,
+    borderRadius: 5,
+    backgroundColor: '#2e7af5',
+  },
+  radioText: {
+    fontSize: 14,
+    color: '#333',
   },
   submitButton: {
     backgroundColor: '#2e7af5',

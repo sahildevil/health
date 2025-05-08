@@ -25,36 +25,25 @@ const LoginScreen = ({navigation}) => {
 
     try {
       setIsSubmitting(true);
-      const response = await login(email, password);
 
-      // Check user verification status
-      if (response && response.user) {
-        if (!response.user.email_verified) {
-          // Navigate to verification screen for unverified accounts
-          navigation.navigate('EmailVerification', {email});
-          return;
-        }
-      }
+      try {
+        // Attempt to login
+        const response = await login(email, password);
 
-      // Success case is handled by AppNavigator
-    } catch (error) {
-      console.log('Login error:', error);
+        // If we get here, login was successful
+        // Navigation will be handled by AppNavigator
+      } catch (error) {
+        console.log('Login error:', error);
 
-      if (error.needsVerification) {
-        // Check if EmailVerification is available in navigation
-        if (navigation.getState().routeNames.includes('EmailVerification')) {
-          // If the user hasn't verified their email, navigate to verification screen
-          navigation.navigate('EmailVerification', {email});
-        } else {
-          // Fallback in case screen isn't registered
+        // Check if the error is due to email verification
+        if (
+          error.needsVerification ||
+          (error.message && error.message.includes('verify'))
+        ) {
           Alert.alert(
             'Email Verification Required',
-            'Please check your email for a verification link or request a new one.',
+            'Please verify your email before logging in.',
             [
-              {
-                text: 'OK',
-                onPress: () => console.log('OK Pressed'),
-              },
               {
                 text: 'Resend Verification Email',
                 onPress: async () => {
@@ -73,14 +62,19 @@ const LoginScreen = ({navigation}) => {
                   }
                 },
               },
+              {
+                text: 'OK',
+                style: 'cancel',
+              },
             ],
           );
+        } else {
+          // Handle other login errors
+          Alert.alert(
+            'Login Failed',
+            error.message || 'Please check your credentials',
+          );
         }
-      } else {
-        Alert.alert(
-          'Login Failed',
-          error.message || 'Please check your credentials',
-        );
       }
     } finally {
       setIsSubmitting(false);
