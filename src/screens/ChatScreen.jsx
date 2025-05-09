@@ -10,9 +10,10 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-  StatusBar,
+  StatusBar,  
   SafeAreaView,
   Modal,
+  Linking,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import io from 'socket.io-client';
@@ -23,6 +24,7 @@ import RNFS from 'react-native-fs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // Import the WebView document picker
 import WebViewDocumentPicker from '../components/WebViewDocumentPicker';
+import DocumentViewerModal from '../components/DocumentViewerModal'; // Assuming you have this component for document viewing
 
 // Update these URLs to match your server configuration
 const SOCKET_URL = 'http://192.168.1.9:5000';
@@ -192,41 +194,57 @@ const ChatScreen = () => {
         socketRef.current.emit('join_room', roomId);
       });
 
-      socketRef.current.on('receive_message', message => {
-        console.log('Received message:', message);
+// Fix the socket message handler in ChatScreen.js
+// Update this part of your useEffect for the socket connection
 
-        // Handle received message
-        const newMessage = {
-          id: message.id,
-          text: message.text || message.content,
-          senderId: message.senderId || message.sender_id,
-          senderName: message.senderName || message.sender_name,
-          receiverId: message.receiverId || message.receiver_id,
-          timestamp: message.timestamp || message.created_at,
-          roomId: message.roomId || message.room_id,
-          documentUrl: message.document_url || message.documentUrl,
-          documentName: message.document_name || message.documentName,
-          documentType: message.document_type || message.documentType,
-          messageType: message.document_url ? 'document' : 'text',
-        };
+socketRef.current.on('receive_message', message => {
+  console.log('Received message:', message);
 
-        // Immediately update messages without checking for duplicates
-        setMessages(prevMessages => {
-          // Only add if it's not already in the list (check by ID)
-          if (!prevMessages.some(msg => msg.id === newMessage.id)) {
-            const updatedMessages = [newMessage, ...prevMessages];
+  // Handle received message - ensure proper type and field consistency
+  const newMessage = {
+    id: message.id,
+    text: message.messageType === 'text' ? (message.text || message.content) : null, // Only set text for text messages
+    senderId: message.senderId || message.sender_id,
+    senderName: message.senderName || message.sender_name,
+    receiverId: message.receiverId || message.receiver_id,
+    timestamp: message.timestamp || message.created_at,
+    roomId: message.roomId || message.room_id,
+    
+    // Document fields - retain all document info regardless of message type
+    documentUrl: message.document_url || message.documentUrl,
+    documentName: message.document_name || message.documentName,
+    documentType: message.document_type || message.documentType,
+    
+    // Explicitly set messageType - ensure this is correctly prioritized
+    messageType: message.messageType || message.message_type || 
+      (message.document_url || message.documentUrl ? 'document' : 'text'),
+  };
 
-            // Also update chat history
-            setChatHistory(prev => ({
-              ...prev,
-              [newMessage.roomId]: updatedMessages,
-            }));
+  // Add document content field if it's a document
+  if (newMessage.messageType === 'document') {
+    newMessage.content = `Shared a document: ${newMessage.documentName}`;
+  }
 
-            return updatedMessages;
-          }
-          return prevMessages;
-        });
-      });
+  // Debug the processed message
+  console.log('Processed received message:', newMessage);
+
+  // Immediately update messages
+  setMessages(prevMessages => {
+    // Only add if it's not already in the list (check by ID)
+    if (!prevMessages.some(msg => msg.id === newMessage.id)) {
+      const updatedMessages = [newMessage, ...prevMessages];
+
+      // Also update chat history
+      setChatHistory(prev => ({
+        ...prev,
+        [newMessage.roomId]: updatedMessages,
+      }));
+
+      return updatedMessages;
+    }
+    return prevMessages;
+  });
+});
 
       // Listen for message confirmation
       socketRef.current.on('message_confirmed', confirmedMessage => {
@@ -358,12 +376,23 @@ const ChatScreen = () => {
       // Create form data
       const formData = new FormData();
   
-      // Add file to form data with the correct field name expected by the server
+      // Add file to form data - field name must match what server expects
       formData.append('file', {
         uri: Platform.OS === 'ios' ? document.uri.replace('file://', '') : document.uri,
         type: document.type || 'application/octet-stream',
         name: document.name || `file-${Date.now()}.${document.uri.split('.').pop()}`,
       });
+  
+      console.log('Uploading to:', `${API_URL}/api/uploads/document`);
+      console.log('Form data:', {
+        fileName: document.name,
+        fileType: document.type,
+        fileSize: document.size
+      });
+  
+      // Add error handling with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
   
       // Upload to our server endpoint
       const response = await fetch(
@@ -372,15 +401,18 @@ const ChatScreen = () => {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
-            // Don't set Content-Type for multipart/form-data
+            // Don't set Content-Type for multipart/form-data as boundary is auto-set
           },
           body: formData,
+          signal: controller.signal
         },
       );
   
+      clearTimeout(timeoutId);
+  
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Upload failed:', errorText);
+        console.error('Upload failed:', errorText, 'Status:', response.status);
         throw new Error(`Upload failed: ${response.status} ${errorText}`);
       }
   
@@ -396,6 +428,9 @@ const ChatScreen = () => {
       };
     } catch (error) {
       console.error('Document upload error:', error);
+      if (error.name === 'AbortError') {
+        throw new Error('Upload timed out. Please try again with a smaller file or better connection.');
+      }
       throw error;
     }
   };
@@ -411,76 +446,78 @@ const ChatScreen = () => {
     }
   };
 
-  const sendDocumentMessage = async (document) => {
-    if (!document || !selectedDoctor || !user) {
-      return;
-    }
-  
-    const roomId = [user.id, selectedDoctor.id].sort().join('-');
-    const tempId = `temp-${Date.now()}`;
-  
-    // Enhanced message data with proper document fields
-    const messageData = {
-      text: `Shared a document: ${document.name}`,
-      content: `Shared a document: ${document.name}`,
-      senderId: user.id,
-      sender_id: user.id,
-      senderName: user.name,
-      sender_name: user.name,
-      receiverId: selectedDoctor.id,
-      receiver_id: selectedDoctor.id,
-      timestamp: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      roomId: roomId,
-      room_id: roomId,
-      documentUrl: document.url,
-      document_url: document.url,
-      documentName: document.name,
-      document_name: document.name,
-      documentType: document.type,
-      document_type: document.type,
-      messageType: 'document',
-      message_type: 'document',
-      // Add the file path for reference if needed by server
-      document_path: document.storage_path,
-      // Add file size for display info
-      document_size: document.size
+// Modify the sendDocumentMessage function to properly handle document types
+const sendDocumentMessage = async (document) => {
+  if (!document || !selectedDoctor || !user) {
+    return;
+  }
+
+  const roomId = [user.id, selectedDoctor.id].sort().join('-');
+  const tempId = `temp-${Date.now()}`;
+
+  // Enhanced message data with proper document fields
+  const messageData = {
+    // DON'T use "text" field for documents - this field gets prioritized in UI rendering
+    // Instead, store document info only in the dedicated document fields
+    content: `Shared a document: ${document.name}`,
+    senderId: user.id,
+    sender_id: user.id,
+    senderName: user.name,
+    sender_name: user.name,
+    receiverId: selectedDoctor.id,
+    receiver_id: selectedDoctor.id,
+    timestamp: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    roomId: roomId,
+    room_id: roomId,
+    documentUrl: document.url,
+    document_url: document.url,
+    documentName: document.name,
+    document_name: document.name,
+    documentType: document.type,
+    document_type: document.type,
+    messageType: 'document',
+    message_type: 'document',
+    // Add the file path for reference if needed by server
+    document_path: document.storage_path,
+    // Add file size for display info
+    document_size: document.size
+  };
+
+  console.log('Sending document message:', messageData);
+
+  // Create temporary message with pending status to display immediately
+  const tempMessage = {
+    ...messageData,
+    id: tempId,
+    pending: true,
+  };
+
+  // Add message to UI immediately
+  setMessages(prevMessages => [tempMessage, ...prevMessages]);
+
+  // Also update chat history
+  setChatHistory(prev => {
+    const currentMessages = prev[roomId] || [];
+    return {
+      ...prev,
+      [roomId]: [tempMessage, ...currentMessages],
     };
-  
-    console.log('Sending document message:', messageData);
-  
-    // Create temporary message with pending status to display immediately
-    const tempMessage = {
-      ...messageData,
-      id: tempId,
-      pending: true,
-    };
-  
-    // Add message to UI immediately
-    setMessages(prevMessages => [tempMessage, ...prevMessages]);
-  
-    // Also update chat history
-    setChatHistory(prev => {
-      const currentMessages = prev[roomId] || [];
-      return {
-        ...prev,
-        [roomId]: [tempMessage, ...currentMessages],
-      };
-    });
-  
-    // Try to send via socket first
-    if (socketConnected) {
-      try {
-        socketRef.current.emit('send_message', {...messageData, tempId});
-      } catch (socketError) {
-        console.error('Error sending document message via socket:', socketError);
-        sendMessageViaHttp(messageData, tempId);
-      }
-    } else {
-      // Socket not connected, use HTTP
+  });
+
+  // Try to send via socket first
+  if (socketConnected) {
+    try {
+      socketRef.current.emit('send_message', {...messageData, tempId});
+    } catch (socketError) {
+      console.error('Error sending document message via socket:', socketError);
       sendMessageViaHttp(messageData, tempId);
     }
-  };
+  } else {
+    // Socket not connected, use HTTP
+    sendMessageViaHttp(messageData, tempId);
+  }
+};
 
   const sendMessage = () => {
     if (newMessage.trim().length === 0 || !selectedDoctor || !user) {
@@ -759,41 +796,159 @@ const renderMessage = ({item}) => {
     
     return 'file-document-outline';
   };
+  // const handleViewDocument = (document, navigation) => {
+  //   if (!document || !document.documentUrl) {
+  //     Alert.alert('Error', 'Document unavailable or URL missing.');
+  //     return;
+  //   }
+    
+  //   let documentUrl = document.documentUrl;
+  //   console.log('Attempting to open document URL:', documentUrl);
+    
+  //   // Check if URL has a proper scheme
+  //   if (!documentUrl.match(/^(https?|file|content):\/\//)) {
+  //     // Add https if no scheme is present
+  //     documentUrl = `https://${documentUrl}`;
+  //     console.log('Added https scheme to URL:', documentUrl);
+  //   }
+    
+  //   const openDocument = async () => {
+  //     try {
+  //       // Check if the URL can be opened
+  //       const canOpen = await Linking.canOpenURL(documentUrl);
+        
+  //       if (canOpen) {
+  //         console.log('Opening URL with Linking:', documentUrl);
+  //         await Linking.openURL(documentUrl);
+  //       } else {
+  //         console.log('Cannot open URL directly:', documentUrl);
+          
+  //         // Check if it's a local file
+  //         if (documentUrl.startsWith('file://')) {
+  //           console.log('Attempting to open as local file');
+  //           // If using FileViewer:
+  //           // return FileViewer.open(documentUrl.replace('file://', ''))
+  //           //   .catch(error => {
+  //           //     console.error('FileViewer error:', error);
+  //           //     Alert.alert('Error', 'Cannot open this file type');
+  //           //   });
+  //         }
+          
+  //         // Check file extension to determine appropriate action
+  //         const fileExt = documentUrl.split('.').pop().toLowerCase();
+  //         console.log('File extension:', fileExt);
+          
+  //         if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(fileExt)) {
+  //           // For common document types, navigate to WebView as fallback
+  //           if (navigation) {
+  //             console.log('Navigating to WebView fallback');
+  //             navigation.navigate('DocumentViewer', { 
+  //               uri: documentUrl,
+  //               title: document.documentName || 'Document' 
+  //             });
+  //             return;
+  //           }
+  //         }
+          
+  //         // If all else fails
+  //         Alert.alert(
+  //           'Cannot Open Document',
+  //           'This document type cannot be opened with available apps. Would you like to try opening in browser instead?',
+  //           [
+  //             { text: 'Cancel' },
+  //             { 
+  //               text: 'Open in Browser', 
+  //               onPress: () => {
+  //                 // Force open in browser if possible
+  //                 const browserUrl = documentUrl.startsWith('file://') 
+  //                   ? `https://docs.google.com/viewer?url=${encodeURIComponent(documentUrl)}`
+  //                   : documentUrl;
+                  
+  //                 Linking.openURL(browserUrl).catch(err => {
+  //                   console.error('Failed to open in browser:', err);
+  //                   Alert.alert('Error', 'Unable to open document.');
+  //                 });
+  //               }
+  //             }
+  //           ]
+  //         );
+  //       }
+  //     } catch (error) {
+  //       console.error('Error in openDocument:', error);
+  //       Alert.alert('Error', `Failed to open document: ${error.message}`);
+  //     }
+  //   };
+    
+  //   Alert.alert(
+  //     'Document',
+  //     `Open ${document.documentName || 'document'}?`,
+  //     [
+  //       { text: 'Cancel' },
+  //       { text: 'Open', onPress: openDocument }
+  //     ]
+  //   );
+  // };
 
-  const handleViewDocument = (document) => {
+  const handleViewDocument = (document, navigation) => {
     if (!document || !document.documentUrl) {
       Alert.alert('Error', 'Document unavailable or URL missing.');
       return;
     }
     
-    // Open document in browser or in-app webview
-    const documentUrl = document.documentUrl;
+    let documentUrl = document.documentUrl;
+    console.log('Attempting to open document URL:', documentUrl);
     
-    // You can use Linking from react-native to open in browser
+    // Check if URL has a proper scheme
+    if (!documentUrl.match(/^(https?|file|content):\/\//)) {
+      // Add https if no scheme is present
+      documentUrl = `https://${documentUrl}`;
+      console.log('Added https scheme to URL:', documentUrl);
+    }
+    
     const openDocument = async () => {
       try {
-        // Check if the URL can be opened
-        const canOpen = await Linking.canOpenURL(documentUrl);
+        // Check file extension to determine appropriate action
+        //const fileExt = documentUrl.split('.').pop().toLowerCase();
+        const urlWithoutQuery = documentUrl.split('?')[0];
+        const fileExt = urlWithoutQuery.substring(urlWithoutQuery.lastIndexOf('.') + 1).toLowerCase();
+
+        console.log('File extension:', fileExt);
         
-        if (canOpen) {
-          await Linking.openURL(documentUrl);
+        // For PDFs and common document types, use in-app viewer
+        if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx','jpeg', 'jpg' , 'png'].includes(fileExt)) {
+          if (navigation) {
+            console.log('Navigating to in-app DocumentViewer');
+            navigation.navigate('DocumentViewerModal', { 
+              uri: documentUrl,
+              title: document.documentName || 'Document',
+              fileType: fileExt
+            });
+            return;
+          }
         } else {
-          // If can't open directly, you could navigate to an in-app WebView
-          // navigation.navigate('DocumentViewer', { uri: documentUrl });
-          Alert.alert(
-            'Cannot Open Document',
-            'Unable to open this document with available apps.'
-          );
+          // For other file types, try to open with device handlers
+          const canOpen = await Linking.canOpenURL(documentUrl);
+          
+          if (canOpen) {
+            console.log('Opening URL with Linking:', documentUrl);
+            await Linking.openURL(documentUrl);
+          } else {
+            Alert.alert(
+              'Cannot Open Document',
+              'This document type cannot be opened with available apps.',
+              [{ text: 'OK' }]
+            );
+          }
         }
       } catch (error) {
-        console.error('Error opening document:', error);
-        Alert.alert('Error', 'Failed to open document.');
+        console.error('Error in openDocument:', error);
+        Alert.alert('Error', `Failed to open document: ${error.message}`);
       }
     };
     
     Alert.alert(
       'Document',
-      `Open ${document.documentName}?`,
+      `Open ${document.documentName || 'document'}?`,
       [
         { text: 'Cancel' },
         { text: 'Open', onPress: openDocument }

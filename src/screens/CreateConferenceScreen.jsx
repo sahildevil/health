@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState, useEffect } from 'react'; // Import useEffect
 import {
   View,
   Text,
@@ -16,11 +16,14 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import {useAuth} from '../context/AuthContext';
-import { eventService } from '../services/api';
-const CreateConferenceScreen = ({navigation}) => {
-  const {user} = useAuth();
+import { useAuth } from '../context/AuthContext';
+import { eventService } from '../services/api'; // Assuming eventService exists and has a createEvent method
+
+const CreateConferenceScreen = ({ navigation }) => {
+  const { user } = useAuth();
   const isAdmin = user && user.role === 'admin';
+
+  // --- Existing States ---
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [venue, setVenue] = useState('');
@@ -40,26 +43,30 @@ const CreateConferenceScreen = ({navigation}) => {
   const [regFee, setRegFee] = useState('');
   const [isFree, setIsFree] = useState(false);
   const [tags, setTags] = useState('');
-  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
-  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
-  const [startTime, setStartTime] = useState(new Date());
-  const [endTime, setEndTime] = useState(
-    new Date(new Date().setHours(new Date().getHours() + 2)),
-  );
   const [termsAndConditions, setTermsAndConditions] = useState('');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Sponsors state
+
+  // --- Speakers & Sponsors States ---
   const [sponsors, setSponsors] = useState([]);
   const [newSponsorName, setNewSponsorName] = useState('');
-  const [newSponsorLevel, setNewSponsorLevel] = useState('');
+  const [newSponsorLevel, setNewSponsorLevel] = useState(''); // Assuming you might add this back
 
-  // Speakers state
   const [speakers, setSpeakers] = useState([]);
   const [newSpeakerName, setNewSpeakerName] = useState('');
   const [newSpeakerTitle, setNewSpeakerTitle] = useState('');
   const [newSpeakerBio, setNewSpeakerBio] = useState('');
 
+  // --- New State for Daily Schedules ---
+  const [dailySchedules, setDailySchedules] = useState([]);
+  // State to manage which time picker is open and for which day/time type
+  const [showTimePicker, setShowTimePicker] = useState({
+    visible: false,
+    date: null, // The date object for the day being edited
+    type: null, // 'start' or 'end'
+  });
+
+  // --- Helper Functions ---
   const formatDate = date => {
     return `${date.getFullYear()}-${(date.getMonth() + 1)
       .toString()
@@ -70,39 +77,7 @@ const CreateConferenceScreen = ({navigation}) => {
     return `${date.getHours().toString().padStart(2, '0')}:${date
       .getMinutes()
       .toString()
-      .padStart(2, '0')}:00`;
-  };
-
-  const handleStartDateChange = (event, selectedDate) => {
-    setShowStartDatePicker(false);
-    if (selectedDate) {
-      setStartDate(selectedDate);
-      // If end date is before new start date, update end date
-      if (endDate < selectedDate) {
-        setEndDate(new Date(selectedDate.setDate(selectedDate.getDate() + 1)));
-      }
-    }
-  };
-
-  const handleEndDateChange = (event, selectedDate) => {
-    setShowEndDatePicker(false);
-    if (selectedDate) {
-      setEndDate(selectedDate);
-    }
-  };
-
-  const handleStartTimeChange = (event, selectedTime) => {
-    setShowStartTimePicker(false);
-    if (selectedTime) {
-      setStartTime(selectedTime);
-    }
-  };
-
-  const handleEndTimeChange = (event, selectedTime) => {
-    setShowEndTimePicker(false);
-    if (selectedTime) {
-      setEndTime(selectedTime);
-    }
+      .padStart(2, '0')}`; // Removed seconds for simplicity
   };
 
   const validateEmail = email => {
@@ -110,7 +85,123 @@ const CreateConferenceScreen = ({navigation}) => {
     return re.test(email);
   };
 
-  // Add a new sponsor
+  // Helper to generate dates between two dates
+  const getDatesBetween = (start, end) => {
+    const dates = [];
+    let currentDate = new Date(start);
+    currentDate.setHours(0, 0, 0, 0); // Normalize date to start of day
+    const endDateNormalized = new Date(end);
+    endDateNormalized.setHours(0, 0, 0, 0); // Normalize end date
+
+    while (currentDate <= endDateNormalized) {
+      dates.push(new Date(currentDate));
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    return dates;
+  };
+
+  // Function to initialize/regenerate daily schedules based on start/end dates
+  const generateDailySchedules = (start, end) => {
+    const dates = getDatesBetween(start, end);
+    // Default times (e.g., 9 AM to 5 PM)
+    const defaultStartTime = new Date();
+    defaultStartTime.setHours(9, 0, 0, 0);
+    const defaultEndTime = new Date();
+    defaultEndTime.setHours(17, 0, 0, 0);
+
+    const schedules = dates.map(date => ({
+      date: date,
+      startTime: new Date(date.setHours(defaultStartTime.getHours(), defaultStartTime.getMinutes(), 0, 0)), // Combine date with default start time
+      endTime: new Date(date.setHours(defaultEndTime.getHours(), defaultEndTime.getMinutes(), 0, 0)), // Combine date with default end time
+    }));
+    setDailySchedules(schedules);
+  };
+
+  // --- Effects ---
+  useEffect(() => {
+    // Generate initial daily schedules when the component mounts
+    generateDailySchedules(startDate, endDate);
+  }, []); // Empty dependency array means this runs once on mount
+
+  // --- Date Picker Handlers ---
+  const handleStartDateChange = (event, selectedDate) => {
+    setShowStartDatePicker(false);
+    if (selectedDate) {
+      const newStartDate = new Date(selectedDate);
+      setStartDate(newStartDate);
+      // If end date is before new start date, update end date and regenerate schedules
+      if (endDate < newStartDate) {
+        const newEndDate = new Date(newStartDate);
+        newEndDate.setDate(newEndDate.getDate() + 1); // Default 1 day duration
+        setEndDate(newEndDate);
+        generateDailySchedules(newStartDate, newEndDate);
+      } else {
+        // Only start date changed, regenerate schedules based on the new range
+        generateDailySchedules(newStartDate, endDate);
+      }
+    }
+  };
+
+  const handleEndDateChange = (event, selectedDate) => {
+    setShowEndDatePicker(false);
+    if (selectedDate) {
+      const newEndDate = new Date(selectedDate);
+      // Ensure end date is not before start date
+      if (newEndDate < startDate) {
+         Alert.alert('Invalid Dates', 'End date must be after or the same as the start date.');
+         // Optionally reset to previous valid end date or start date
+         // setEndDate(new Date(startDate)); // Option: reset to start date
+         generateDailySchedules(startDate, startDate); // Option: generate schedule for a single day
+      } else {
+         setEndDate(newEndDate);
+         // Regenerate schedules based on the new range
+         generateDailySchedules(startDate, newEndDate);
+      }
+    }
+  };
+
+  // --- Daily Time Picker Handlers ---
+  const handleOpenTimePicker = (date, type) => {
+    setShowTimePicker({ visible: true, date: date, type: type });
+  };
+
+  const handleTimeChange = (event, selectedTime) => {
+    setShowTimePicker({ ...showTimePicker, visible: false }); // Hide picker first
+    const { date: currentDay, type } = showTimePicker;
+
+    if (selectedTime && currentDay && type) {
+      const updatedSchedules = dailySchedules.map(schedule => {
+        // Find the schedule for the day being edited (compare by date part)
+        if (schedule.date.toDateString() === currentDay.toDateString()) {
+          const newTime = new Date(selectedTime);
+          const updatedTime = new Date(schedule.date); // Start with the original date
+          updatedTime.setHours(newTime.getHours(), newTime.getMinutes(), 0, 0); // Set the new time
+
+          // Basic validation: Ensure end time is not before start time for the same day
+          if (type === 'start') {
+             if (updatedTime > schedule.endTime) {
+                Alert.alert('Invalid Time', 'Start time cannot be after end time for this day.');
+                return schedule; // Return original schedule if invalid
+             }
+          } else if (type === 'end') {
+             if (updatedTime < schedule.startTime) {
+                 Alert.alert('Invalid Time', 'End time cannot be before start time for this day.');
+                 return schedule; // Return original schedule if invalid
+             }
+          }
+
+          return {
+            ...schedule,
+            [type === 'start' ? 'startTime' : 'endTime']: updatedTime,
+          };
+        }
+        return schedule;
+      });
+      setDailySchedules(updatedSchedules);
+    }
+  };
+
+  // --- Add/Remove Sponsors ---
   const addSponsor = () => {
     if (newSponsorName.trim() === '') {
       Alert.alert('Missing Information', 'Please enter sponsor name.');
@@ -120,20 +211,19 @@ const CreateConferenceScreen = ({navigation}) => {
     const newSponsor = {
       id: Date.now().toString(),
       name: newSponsorName.trim(),
-      level: newSponsorLevel.trim() || 'Standard',
+      // level: newSponsorLevel.trim() || 'Standard', // Uncomment if you add level input back
     };
 
     setSponsors([...sponsors, newSponsor]);
     setNewSponsorName('');
-    setNewSponsorLevel('');
+    // setNewSponsorLevel(''); // Uncomment if you add level input back
   };
 
-  // Remove a sponsor
   const removeSponsor = sponsorId => {
     setSponsors(sponsors.filter(sponsor => sponsor.id !== sponsorId));
   };
 
-  // Add a new speaker
+  // --- Add/Remove Speakers ---
   const addSpeaker = () => {
     if (newSpeakerName.trim() === '') {
       Alert.alert('Missing Information', 'Please enter speaker name.');
@@ -153,67 +243,70 @@ const CreateConferenceScreen = ({navigation}) => {
     setNewSpeakerBio('');
   };
 
-  // Remove a speaker
   const removeSpeaker = speakerId => {
     setSpeakers(speakers.filter(speaker => speaker.id !== speakerId));
   };
 
+
+  // --- Handle Create Conference ---
   const handleCreateConference = async () => {
-    // Validate form
-    if (!title) {
-      Alert.alert('Missing Information', 'Please fill all required fields.');
-      return;
+    // Basic validation for required fields (adjust based on isAdmin)
+    if (!title || (isAdmin && (!venue && conferenceMode === 'In-Person')) || (isAdmin && !organizerName) || (isAdmin && !organizerEmail) || (isAdmin && !agreeToTerms)) {
+       Alert.alert('Missing Information', 'Please fill all required fields.');
+       return;
     }
-  
-  if(isAdmin && !venue) {
-    if (!validateEmail(organizerEmail)) {
+
+    if (isAdmin && !validateEmail(organizerEmail)) {
       Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
-  
+
     if (endDate < startDate) {
-      Alert.alert('Invalid Dates', 'End date must be after start date.');
+      Alert.alert('Invalid Dates', 'End date must be after or the same as the start date.');
       return;
     }
-  
-    if (!agreeToTerms) {
+
+    // Per-day time validation
+    for (const schedule of dailySchedules) {
+       if (schedule.endTime < schedule.startTime) {
+           Alert.alert('Invalid Daily Time', `End time for ${formatDate(schedule.date)} cannot be before start time.`);
+           return;
+       }
+    }
+
+    if (isAdmin && !agreeToTerms) {
       Alert.alert(
         'Terms and Conditions',
         'You must agree to the terms and conditions to create an event.',
       );
       return;
     }
-  }
-  
-    // Combine date and time for start and end dates
-    const combinedStartDate = new Date(startDate);
-    combinedStartDate.setHours(
-      startTime.getHours(),
-      startTime.getMinutes(),
-      0,
-      0
-    );
-    
-    const combinedEndDate = new Date(endDate);
-    combinedEndDate.setHours(
-      endTime.getHours(),
-      endTime.getMinutes(),
-      0,
-      0
-    );
-  
-    // Create event object
+
+    // Prepare daily schedule data for API
+    const formattedDailySchedules = dailySchedules.map(schedule => ({
+       date: formatDate(schedule.date),
+       start_time: formatTime(schedule.startTime),
+       end_time: formatTime(schedule.endTime),
+    }));
+
+
+    // Create event object for API
     const newEvent = {
       title,
       description,
-      venue,
+      venue, // Venue is included regardless, backend might ignore if mode is Virtual
       organizerName,
       organizerEmail,
       organizerPhone,
-      startDate: combinedStartDate.toISOString(),
-      endDate: combinedEndDate.toISOString(),
-      start_time: formatTime(startTime),  // Must match backend field name
-      end_time: formatTime(endTime),      // Must match backend field name
+      // Use the first day's start date and last day's end date for overall range
+      // Or, if backend supports it, send the full dailySchedules array
+      startDate: dailySchedules.length > 0 ? dailySchedules[0].date.toISOString() : new Date().toISOString(), // Fallback
+      endDate: dailySchedules.length > 0 ? dailySchedules[dailySchedules.length - 1].date.toISOString() : new Date().toISOString(), // Fallback
+      // Do NOT send single start_time/end_time fields if using daily schedules
+      // start_time: formatTime(startTime), // REMOVE THIS
+      // end_time: formatTime(endTime), // REMOVE THIS
+      dailySchedules: formattedDailySchedules, // ADD THIS ARRAY
+
       type: conferenceType,
       mode: conferenceMode,
       capacity: capacity ? parseInt(capacity, 10) : null,
@@ -221,29 +314,26 @@ const CreateConferenceScreen = ({navigation}) => {
       registrationFee: isFree ? '0' : regFee,
       tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
       termsAndConditions,
-      sponsors,
-      speakers,
+      sponsors, // Assuming backend can handle array of { id, name, level }
+      speakers, // Assuming backend can handle array of { id, name, title, bio }
     };
-  
+
     console.log("Submitting event:", newEvent);
-  
+
     try {
-      // Set loading state
       setIsSubmitting(true);
-  
-      // Submit to API
+      // Submit to API - **ensure eventService.createEvent can handle the dailySchedules array**
       const result = await eventService.createEvent(newEvent);
-  
-      // Show success message
+
       Alert.alert(
         'Success',
         result.requiresApproval
           ? 'Your event has been submitted for approval. You will be notified once it is reviewed.'
           : 'Your event has been created successfully!',
-        [{text: 'OK', onPress: () => navigation.goBack()}],
+        [{ text: 'OK', onPress: () => navigation.goBack() }],
       );
     } catch (error) {
-      console.log('Error creating event:', error);
+      console.log('Error creating event:', error.message || error);
       Alert.alert(
         'Error',
         error.message || 'Failed to create event. Please try again.',
@@ -253,12 +343,14 @@ const CreateConferenceScreen = ({navigation}) => {
     }
   };
 
-  // Render sponsor item for FlatList
-  const renderSponsorItem = ({item}) => (
+  // --- Render Items ---
+  const renderSponsorItem = ({ item }) => (
     <View style={styles.listItem}>
       <View style={styles.listItemContent}>
         <Text style={styles.listItemTitle}>{item.name}</Text>
-        <Text style={styles.listItemSubtitle}>Level: {item.level}</Text>
+        {/* {item.level ? ( // Uncomment if you add level input back
+          <Text style={styles.listItemSubtitle}>Level: {item.level}</Text>
+        ) : null} */}
       </View>
       <TouchableOpacity onPress={() => removeSponsor(item.id)}>
         <Icon name="delete" size={24} color="#ff6b6b" />
@@ -266,8 +358,7 @@ const CreateConferenceScreen = ({navigation}) => {
     </View>
   );
 
-  // Render speaker item for FlatList
-  const renderSpeakerItem = ({item}) => (
+  const renderSpeakerItem = ({ item }) => (
     <View style={styles.listItem}>
       <View style={styles.listItemContent}>
         <Text style={styles.listItemTitle}>{item.name}</Text>
@@ -285,6 +376,29 @@ const CreateConferenceScreen = ({navigation}) => {
       </TouchableOpacity>
     </View>
   );
+
+  // Render item for daily schedules
+  const renderDailyScheduleItem = ({ item }) => (
+    <View style={styles.dailyScheduleItem}>
+      <Text style={styles.dailyScheduleDate}>{formatDate(item.date)}</Text>
+      <View style={styles.dailyScheduleTimes}>
+        <TouchableOpacity
+          style={styles.timeInput}
+          onPress={() => handleOpenTimePicker(item.date, 'start')}>
+          <Text>{formatTime(item.startTime)}</Text>
+          <Icon name="clock-outline" size={18} color="#666" />
+        </TouchableOpacity>
+        <Text style={styles.timeSeparator}>-</Text>
+        <TouchableOpacity
+          style={styles.timeInput}
+          onPress={() => handleOpenTimePicker(item.date, 'end')}>
+          <Text>{formatTime(item.endTime)}</Text>
+          <Icon name="clock-outline" size={18} color="#666" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -406,8 +520,8 @@ const CreateConferenceScreen = ({navigation}) => {
             </View>
           )}
 
-          {/* Date and Time */}
-          <Text style={styles.sectionTitle}>Date and Time</Text>
+          {/* Date Range */}
+          <Text style={styles.sectionTitle}>Date Range</Text>
           <View style={styles.dateContainer}>
             <View style={styles.dateGroup}>
               <Text style={styles.inputLabel}>Start Date*</Text>
@@ -421,7 +535,7 @@ const CreateConferenceScreen = ({navigation}) => {
                 <DateTimePicker
                   value={startDate}
                   mode="date"
-                  display="default"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={handleStartDateChange}
                   minimumDate={new Date()}
                 />
@@ -440,88 +554,76 @@ const CreateConferenceScreen = ({navigation}) => {
                 <DateTimePicker
                   value={endDate}
                   mode="date"
-                  display="default"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={handleEndDateChange}
-                  minimumDate={startDate}
+                  minimumDate={startDate} // Ensure end date is not before start date
                 />
               )}
             </View>
           </View>
 
-          <View style={styles.dateContainer}>
-            <View style={styles.dateGroup}>
-              <Text style={styles.inputLabel}>Start Time</Text>
-              <TouchableOpacity
-                style={styles.dateInput}
-                onPress={() => setShowStartTimePicker(true)}>
-                <Text>{formatTime(startTime)}</Text>
-                <Icon name="clock-outline" size={18} color="#666" />
-              </TouchableOpacity>
-              {showStartTimePicker && (
-                <DateTimePicker
-                  value={startTime}
-                  mode="time"
-                  display="default"
-                  onChange={handleStartTimeChange}
-                />
-              )}
-            </View>
+          {/* Daily Time Schedules */}
+           {dailySchedules.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Daily Schedule</Text>
+                <View style={styles.listContainer}>
+                   <FlatList
+                     data={dailySchedules}
+                     renderItem={renderDailyScheduleItem}
+                     keyExtractor={(item) => item.date.toISOString()} // Use date as key
+                     scrollEnabled={false}
+                   />
+                </View>
+              </>
+           )}
 
-            <View style={styles.dateGroup}>
-              <Text style={styles.inputLabel}>End Time</Text>
-              <TouchableOpacity
-                style={styles.dateInput}
-                onPress={() => setShowEndTimePicker(true)}>
-                <Text>{formatTime(endTime)}</Text>
-                <Icon name="clock-outline" size={18} color="#666" />
-              </TouchableOpacity>
-              {showEndTimePicker && (
-                <DateTimePicker
-                  value={endTime}
-                  mode="time"
-                  display="default"
-                  onChange={handleEndTimeChange}
-                />
-              )}
-            </View>
-          </View>
+           {/* Time Picker Modal (Single picker for all daily time selections) */}
+           {showTimePicker.visible && (
+             <DateTimePicker
+               value={showTimePicker.date || new Date()} // Use the date of the schedule item, fallback to current date
+               mode="time"
+               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+               onChange={handleTimeChange}
+             />
+           )}
+
 
           {/* Location */}
           {isAdmin && (<>
-          <Text style={styles.sectionTitle}>Location</Text>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>
-              {conferenceMode === 'Virtual'
-                ? 'Platform/Link*'
-                : 'Venue/Address*'}
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder={
-                conferenceMode === 'Virtual'
-                  ? 'e.g., Zoom, Google Meet, or platform link'
-                  : 'Enter the full address of the venue'
-              }
-              placeholderTextColor={'#999'}
-              value={venue}
-              onChangeText={setVenue}
-            />
-          </View>
-
-          {conferenceMode === 'In-Person' && (
+            <Text style={styles.sectionTitle}>Location</Text>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Capacity</Text>
+              <Text style={styles.inputLabel}>
+                {conferenceMode === 'Virtual'
+                  ? 'Platform/Link*'
+                  : 'Venue/Address*'}
+              </Text>
               <TextInput
                 style={styles.input}
-                placeholder="Maximum number of attendees"
+                placeholder={
+                  conferenceMode === 'Virtual'
+                    ? 'e.g., Zoom, Google Meet, or platform link'
+                    : 'Enter the full address of the venue'
+                }
                 placeholderTextColor={'#999'}
-                value={capacity}
-                onChangeText={setCapacity}
-                keyboardType="number-pad"
+                value={venue}
+                onChangeText={setVenue}
               />
             </View>
-          )}
-          </>)}
+
+            {conferenceMode === 'In-Person' && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Capacity</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Maximum number of attendees"
+                  placeholderTextColor={'#999'}
+                  value={capacity}
+                  onChangeText={setCapacity}
+                  keyboardType="number-pad"
+                />
+              </View>
+            )}
+            </>)}
 
           {/* Speakers Section */}
           {isAdmin && (
@@ -595,7 +697,8 @@ const CreateConferenceScreen = ({navigation}) => {
             />
           </View>
 
-          {/* <View style={styles.inputGroup}>
+          {/* Uncomment if you add the level input back
+          <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Sponsorship Level</Text>
             <TextInput
               style={styles.input}
@@ -634,7 +737,7 @@ const CreateConferenceScreen = ({navigation}) => {
                   <Switch
                     value={isFree}
                     onValueChange={setIsFree}
-                    trackColor={{false: '#767577', true: '#81b0ff'}}
+                    trackColor={{ false: '#767577', true: '#81b0ff' }}
                     thumbColor={isFree ? '#2e7af5' : '#f4f3f4'}
                   />
                 </View>
@@ -700,43 +803,58 @@ const CreateConferenceScreen = ({navigation}) => {
             </>
           )}
 
+          {/* Website */}
+          <View style={styles.inputGroup}>
+             <Text style={styles.inputLabel}>Website (Optional)</Text>
+             <TextInput
+               style={styles.input}
+               placeholder="e.g., https://www.yourevent.com"
+               placeholderTextColor={'#999'}
+               value={website}
+               onChangeText={setWebsite}
+               keyboardType="url"
+               autoCapitalize="none"
+             />
+          </View>
+
+
           {/* Terms and Conditions */}
           {isAdmin &&(
             <>
             <Text style={styles.sectionTitle}>Terms and Conditions</Text>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Terms and Conditions</Text>
-            <TextInput
-              style={[styles.input, styles.termsTextarea]}
-              placeholder="Enter the terms and conditions for your event"
-              placeholderTextColor={'#999'}
-              value={termsAndConditions}
-              onChangeText={setTermsAndConditions}
-              multiline={true}
-              numberOfLines={6}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <View style={styles.checkboxContainer}>
-              <TouchableOpacity
-                style={styles.checkbox}
-                onPress={() => setAgreeToTerms(!agreeToTerms)}>
-                {agreeToTerms && (
-                  <Icon name="check" size={16} color="#2e7af5" />
-                )}
-              </TouchableOpacity>
-              <Text style={styles.checkboxLabel}>
-                I agree to the terms and conditions for creating this event
-              </Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Terms and Conditions</Text>
+              <TextInput
+                style={[styles.input, styles.termsTextarea]}
+                placeholder="Enter the terms and conditions for your event"
+                placeholderTextColor={'#999'}
+                value={termsAndConditions}
+                onChangeText={setTermsAndConditions}
+                multiline={true}
+                numberOfLines={6}
+              />
             </View>
-          </View>
+
+            <View style={styles.inputGroup}>
+              <View style={styles.checkboxContainer}>
+                <TouchableOpacity
+                  style={styles.checkbox}
+                  onPress={() => setAgreeToTerms(!agreeToTerms)}>
+                  {agreeToTerms && (
+                    <Icon name="check" size={16} color="#2e7af5" />
+                  )}
+                </TouchableOpacity>
+                <Text style={styles.checkboxLabel}>
+                  I agree to the terms and conditions for creating this event*
+                </Text>
+              </View>
+            </View>
             </>
           ) }
 
           {/* Submit Button */}
           <TouchableOpacity
-            style={styles.createButton}
+            style={[styles.createButton, isSubmitting && styles.createButtonDisabled]}
             onPress={handleCreateConference}
             disabled={isSubmitting}>
             {isSubmitting ? (
@@ -755,7 +873,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f7f9fc',
-    //paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
     padding: 16,
@@ -789,6 +906,17 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+  },
+  adminOnlyText: {
+     fontSize: 12,
+     fontWeight: 'normal',
+     color: '#666',
+  },
+  adminOnlyLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   radioContainer: {
     flexDirection: 'row',
@@ -836,6 +964,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
+    color: '#333', // Ensure text color is visible
   },
   textarea: {
     height: 100,
@@ -864,6 +993,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  dailyScheduleItem: {
+     backgroundColor: 'white',
+     borderRadius: 8,
+     borderWidth: 1,
+     borderColor: '#ddd',
+     padding: 12,
+     marginBottom: 8,
+  },
+  dailyScheduleDate: {
+     fontSize: 16,
+     fontWeight: '500',
+     color: '#333',
+     marginBottom: 8,
+  },
+  dailyScheduleTimes: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     justifyContent: 'space-between',
+  },
+  timeInput: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     borderWidth: 1,
+     borderColor: '#ddd',
+     borderRadius: 8,
+     paddingHorizontal: 10,
+     paddingVertical: 8,
+     flex: 1, // Take up equal space
+     justifyContent: 'space-between',
+  },
+  timeSeparator: {
+     marginHorizontal: 8,
+     fontSize: 16,
+     color: '#666',
   },
   switchContainer: {
     flexDirection: 'row',
@@ -908,11 +1072,11 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     marginBottom: 16,
-    backgroundColor: 'white',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 8,
+    //backgroundColor: 'white', // Background applied to individual items
+    //borderRadius: 8,
+    //borderWidth: 1,
+    //borderColor: '#ddd',
+    //padding: 8, // Padding applied to items
   },
   listItem: {
     flexDirection: 'row',
@@ -920,6 +1084,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
     alignItems: 'center',
+    backgroundColor: 'white', // Apply background here
+    borderRadius: 8, // Apply border radius here
+    marginBottom: 8, // Add margin between items
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
   listItemContent: {
     flex: 1,
@@ -947,6 +1116,9 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     alignItems: 'center',
   },
+   createButtonDisabled: {
+       backgroundColor: '#a0c3f9', // Lighter color when disabled
+   },
   createButtonText: {
     color: 'white',
     fontSize: 16,

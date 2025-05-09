@@ -34,6 +34,7 @@ import AdminEditEventScreen from '../screens/admin/AdminEditEventScreen';
 import AdminEventManagementScreen from '../screens/admin/AdminEventManagementScreen';
 import EventRegistrationsScreen from '../screens/admin/EventRegistrationsScreen';
 import AdminEventDetails from '../screens/admin/AdminEventDetails';
+import DocumentViewerModal from '../components/DocumentViewerModal';
 const Stack = createStackNavigator();
 const AdminStack = createStackNavigator();
 
@@ -143,6 +144,11 @@ const AppNavigator = () => {
               options={{headerShown: false}}
             />
             <Stack.Screen name="Chat" component={ChatScreen} />
+            <Stack.Screen
+              name="DocumentViewerModal"
+              component={DocumentViewerModal}
+              options={{headerShown: false}}
+            />
           </>
         )
       ) : (
