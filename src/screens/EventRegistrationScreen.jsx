@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,13 @@ import {
   Switch,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useAuth } from '../context/AuthContext';
-import { eventService } from '../services/api';
-import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
+import {useAuth} from '../context/AuthContext';
+import {eventService} from '../services/api';
+import {SafeAreaInsetsContext} from 'react-native-safe-area-context';
 
-const EventRegistrationScreen = ({ route, navigation }) => {
-  const { eventId } = route.params;
-  const { user } = useAuth();
+const EventRegistrationScreen = ({route, navigation}) => {
+  const {eventId} = route.params;
+  const {user} = useAuth();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [event, setEvent] = useState(null);
@@ -55,22 +55,58 @@ const EventRegistrationScreen = ({ route, navigation }) => {
     }
   };
 
-  const toggleSponsorMode = (value) => {
+  const toggleSponsorMode = value => {
     setIsCompanySponsor(value);
     setFormData({
       ...formData,
       isCompanySponsor: value,
       // Pre-fill contact person with user's name if switching to company mode
-      contactPerson: value && !formData.contactPerson ? formData.name : formData.contactPerson
+      contactPerson:
+        value && !formData.contactPerson
+          ? formData.name
+          : formData.contactPerson,
     });
   };
 
   const handleSubmit = async () => {
     if (isCompanySponsor) {
       // Validation for company sponsors
-      if (!formData.companyName || !formData.contactPerson || !formData.email || !formData.phone) {
+      if (
+        !formData.companyName ||
+        !formData.contactPerson ||
+        !formData.email ||
+        !formData.phone
+      ) {
         Alert.alert('Error', 'Please fill in all required company fields');
         return;
+      }
+
+      // Only include fields that are supported by the schema
+      const registrationData = {
+        isCompanySponsor: true, // Ensure this is a boolean true, not a string
+        companyName: formData.companyName,
+        contactPerson: formData.contactPerson,
+        email: formData.email,
+        phone: formData.phone,
+        companyWebsite: formData.companyWebsite,
+        sponsorshipLevel: formData.sponsorshipLevel,
+      };
+
+      console.log('Submitting sponsor registration:', registrationData);
+
+      try {
+        setSubmitting(true);
+        await eventService.registerForEvent(eventId, registrationData);
+        Alert.alert(
+          'Success',
+          'Your company has been registered as a sponsor! You will receive a confirmation email shortly.',
+          [{text: 'OK', onPress: () => navigation.goBack()}],
+        );
+      } catch (error) {
+        console.error('Registration error:', error);
+        Alert.alert('Error', 'Failed to register for the event');
+      } finally {
+        setSubmitting(false);
       }
     } else {
       // Validation for individual registrations
@@ -78,23 +114,29 @@ const EventRegistrationScreen = ({ route, navigation }) => {
         Alert.alert('Error', 'Please fill in all required fields');
         return;
       }
-    }
 
-    try {
-      setSubmitting(true);
-      await eventService.registerForEvent(eventId, formData);
-      Alert.alert(
-        'Success',
-        isCompanySponsor 
-          ? 'Your company has been registered as a sponsor! You will receive a confirmation email shortly.'
-          : 'Registration successful! You will receive a confirmation email shortly.',
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
-      );
-    } catch (error) {
-      console.error('Registration error:', error);
-      Alert.alert('Error', 'Failed to register for the event');
-    } finally {
-      setSubmitting(false);
+      // Only include fields that are supported by the schema
+      const registrationData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        isCompanySponsor: false,
+      };
+
+      try {
+        setSubmitting(true);
+        await eventService.registerForEvent(eventId, registrationData);
+        Alert.alert(
+          'Success',
+          'Registration successful! You will receive a confirmation email shortly.',
+          [{text: 'OK', onPress: () => navigation.goBack()}],
+        );
+      } catch (error) {
+        console.error('Registration error:', error);
+        Alert.alert('Error', 'Failed to register for the event');
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
@@ -107,9 +149,10 @@ const EventRegistrationScreen = ({ route, navigation }) => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: SafeAreaInsetsContext.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor='white'/>
-      
+    <SafeAreaView
+      style={[styles.container, {paddingTop: SafeAreaInsetsContext.top}]}>
+      <StatusBar barStyle="dark-content" backgroundColor="white" />
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -130,19 +173,21 @@ const EventRegistrationScreen = ({ route, navigation }) => {
         {/* Registration Type Selector */}
         <View style={styles.registrationTypeContainer}>
           <Text style={styles.registrationTypeTitle}>Registration Type</Text>
-          
+
           <View style={styles.switchContainer}>
             <Text style={styles.switchLabel}>
-              {isCompanySponsor ? "Registering as Company Sponsor" : "Registering as Individual"}
+              {isCompanySponsor
+                ? 'Registering as Company Sponsor'
+                : 'Registering as Individual'}
             </Text>
             <Switch
               value={isCompanySponsor}
               onValueChange={toggleSponsorMode}
-              trackColor={{ false: '#767577', true: '#81b0ff' }}
+              trackColor={{false: '#767577', true: '#81b0ff'}}
               thumbColor={isCompanySponsor ? '#2e7af5' : '#f4f3f4'}
             />
           </View>
-          
+
           {isCompanySponsor && (
             <View style={styles.sponsorNotice}>
               <Icon name="information-outline" size={18} color="#e36135" />
@@ -163,7 +208,9 @@ const EventRegistrationScreen = ({ route, navigation }) => {
                 <TextInput
                   style={styles.input}
                   value={formData.companyName}
-                  onChangeText={(text) => setFormData({ ...formData, companyName: text })}
+                  onChangeText={text =>
+                    setFormData({...formData, companyName: text})
+                  }
                   placeholder="Enter your company name"
                   placeholderTextColor="#999"
                 />
@@ -174,7 +221,9 @@ const EventRegistrationScreen = ({ route, navigation }) => {
                 <TextInput
                   style={styles.input}
                   value={formData.contactPerson}
-                  onChangeText={(text) => setFormData({ ...formData, contactPerson: text })}
+                  onChangeText={text =>
+                    setFormData({...formData, contactPerson: text})
+                  }
                   placeholder="Name of company representative"
                   placeholderTextColor="#999"
                 />
@@ -185,7 +234,7 @@ const EventRegistrationScreen = ({ route, navigation }) => {
                 <TextInput
                   style={styles.input}
                   value={formData.email}
-                  onChangeText={(text) => setFormData({ ...formData, email: text })}
+                  onChangeText={text => setFormData({...formData, email: text})}
                   placeholder="Contact email"
                   placeholderTextColor="#999"
                   keyboardType="email-address"
@@ -198,7 +247,7 @@ const EventRegistrationScreen = ({ route, navigation }) => {
                 <TextInput
                   style={styles.input}
                   value={formData.phone}
-                  onChangeText={(text) => setFormData({ ...formData, phone: text })}
+                  onChangeText={text => setFormData({...formData, phone: text})}
                   placeholder="Contact phone number"
                   placeholderTextColor="#999"
                   keyboardType="phone-pad"
@@ -210,7 +259,9 @@ const EventRegistrationScreen = ({ route, navigation }) => {
                 <TextInput
                   style={styles.input}
                   value={formData.companyWebsite}
-                  onChangeText={(text) => setFormData({ ...formData, companyWebsite: text })}
+                  onChangeText={text =>
+                    setFormData({...formData, companyWebsite: text})
+                  }
                   placeholder="https://www.example.com"
                   placeholderTextColor="#999"
                   keyboardType="url"
@@ -247,7 +298,7 @@ const EventRegistrationScreen = ({ route, navigation }) => {
                 <TextInput
                   style={styles.input}
                   value={formData.name}
-                  onChangeText={(text) => setFormData({ ...formData, name: text })}
+                  onChangeText={text => setFormData({...formData, name: text})}
                   placeholder="Enter your full name"
                   placeholderTextColor="#999"
                 />
@@ -258,7 +309,7 @@ const EventRegistrationScreen = ({ route, navigation }) => {
                 <TextInput
                   style={styles.input}
                   value={formData.email}
-                  onChangeText={(text) => setFormData({ ...formData, email: text })}
+                  onChangeText={text => setFormData({...formData, email: text})}
                   placeholder="Enter your email"
                   placeholderTextColor="#999"
                   keyboardType="email-address"
@@ -271,7 +322,7 @@ const EventRegistrationScreen = ({ route, navigation }) => {
                 <TextInput
                   style={styles.input}
                   value={formData.phone}
-                  onChangeText={(text) => setFormData({ ...formData, phone: text })}
+                  onChangeText={text => setFormData({...formData, phone: text})}
                   placeholder="Enter your phone number"
                   placeholderTextColor="#999"
                   keyboardType="phone-pad"
@@ -283,8 +334,8 @@ const EventRegistrationScreen = ({ route, navigation }) => {
                 <TextInput
                   style={styles.input}
                   value={formData.specialization}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, specialization: text })
+                  onChangeText={text =>
+                    setFormData({...formData, specialization: text})
                   }
                   placeholder="Enter your specialization"
                   placeholderTextColor="#999"
@@ -296,8 +347,8 @@ const EventRegistrationScreen = ({ route, navigation }) => {
                 <TextInput
                   style={styles.input}
                   value={formData.organization}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, organization: text })
+                  onChangeText={text =>
+                    setFormData({...formData, organization: text})
                   }
                   placeholder="Enter your organization"
                   placeholderTextColor="#999"
@@ -311,12 +362,14 @@ const EventRegistrationScreen = ({ route, navigation }) => {
             <TextInput
               style={[styles.input, styles.textArea]}
               value={formData.additionalNotes}
-              onChangeText={(text) =>
-                setFormData({ ...formData, additionalNotes: text })
+              onChangeText={text =>
+                setFormData({...formData, additionalNotes: text})
               }
-              placeholder={isCompanySponsor 
-                ? "Additional requirements or information about your sponsorship"
-                : "Any additional information you'd like to share"}
+              placeholder={
+                isCompanySponsor
+                  ? 'Additional requirements or information about your sponsorship'
+                  : "Any additional information you'd like to share"
+              }
               placeholderTextColor="#999"
               multiline
               numberOfLines={4}
@@ -325,7 +378,10 @@ const EventRegistrationScreen = ({ route, navigation }) => {
         </View>
 
         <TouchableOpacity
-          style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+          style={[
+            styles.submitButton,
+            submitting && styles.submitButtonDisabled,
+          ]}
           onPress={handleSubmit}
           disabled={submitting}>
           {submitting ? (

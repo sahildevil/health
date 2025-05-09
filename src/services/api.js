@@ -388,7 +388,7 @@ export const eventService = {
 
   registerForEvent: async (eventId, registrationData) => {
     try {
-      const response = await axios.post(
+      const response = await api.post(
         `/events/${eventId}/register`,
         registrationData,
       );

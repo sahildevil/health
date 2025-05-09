@@ -18,13 +18,20 @@ const EventRegistrationsScreen = ({route, navigation}) => {
   const {eventId} = route.params;
   const [event, setEvent] = useState(null);
   const [registrations, setRegistrations] = useState([]);
+  const [filteredRegistrations, setFilteredRegistrations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'doctors', 'pharma'
 
   useEffect(() => {
     fetchEventDetails();
     fetchRegistrations();
   }, [eventId]);
+
+  // Apply filter whenever registrations or active filter changes
+  useEffect(() => {
+    applyFilter(activeFilter);
+  }, [registrations, activeFilter]);
 
   const fetchEventDetails = async () => {
     try {
@@ -47,6 +54,27 @@ const EventRegistrationsScreen = ({route, navigation}) => {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const applyFilter = filter => {
+    switch (filter) {
+      case 'pharma':
+        // Filter registrations where user.role is 'pharma'
+        setFilteredRegistrations(
+          registrations.filter(reg => reg.user?.role === 'pharma'),
+        );
+        break;
+      case 'doctors':
+        // Filter registrations where user.role is 'doctor'
+        setFilteredRegistrations(
+          registrations.filter(reg => reg.user?.role === 'doctor'),
+        );
+        break;
+      case 'all':
+      default:
+        setFilteredRegistrations(registrations);
+        break;
     }
   };
 
@@ -108,9 +136,51 @@ const EventRegistrationsScreen = ({route, navigation}) => {
   const renderRegistrationItem = ({item}) => (
     <View style={styles.registrationCard}>
       <View style={styles.userDetails}>
-        <Text style={styles.userName}>{item.user.name}</Text>
-        <Text style={styles.userEmail}>{item.user.email}</Text>
-        {item.user.phone && (
+        <View style={styles.userHeader}>
+          <Text style={styles.userName}>{item.user?.name}</Text>
+          <View 
+            style={[
+              styles.roleBadge, 
+              {
+                backgroundColor: 
+                  item.user?.role === 'doctor' ? '#E1F5FE' : 
+                  item.user?.role === 'pharma' ? '#FFF8E1' : 
+                  '#E8F5E9'
+              }
+            ]}
+          >
+            <Icon 
+              name={
+                item.user?.role === 'doctor' ? 'doctor' : 
+                item.user?.role === 'pharma' ? 'pill' : 
+                'account'
+              } 
+              size={14} 
+              color={
+                item.user?.role === 'doctor' ? '#0288D1' : 
+                item.user?.role === 'pharma' ? '#F9A825' : 
+                '#4CAF50'
+              } 
+            />
+            <Text 
+              style={[
+                styles.roleBadgeText,
+                {
+                  color: 
+                    item.user?.role === 'doctor' ? '#0288D1' : 
+                    item.user?.role === 'pharma' ? '#F9A825' : 
+                    '#4CAF50'
+                }
+              ]}
+            >
+              {item.user?.role === 'doctor' ? 'Doctor' : 
+               item.user?.role === 'pharma' ? 'Pharma' : 
+               'User'}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.userEmail}>{item.user?.email}</Text>
+        {item.user?.phone && (
           <Text style={styles.userPhone}>{item.user.phone}</Text>
         )}
       </View>
@@ -119,24 +189,31 @@ const EventRegistrationsScreen = ({route, navigation}) => {
         <View style={styles.detailRow}>
           <Icon name="clock-outline" size={16} color="#666" />
           <Text style={styles.detailText}>
-            Registered: {formatDate(item.registeredAt)}
+            Registered: {formatDate(item.registered_at)}
           </Text>
         </View>
 
-        {item.specialization && (
+        {item.company_name && (
           <View style={styles.detailRow}>
-            <Icon name="briefcase-outline" size={16} color="#666" />
+            <Icon name="domain" size={16} color="#666" />
+            <Text style={styles.detailText}>Company: {item.company_name}</Text>
+          </View>
+        )}
+
+        {item.user?.company && (
+          <View style={styles.detailRow}>
+            <Icon name="domain" size={16} color="#666" />
             <Text style={styles.detailText}>
-              Specialization: {item.specialization}
+              Organization: {item.user.company}
             </Text>
           </View>
         )}
 
-        {item.organization && (
+        {item.user?.role === 'doctor' && item.user?.specialization && (
           <View style={styles.detailRow}>
-            <Icon name="domain" size={16} color="#666" />
+            <Icon name="stethoscope" size={16} color="#666" />
             <Text style={styles.detailText}>
-              Organization: {item.organization}
+              Specialization: {item.user.specialization}
             </Text>
           </View>
         )}
@@ -152,7 +229,6 @@ const EventRegistrationsScreen = ({route, navigation}) => {
       <TouchableOpacity
         style={styles.cancelButton}
         onPress={() => handleCancelRegistration(item.user.id)}>
-        <Icon name="close-circle" size={16} color="#e53935" />
         <Text style={styles.cancelButtonText}>Cancel Registration</Text>
       </TouchableOpacity>
     </View>
@@ -166,6 +242,14 @@ const EventRegistrationsScreen = ({route, navigation}) => {
       </View>
     );
   }
+
+  // Get counts for each type of registration
+  const doctorCount = registrations.filter(
+    reg => reg.user?.role === 'doctor',
+  ).length;
+  const pharmaCount = registrations.filter(
+    reg => reg.user?.role === 'pharma',
+  ).length;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -196,23 +280,82 @@ const EventRegistrationsScreen = ({route, navigation}) => {
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
           <Text style={styles.statNumber}>{registrations.length}</Text>
-          <Text style={styles.statLabel}>Registered</Text>
+          <Text style={styles.statLabel}>Total</Text>
         </View>
 
-        {event && event.capacity && (
-          <>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{event.capacity}</Text>
-              <Text style={styles.statLabel}>Capacity</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>
-                {Math.round((registrations.length / event.capacity) * 100)}%
-              </Text>
-              <Text style={styles.statLabel}>Filled</Text>
-            </View>
-          </>
-        )}
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>{doctorCount}</Text>
+          <Text style={styles.statLabel}>Doctors</Text>
+        </View>
+
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>{pharmaCount}</Text>
+          <Text style={styles.statLabel}>Pharma</Text>
+        </View>
+      </View>
+
+      {/* Filter tabs */}
+      <View style={styles.filterTabs}>
+        <TouchableOpacity
+          style={[
+            styles.filterTab,
+            activeFilter === 'all' && styles.filterTabActive,
+          ]}
+          onPress={() => setActiveFilter('all')}>
+          <Text
+            style={[
+              styles.filterTabText,
+              activeFilter === 'all' && styles.filterTabTextActive,
+            ]}>
+            All ({registrations.length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.filterTab,
+            activeFilter === 'doctors' && styles.filterTabActive,
+          ]}
+          onPress={() => setActiveFilter('doctors')}>
+          <View style={styles.filterTabContent}>
+            <Icon
+              name="doctor"
+              size={16}
+              color={activeFilter === 'doctors' ? '#2e7af5' : '#666'}
+              style={styles.filterTabIcon}
+            />
+            <Text
+              style={[
+                styles.filterTabText,
+                activeFilter === 'doctors' && styles.filterTabTextActive,
+              ]}>
+              Doctors ({doctorCount})
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.filterTab,
+            activeFilter === 'pharma' && styles.filterTabActive,
+          ]}
+          onPress={() => setActiveFilter('pharma')}>
+          <View style={styles.filterTabContent}>
+            <Icon
+              name="pill"
+              size={16}
+              color={activeFilter === 'pharma' ? '#2e7af5' : '#666'}
+              style={styles.filterTabIcon}
+            />
+            <Text
+              style={[
+                styles.filterTabText,
+                activeFilter === 'pharma' && styles.filterTabTextActive,
+              ]}>
+              Pharma ({pharmaCount})
+            </Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.actionButtons}>
@@ -225,7 +368,7 @@ const EventRegistrationsScreen = ({route, navigation}) => {
       </View>
 
       <FlatList
-        data={registrations}
+        data={filteredRegistrations}
         renderItem={renderRegistrationItem}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContainer}
@@ -234,10 +377,26 @@ const EventRegistrationsScreen = ({route, navigation}) => {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Icon name="account-off" size={64} color="#ccc" />
-            <Text style={styles.emptyTitle}>No Registrations</Text>
+            <Icon
+              name={
+                activeFilter === 'doctors'
+                  ? 'doctor'
+                  : activeFilter === 'pharma'
+                  ? 'pill'
+                  : 'account-group-outline'
+              }
+              size={64}
+              color="#ccc"
+            />
+            <Text style={styles.emptyTitle}>
+              No {activeFilter !== 'all' ? activeFilter : ''} Registrations
+            </Text>
             <Text style={styles.emptySubtitle}>
-              This event doesn't have any registrations yet.
+              {activeFilter === 'doctors'
+                ? 'No doctors have registered for this event yet.'
+                : activeFilter === 'pharma'
+                ? 'No pharmaceutical representatives have registered for this event yet.'
+                : "This event doesn't have any registrations yet."}
             </Text>
           </View>
         }
@@ -303,6 +462,7 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     padding: 16,
+    paddingBottom: 8,
   },
   statCard: {
     flex: 1,
@@ -326,6 +486,44 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 4,
+  },
+  // Filter tabs styles
+  filterTabs: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    marginBottom: 8,
+  },
+  filterTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  filterTabActive: {
+    borderBottomColor: '#2e7af5',
+  },
+  filterTabContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterTabIcon: {
+    marginRight: 4,
+  },
+  filterTabText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  filterTabTextActive: {
+    color: '#2e7af5',
+    fontWeight: '600',
   },
   actionButtons: {
     paddingHorizontal: 16,
@@ -368,10 +566,27 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
     paddingBottom: 12,
   },
+  userHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   userName: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 4,
+  },
+  roleBadgeText: {
+    fontSize: 12,
+    marginLeft: 4,
+    fontWeight: '500',
   },
   userEmail: {
     fontSize: 14,

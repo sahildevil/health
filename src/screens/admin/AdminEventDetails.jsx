@@ -208,6 +208,38 @@ const AdminEventDetails = ({route, navigation}) => {
       {item.level && (
         <Text style={styles.sponsorLevel}>Level: {item.level}</Text>
       )}
+      {item.registered_by && (
+        <View style={styles.sponsorRegistration}>
+          <Icon name="calendar-check" size={14} color="#4caf50" />
+          <Text style={styles.sponsorRegistrationText}>Registered via app</Text>
+        </View>
+      )}
+      {item.contactPerson && (
+        <View style={styles.sponsorContactRow}>
+          <Icon name="account" size={14} color="#666" />
+          <Text style={styles.sponsorContactText}>{item.contactPerson}</Text>
+        </View>
+      )}
+      {item.contactEmail && (
+        <TouchableOpacity
+          style={styles.sponsorContactRow}
+          onPress={() => Linking.openURL(`mailto:${item.contactEmail}`)}>
+          <Icon name="email" size={14} color="#666" />
+          <Text style={[styles.sponsorContactText, styles.linkText]}>
+            {item.contactEmail}
+          </Text>
+        </TouchableOpacity>
+      )}
+      {item.contactPhone && (
+        <TouchableOpacity
+          style={styles.sponsorContactRow}
+          onPress={() => Linking.openURL(`tel:${item.contactPhone}`)}>
+          <Icon name="phone" size={14} color="#666" />
+          <Text style={[styles.sponsorContactText, styles.linkText]}>
+            {item.contactPhone}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -868,21 +900,49 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   sponsorCard: {
-    padding: 12,
+    padding: 16,
     backgroundColor: '#f8f9fa',
     borderRadius: 8,
-    marginRight: 12,
-    minWidth: 150,
+    marginRight: 16,
+    marginBottom: 8,
+    minWidth: 250,
+    maxWidth: 300,
   },
   sponsorName: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#333',
     marginBottom: 4,
   },
   sponsorLevel: {
     fontSize: 14,
     color: '#666',
+    marginBottom: 8,
+  },
+  sponsorRegistration: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e8f5e9',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+  },
+  sponsorRegistrationText: {
+    fontSize: 12,
+    color: '#388e3c',
+    marginLeft: 4,
+  },
+  sponsorContactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  sponsorContactText: {
+    fontSize: 13,
+    color: '#555',
+    marginLeft: 6,
   },
   tagsContainer: {
     flexDirection: 'row',
