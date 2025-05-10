@@ -178,6 +178,14 @@ const AdminDashboardScreen = ({navigation}) => {
             <Text style={styles.quickActionText}>Manage All Events</Text>
             <Icon name="chevron-right" size={24} color="#ccc" />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            onPress={() => navigation.navigate('AdminPrivateMeetings')}>
+            <Icon name="calendar-lock" size={24} color="#2e7af5" />
+            <Text style={styles.quickActionText}>Private Meetings</Text>
+            <Icon name="chevron-right" size={24} color="#ccc" />
+          </TouchableOpacity>
         </View>
 
         {/* <View style={styles.sectionHeader}>

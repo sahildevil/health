@@ -321,7 +321,41 @@ const Profile = ({navigation}) => {
                 </View>
               )}
             </View>
+
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Private Meetings</Text>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => navigation.navigate('MeetingInvitations')}>
+                <Icon name="calendar-clock" size={24} color="#2e7af5" />
+                <Text style={styles.menuText}>My Meeting Invitations</Text>
+                <Icon name="chevron-right" size={24} color="#ccc" />
+              </TouchableOpacity>
+            </View>
           </>
+        )}
+
+        {user?.role === 'pharma' && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>My Meetings</Text>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('MyMeetings')}>
+              <Icon name="calendar-clock" size={24} color="#2e7af5" />
+              <Text style={styles.menuText}>View My Meetings</Text>
+              <Icon name="chevron-right" size={24} color="#ccc" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('CreatePrivateMeeting')}>
+              <Icon name="calendar-plus" size={24} color="#2e7af5" />
+              <Text style={styles.menuText}>Schedule Private Meeting</Text>
+              <Icon name="chevron-right" size={24} color="#ccc" />
+            </TouchableOpacity>
+          </View>
         )}
 
         <View style={styles.sectionContainer}>

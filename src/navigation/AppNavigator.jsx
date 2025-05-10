@@ -34,6 +34,11 @@ import AdminEditEventScreen from '../screens/admin/AdminEditEventScreen';
 import AdminEventManagementScreen from '../screens/admin/AdminEventManagementScreen';
 import EventRegistrationsScreen from '../screens/admin/EventRegistrationsScreen';
 import AdminEventDetails from '../screens/admin/AdminEventDetails';
+import CreatePrivateMeetingScreen from '../screens/CreatePrivateMeetingScreen';
+import MyMeetingsScreen from '../screens/MyMeetingsScreen';
+import MeetingDetailsScreen from '../screens/MeetingDetailsScreen';
+import MeetingInvitationsScreen from '../screens/MeetingInvitationsScreen';
+import AdminPrivateMeetingsScreen from '../screens/admin/AdminPrivateMeetingsScreen';
 const Stack = createStackNavigator();
 const AdminStack = createStackNavigator();
 
@@ -77,6 +82,7 @@ const AdminNavigator = () => {
         component={EventRegistrationsScreen}
       />
       <Stack.Screen name="AdminEventDetails" component={AdminEventDetails} />
+      <Stack.Screen name="AdminPrivateMeetings" component={AdminPrivateMeetingsScreen} />
     </AdminStack.Navigator>
   );
 };
@@ -143,6 +149,10 @@ const AppNavigator = () => {
               options={{headerShown: false}}
             />
             <Stack.Screen name="Chat" component={ChatScreen} />
+            <Stack.Screen name="CreatePrivateMeeting" component={CreatePrivateMeetingScreen} />
+<Stack.Screen name="MyMeetings" component={MyMeetingsScreen} />
+<Stack.Screen name="MeetingDetails" component={MeetingDetailsScreen} />
+<Stack.Screen name="MeetingInvitations" component={MeetingInvitationsScreen} />
           </>
         )
       ) : (

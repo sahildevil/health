@@ -1,4 +1,5 @@
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Base URL for API calls
 //const API_URL = 'https://health-server-fawn.vercel.app/api';
@@ -606,6 +607,123 @@ export const userService = {
       const response = await api.post('/users/documents', {documents});
       return response.data;
     } catch (error) {
+      throw error;
+    }
+  },
+};
+
+// Private Meetings API methods
+export const meetingService = {
+  // Create a new private meeting
+  createPrivateMeeting: async meetingData => {
+    try {
+      // Ensure we have an organizer name
+      if (!meetingData.organizerName) {
+        try {
+          const userString = await AsyncStorage.getItem('user');
+          if (userString) {
+            const userData = JSON.parse(userString);
+            meetingData.organizerName =
+              userData.name || 'Pharmaceutical Representative';
+          } else {
+            meetingData.organizerName = 'Pharmaceutical Representative';
+          }
+        } catch (e) {
+          // Fallback if AsyncStorage access fails
+          meetingData.organizerName = 'Pharmaceutical Representative';
+        }
+      }
+
+      console.log(
+        'Creating private meeting with data:',
+        JSON.stringify(meetingData),
+      );
+      const response = await api.post('/private-meetings', meetingData);
+      console.log('Private meeting created successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Create private meeting error:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  // Get meetings organized by the current pharma user
+  getOrganizedMeetings: async () => {
+    try {
+      const response = await api.get('/private-meetings/organized');
+      return response.data;
+    } catch (error) {
+      console.error('Get organized meetings error:', error);
+      throw error;
+    }
+  },
+
+  // Get meetings to which the doctor is invited
+  getInvitedMeetings: async () => {
+    try {
+      const response = await api.get('/private-meetings/invited');
+      return response.data;
+    } catch (error) {
+      console.error('Get invited meetings error:', error);
+      throw error;
+    }
+  },
+
+  // Get all meetings (admin only)
+  getAllMeetings: async () => {
+    try {
+      const response = await api.get('/private-meetings/all');
+      return response.data;
+    } catch (error) {
+      console.error('Get all meetings error:', error);
+      throw error;
+    }
+  },
+
+  // Get meeting details
+  getMeetingById: async meetingId => {
+    try {
+      const response = await api.get(`/private-meetings/${meetingId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get meeting details error:', error);
+      throw error;
+    }
+  },
+
+  // Update invitation status (accept/decline)
+  updateInvitationStatus: async (invitationId, status) => {
+    try {
+      const response = await api.put(
+        `/private-meetings/invitation/${invitationId}`,
+        {status},
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Update invitation status error:', error);
+      throw error;
+    }
+  },
+
+  // Cancel a meeting
+  cancelMeeting: async meetingId => {
+    try {
+      const response = await api.put(`/private-meetings/${meetingId}/cancel`);
+      return response.data;
+    } catch (error) {
+      console.error('Cancel meeting error:', error);
+      throw error;
+    }
+  },
+
+  // Get available doctors for invitations
+  getAllDoctors: async () => {
+    try {
+      const response = await api.get('/private-meetings/doctors/available');
+      return response.data;
+    } catch (error) {
+      console.error('Get available doctors error:', error);
       throw error;
     }
   },
