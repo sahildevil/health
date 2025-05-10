@@ -25,51 +25,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Linking} from 'react-native';
 import FastImage from '@d11/react-native-fast-image';
 import RNFS from 'react-native-fs';
-// Update these URLs to match your server configuration
 const SOCKET_URL = 'http://192.168.1.4:5000';
 const API_URL = 'http://192.168.1.4:5000';
-
-const downloadAndCacheImage = async (imageUrl, cacheKey) => {
-  try {
-    // Create a unique filename based on the URL
-    const filename = cacheKey || imageUrl.split('/').pop();
-    const localPath = `${RNFS.CachesDirectoryPath}/${filename}`;
-
-    // Check if file already exists in cache
-    const exists = await RNFS.exists(localPath);
-    if (exists) {
-      console.log('Image already cached:', localPath);
-      return `file://${localPath}`;
-    }
-
-    // Download the file
-    console.log('Downloading image:', imageUrl);
-    const options = {
-      fromUrl: imageUrl,
-      toFile: localPath,
-      background: true,
-      begin: res => console.log('Download started:', res),
-      progress: res => {
-        const progress = (res.bytesWritten / res.contentLength) * 100;
-        console.log(`Download progress: ${progress.toFixed(2)}%`);
-      },
-    };
-
-    const response = await RNFS.downloadFile(options).promise;
-
-    if (response.statusCode === 200) {
-      console.log('File downloaded to:', localPath);
-      return `file://${localPath}`;
-    } else {
-      console.error('Download failed with status:', response.statusCode);
-      return null;
-    }
-  } catch (error) {
-    console.error('Error downloading image:', error);
-    return null;
-  }
-};
-
 const ChatScreen = () => {
   const {user, getToken} = useAuth();
   const [messages, setMessages] = useState([]);
@@ -89,17 +46,75 @@ const ChatScreen = () => {
   const [webViewPickerVisible, setWebViewPickerVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [cachedImages, setCachedImages] = useState({});
-// Add these new state variables near your other state variables
-const [previewVisible, setPreviewVisible] = useState(false);
-const [previewItem, setPreviewItem] = useState(null);
+  // Add these new state variables near your other state variables
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewItem, setPreviewItem] = useState(null);
+
   // Debug output for current user
   useEffect(() => {
     console.log('Current user:', user);
   }, [user]);
-  const openPreview = (item) => {
-    setPreviewItem(item);
+
+  // Move downloadAndCacheImage function inside component
+  const downloadAndCacheImage = async imageUrl => {
+    try {
+      if (!imageUrl) return null;
+
+      // Check if we already have this URL cached
+      if (cachedImages[imageUrl]) {
+        return cachedImages[imageUrl];
+      }
+
+      // Generate a unique filename based on the URL
+      const filename = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+      const localPath = `${RNFS.CachesDirectoryPath}/${filename}`;
+
+      // Check if file exists locally
+      const exists = await RNFS.exists(localPath);
+      if (exists) {
+        console.log('Image already cached:', localPath);
+        setCachedImages(prev => ({
+          ...prev,
+          [imageUrl]: `file://${localPath}`,
+        }));
+        return `file://${localPath}`;
+      }
+
+      // Download the file
+      const downloadResult = await RNFS.downloadFile({
+        fromUrl: imageUrl,
+        toFile: localPath,
+      }).promise;
+
+      if (downloadResult.statusCode === 200) {
+        console.log('Image cached successfully:', localPath);
+        setCachedImages(prev => ({
+          ...prev,
+          [imageUrl]: `file://${localPath}`,
+        }));
+        return `file://${localPath}`;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error caching image:', error);
+      return null;
+    }
+  };
+
+  const openPreview = item => {
+    // Unify field names
+    const fileData = {
+      ...item,
+      fileUrl: item.fileUrl || item.file_url,
+      fileName: item.fileName || item.file_name,
+      fileType: item.fileType || item.file_type,
+      fileSize: item.fileSize || item.file_size,
+    };
+
+    setPreviewItem(fileData);
     setPreviewVisible(true);
   };
+
   // Fetch all doctors
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -306,16 +321,15 @@ const [previewItem, setPreviewItem] = useState(null);
     }
   }, [selectedDoctor, user]);
 
-
   useEffect(() => {
     const loadImages = async () => {
       const imagesToLoad = messages.filter(
-        msg => 
-          (msg.isAttachment === true && msg.attachmentType === 'image') || 
+        msg =>
+          (msg.isAttachment === true && msg.attachmentType === 'image') ||
           (msg.fileType && msg.fileType.includes('image')) ||
-          (msg.fileUrl && msg.fileUrl.match(/\.(jpeg|jpg|gif|png)$/i))
+          (msg.fileUrl && msg.fileUrl.match(/\.(jpeg|jpg|gif|png)$/i)),
       );
-      
+
       for (const msg of imagesToLoad) {
         if (msg.fileUrl && !cachedImages[msg.fileUrl]) {
           console.log('Caching image:', msg.fileUrl);
@@ -323,11 +337,11 @@ const [previewItem, setPreviewItem] = useState(null);
             // Create a unique key based on the URL
             const cacheKey = msg.fileUrl.split('/').pop();
             const localUri = await downloadAndCacheImage(msg.fileUrl, cacheKey);
-            
+
             if (localUri) {
               setCachedImages(prev => ({
                 ...prev,
-                [msg.fileUrl]: localUri
+                [msg.fileUrl]: localUri,
               }));
             }
           } catch (error) {
@@ -336,7 +350,7 @@ const [previewItem, setPreviewItem] = useState(null);
         }
       }
     };
-    
+
     loadImages();
   }, [messages]);
   // Add this function to handle document picking
@@ -774,30 +788,20 @@ const [previewItem, setPreviewItem] = useState(null);
       minute: '2-digit',
     });
 
-    // Add detailed logging for debugging
-    const isFileAttachment = item.isAttachment === true || item.fileUrl;
-    const isImageAttachment =
-      (isFileAttachment && item.attachmentType === 'image') ||
-      (item.fileType && item.fileType.includes('image')) ||
-      (item.fileUrl && item.fileUrl.match(/\.(jpeg|jpg|gif|png)$/i));
+    // Check if message is a file attachment
+    const isAttachment =
+      item.isAttachment === true || item.file_url || item.fileUrl;
 
-    // Debug logs
-    console.log(
-      'Message item:',
-      JSON.stringify(
-        {
-          id: item.id,
-          isFileAttachment,
-          isImageAttachment,
-          attachmentType: item.attachmentType,
-          fileType: item.fileType,
-          fileUrl: item.fileUrl,
-          isAttachment: item.isAttachment,
-        },
-        null,
-        2,
-      ),
-    );
+    const isImageAttachment =
+      (isAttachment && item.attachmentType === 'image') ||
+      (isAttachment && item.fileType && item.fileType.includes('image')) ||
+      (isAttachment &&
+        (item.fileUrl || item.file_url) &&
+        (item.fileUrl || item.file_url).match(/\.(jpeg|jpg|gif|png)$/i));
+
+    const fileUrl = item.fileUrl || item.file_url;
+    const fileName = item.fileName || item.file_name;
+    const fileSize = item.fileSize || item.file_size;
 
     return (
       <View
@@ -806,48 +810,47 @@ const [previewItem, setPreviewItem] = useState(null);
           isOwnMessage ? styles.ownMessage : styles.otherMessage,
           item.pending && styles.pendingMessage,
         ]}>
-{isImageAttachment ? (
-  <TouchableOpacity
-  onPress={() => openPreview(item)}
-  style={styles.imageContainer}
->
-    {cachedImages[item.fileUrl] ? (
-      <Image
-        source={{ uri: cachedImages[item.fileUrl] }}
-        style={styles.attachedImage}
-        resizeMode="cover"
-      />
-    ) : (
-      <View style={styles.imageLoadingContainer}>
-        <ActivityIndicator size="large" color="#2e7af5" />
-        <Text style={styles.imageLoadingText}>Loading image...</Text>
-      </View>
-    )}
-    <Text style={{textAlign: 'center', marginTop: 4, color: '#666'}}>
-      {item.text || '📷 Image'}
-    </Text>
-  </TouchableOpacity>
-        ) : isFileAttachment ? (
-          // Render document attachment
-<TouchableOpacity
-  onPress={() => openPreview(item)}
-  style={styles.documentContainer}
->
+        {isImageAttachment ? (
+          <TouchableOpacity
+            onPress={() => openPreview(item)}
+            style={styles.imageContainer}>
+            {cachedImages[fileUrl] ? (
+              <Image
+                source={{uri: cachedImages[fileUrl]}}
+                style={styles.attachedImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <Image
+                source={{uri: fileUrl}}
+                style={styles.attachedImage}
+                resizeMode="cover"
+                onLoadStart={() => console.log('Loading image:', fileUrl)}
+                onLoad={() => downloadAndCacheImage(fileUrl)}
+                onError={e =>
+                  console.error('Error loading image:', e.nativeEvent.error)
+                }
+              />
+            )}
+          </TouchableOpacity>
+        ) : isAttachment ? (
+          <TouchableOpacity
+            onPress={() => openPreview(item)}
+            style={styles.documentContainer}>
             <View style={styles.documentIconContainer}>
               <Icon name="file-document-outline" size={24} color="#2e7af5" />
             </View>
             <View style={styles.documentInfo}>
               <Text style={styles.documentName} numberOfLines={1}>
-                {item.fileName || 'Document'}
+                {fileName || 'Document'}
               </Text>
               <Text style={styles.documentSize}>
-                {item.fileSize ? `${(item.fileSize / 1024).toFixed(1)} KB` : ''}
+                {fileSize ? `${(fileSize / 1024).toFixed(1)} KB` : ''}
               </Text>
             </View>
           </TouchableOpacity>
         ) : (
-          // Render regular text message
-          <Text style={styles.messageText}>{item.text}</Text>
+          <Text style={styles.messageText}>{item.text || item.content}</Text>
         )}
 
         <View style={styles.messageFooter}>
@@ -1069,62 +1072,88 @@ const [previewItem, setPreviewItem] = useState(null);
         </View>
       )}
       <Modal
-  visible={previewVisible}
-  transparent={false}
-  animationType="slide"
-  onRequestClose={() => setPreviewVisible(false)}
->
-  <SafeAreaView style={styles.previewContainer}>
-    <View style={styles.previewHeader}>
-      <TouchableOpacity 
-        style={styles.previewCloseButton}
-        onPress={() => setPreviewVisible(false)}
-      >
-        <Icon name="close" size={24} color="#333" />
-      </TouchableOpacity>
-      <Text style={styles.previewTitle} numberOfLines={1}>
-        {previewItem?.fileName || 'Preview'}
-      </Text>
-      <TouchableOpacity 
-        style={styles.previewShareButton}
-        onPress={() => previewItem?.fileUrl && Linking.openURL(previewItem.fileUrl)}
-      >
-        <Icon name="open-in-new" size={24} color="#2e7af5" />
-      </TouchableOpacity>
-    </View>
-    <View style={styles.previewContent}>
-      {previewItem && previewItem.fileType && previewItem.fileType.includes('image') ? (
-        // Image preview
-        <Image
-          source={{ uri: cachedImages[previewItem.fileUrl] || previewItem.fileUrl }}
-          style={styles.previewImage}
-          resizeMode="contain"
-        />
-      ) : (
-        // Document preview - basic document info with option to open
-        <View style={styles.documentPreview}>
-          <Icon 
-            name="file-document-outline" 
-            size={80} 
-            color="#2e7af5" 
-          />
-          <Text style={styles.documentPreviewName}>
-            {previewItem?.fileName || 'Document'}
-          </Text>
-          <Text style={styles.documentPreviewSize}>
-            {previewItem?.fileSize ? `${(previewItem.fileSize / 1024).toFixed(1)} KB` : ''}
-          </Text>
-          <TouchableOpacity
-            style={styles.openExternalButton}
-            onPress={() => previewItem?.fileUrl && Linking.openURL(previewItem.fileUrl)}
-          >
-            <Text style={styles.openExternalButtonText}>Open in Browser</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
-  </SafeAreaView>
-</Modal>
+        visible={previewVisible}
+        transparent={false}
+        animationType="slide"
+        onRequestClose={() => setPreviewVisible(false)}>
+        <SafeAreaView style={styles.previewContainer}>
+          <View style={styles.previewHeader}>
+            <TouchableOpacity
+              style={styles.previewCloseButton}
+              onPress={() => setPreviewVisible(false)}>
+              <Icon name="close" size={24} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.previewTitle} numberOfLines={1}>
+              {previewItem?.fileName || 'Preview'}
+            </Text>
+            <TouchableOpacity
+              style={styles.previewShareButton}
+              onPress={() =>
+                previewItem?.fileUrl && Linking.openURL(previewItem.fileUrl)
+              }>
+              <Icon name="open-in-new" size={24} color="#2e7af5" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.previewContent}>
+            {previewItem &&
+              (previewItem.fileType &&
+              previewItem.fileType.includes('image') ? (
+                // Image preview
+                <Image
+                  source={{
+                    uri:
+                      cachedImages[previewItem.fileUrl] || previewItem.fileUrl,
+                  }}
+                  style={styles.previewImage}
+                  resizeMode="contain"
+                />
+              ) : previewItem.fileType &&
+                previewItem.fileType.includes('pdf') ? (
+                // PDF preview using WebView
+                <WebView
+                  source={{uri: previewItem.fileUrl}}
+                  style={styles.webView}
+                  startInLoadingState={true}
+                  renderLoading={() => (
+                    <View style={styles.webViewLoading}>
+                      <ActivityIndicator size="large" color="#2e7af5" />
+                      <Text style={styles.webViewLoadingText}>
+                        Loading document...
+                      </Text>
+                    </View>
+                  )}
+                />
+              ) : (
+                // For other document types, show basic info with open option
+                <View style={styles.documentPreview}>
+                  <Icon
+                    name="file-document-outline"
+                    size={80}
+                    color="#2e7af5"
+                  />
+                  <Text style={styles.documentPreviewName}>
+                    {previewItem?.fileName || 'Document'}
+                  </Text>
+                  <Text style={styles.documentPreviewSize}>
+                    {previewItem?.fileSize
+                      ? `${(previewItem.fileSize / 1024).toFixed(1)} KB`
+                      : ''}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.openExternalButton}
+                    onPress={() =>
+                      previewItem?.fileUrl &&
+                      Linking.openURL(previewItem.fileUrl)
+                    }>
+                    <Text style={styles.openExternalButtonText}>
+                      Open in Browser
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
