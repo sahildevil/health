@@ -25,8 +25,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Linking} from 'react-native';
 import FastImage from '@d11/react-native-fast-image';
 import RNFS from 'react-native-fs';
-const SOCKET_URL = 'http://192.168.1.4:5000';
-const API_URL = 'http://192.168.1.4:5000';
+const SOCKET_URL = 'http://192.168.1.9:5000';
+const API_URL = 'http://192.168.1.9:5000';
 const ChatScreen = () => {
   const {user, getToken} = useAuth();
   const [messages, setMessages] = useState([]);

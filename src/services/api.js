@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Base URL for API calls
 //const API_URL = 'https://health-server-fawn.vercel.app/api';
-const API_URL = 'http://192.168.1.4:5000/api';
+const API_URL = 'http://192.168.1.9:5000/api';
 // Create axios instance
 const api = axios.create({
   baseURL: API_URL,
@@ -12,7 +12,17 @@ const api = axios.create({
   },
   timeout: 50000, // 10 seconds timeout
 });
-
+async function isServerReachable() {
+  try {
+    const response = await fetch(`${API_URL.split('/api')[0]}/health`, { 
+      method: 'GET',
+      timeout: 5000
+    });
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
+}
 // Error handling interceptor
 api.interceptors.response.use(
   response => response,
@@ -724,6 +734,236 @@ export const meetingService = {
       return response.data;
     } catch (error) {
       console.error('Get available doctors error:', error);
+      throw error;
+    }
+  },
+};
+
+export const courseService = {
+  // Create a new course
+  createCourse: async courseData => {
+    try {
+      const response = await api.post('/courses', courseData);
+      return response.data;
+    } catch (error) {
+      console.error('Create course error:', error);
+      throw error;
+    }
+  },
+
+  // Get all courses
+  getAllCourses: async () => {
+    try {
+      const response = await api.get('/courses');
+      return response.data;
+    } catch (error) {
+      console.error('Get all courses error:', error);
+      throw error;
+    }
+  },
+
+  // Get course by id
+  getCourseById: async courseId => {
+    try {
+      const response = await api.get(`/courses/${courseId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get course error:', error);
+      throw error;
+    }
+  },
+
+  // Upload course video
+  uploadCourseVideo: async videoFile => {
+    try {
+      // Create form data
+      const formData = new FormData();
+      
+      // Convert base64 to blob if needed
+      let fileToUpload = videoFile;
+      
+      // If URI is a base64 string (from WebView)
+      if (videoFile.uri && videoFile.uri.startsWith('data:')) {
+        // Extract the base64 part
+        const base64Data = videoFile.uri.split(',')[1];
+        const byteCharacters = atob(base64Data);
+        const byteArrays = [];
+
+        for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+          const slice = byteCharacters.slice(offset, offset + 512);
+          const byteNumbers = new Array(slice.length);
+          
+          for (let i = 0; i < slice.length; i++) {
+            byteNumbers[i] = slice.charCodeAt(i);
+          }
+          
+          const byteArray = new Uint8Array(byteNumbers);
+          byteArrays.push(byteArray);
+        }
+        
+        const blob = new Blob(byteArrays, {type: videoFile.type});
+        
+        // Create file from blob
+        fileToUpload = {
+          uri: videoFile.uri,
+          type: videoFile.type,
+          name: videoFile.name,
+          size: videoFile.size,
+        };
+      }
+      
+      formData.append('file', {
+        uri: fileToUpload.uri,
+        type: fileToUpload.type,
+        name: fileToUpload.name,
+      });
+      
+      formData.append('fileType', 'video');
+
+      // Upload using multipart/form-data
+      const response = await axios.post(
+        `${API_URL}/uploads/course-video`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${await AsyncStorage.getItem('token')}`,
+          },
+          timeout: 60000, // 60 seconds for large files
+        },
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error('Upload course video error:', error);
+      throw error;
+    }
+  },
+
+  // Upload course thumbnail
+uploadCourseThumbnail: async imageFile => {
+  try {
+    // Get token with detailed logging
+    const token = await AsyncStorage.getItem('token') || await AsyncStorage.getItem('@token');
+    console.log('[TOKEN DEBUG] In uploadCourseThumbnail - token exists:', !!token);
+    
+    if (!token) {
+      // Try one last attempt to get from default headers
+      const headerToken = api.defaults.headers.common['Authorization'];
+      console.log('[TOKEN DEBUG] Trying from headers:', !!headerToken);
+      
+      if (headerToken && headerToken.startsWith('Bearer ')) {
+        // Use the token from headers
+        const extractedToken = headerToken.split(' ')[1];
+        console.log('[TOKEN DEBUG] Using token from headers');
+        
+        // Proceed with upload using this token
+        const formData = new FormData();
+        formData.append('file', {
+          uri: imageFile.uri,
+          type: imageFile.type,
+          name: imageFile.name,
+        });
+        formData.append('fileType', 'image');
+
+        const response = await axios.post(
+          `${API_URL}/uploads/course-thumbnail`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              'Authorization': headerToken,
+            },
+            timeout: 60000, // 60 second timeout for uploads
+          },
+        );
+
+        return response.data;
+      }
+      
+      throw new Error('Authentication token is missing. Please log in again.');
+    }
+    
+    // Create form data
+    const formData = new FormData();
+    formData.append('file', {
+      uri: imageFile.uri,
+      type: imageFile.type,
+      name: imageFile.name,
+    });
+    formData.append('fileType', 'image');
+
+    // Log the request we're about to make
+    console.log('[TOKEN DEBUG] Making thumbnail upload request with token');
+    console.log('[TOKEN DEBUG] API URL:', `${API_URL}/uploads/course-thumbnail`);
+    console.log('[TOKEN DEBUG] File details:', {
+      name: imageFile.name,
+      type: imageFile.type,
+      size: imageFile.size,
+      uri: imageFile.uri ? imageFile.uri.substring(0, 50) + '...' : 'undefined'
+    });
+
+    // Upload using multipart/form-data with proper authorization header
+    const response = await axios.post(
+      `${API_URL}/uploads/course-thumbnail`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`,
+        },
+        timeout: 60000, // 60 second timeout for uploads
+      },
+    );
+
+    console.log('[TOKEN DEBUG] Upload successful:', response.status);
+    return response.data;
+  } catch (error) {
+    console.error('Upload course thumbnail error:', error);
+    
+    // Enhanced network error debugging
+    if (error.message === 'Network Error') {
+      console.log('[TOKEN DEBUG] Network Error Details:');
+      console.log('- API URL:', `${API_URL}/uploads/course-thumbnail`);
+      console.log('- Server reachable:', await isServerReachable());
+      console.log('- Device connection:', await NetInfo.fetch().then(state => state.isConnected ? 'Connected' : 'Disconnected'));
+    }
+    
+    console.log('[TOKEN DEBUG] Request failed with status:', error.response?.status);
+    console.log('[TOKEN DEBUG] Error details:', error.response?.data);
+    throw error;
+  }
+},
+
+  // Add video to course
+  addVideoToCourse: async (courseId, videoData) => {
+    try {
+      const response = await api.post(`/courses/${courseId}/videos`, videoData);
+      return response.data;
+    } catch (error) {
+      console.error('Add video to course error:', error);
+      throw error;
+    }
+  },
+
+  // Delete course
+  deleteCourse: async courseId => {
+    try {
+      const response = await api.delete(`/courses/${courseId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Delete course error:', error);
+      throw error;
+    }
+  },
+
+  // Delete video from course
+  deleteVideoFromCourse: async (courseId, videoId) => {
+    try {
+      const response = await api.delete(`/courses/${courseId}/videos/${videoId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Delete video from course error:', error);
       throw error;
     }
   },

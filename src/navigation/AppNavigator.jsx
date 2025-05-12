@@ -39,6 +39,10 @@ import MyMeetingsScreen from '../screens/MyMeetingsScreen';
 import MeetingDetailsScreen from '../screens/MeetingDetailsScreen';
 import MeetingInvitationsScreen from '../screens/MeetingInvitationsScreen';
 import AdminPrivateMeetingsScreen from '../screens/admin/AdminPrivateMeetingsScreen';
+import CoursesScreen from '../screens/CoursesScreen';
+import CourseDetailsScreen from '../screens/CourseDetailsScreen';
+import CreateCourseScreen from '../screens/CreateCourseScreen';
+import AddCourseVideoScreen from '../screens/AddCourseVideoScreen';
 const Stack = createStackNavigator();
 const AdminStack = createStackNavigator();
 
@@ -153,6 +157,10 @@ const AppNavigator = () => {
 <Stack.Screen name="MyMeetings" component={MyMeetingsScreen} />
 <Stack.Screen name="MeetingDetails" component={MeetingDetailsScreen} />
 <Stack.Screen name="MeetingInvitations" component={MeetingInvitationsScreen} />
+<Stack.Screen name="Courses" component={CoursesScreen} />
+<Stack.Screen name="CourseDetails" component={CourseDetailsScreen} />
+<Stack.Screen name="CreateCourse" component={CreateCourseScreen} />
+<Stack.Screen name="AddCourseVideo" component={AddCourseVideoScreen} />
           </>
         )
       ) : (
