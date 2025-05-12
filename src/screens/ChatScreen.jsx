@@ -1148,10 +1148,35 @@ const renderMessage = ({item}) => {
         <View style={styles.container}>
           <View style={styles.whatsappHeader}>
             <Text style={styles.whatsappTitle}>Doctors</Text>
+            <TouchableOpacity 
+              style={styles.searchButton} 
+              onPress={() => setSearchVisible(!searchVisible)}>
+              <Icon name="magnify" size={24} color="#000" />
+            </TouchableOpacity>
           </View>
 
+          {searchVisible && (
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search doctors by name..."
+                autoFocus
+              />
+              <TouchableOpacity style={styles.searchCancelButton} onPress={() => {
+                setSearchVisible(false);
+                setSearchQuery('');
+              }}>
+                <Text style={styles.searchCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <FlatList
-            data={doctors}
+            data={doctors.filter(doctor => 
+              doctor.name.toLowerCase().includes(searchQuery.toLowerCase())
+            )}
             renderItem={renderDoctor}
             keyExtractor={item => item.id.toString()}
             contentContainerStyle={styles.doctorsList}
@@ -1251,6 +1276,9 @@ const styles = StyleSheet.create({
     fontSize: 23,
     fontWeight: 'bold',
     color: 'black',
+  },
+  searchButton: {
+    padding: 8,
   },
   doctorsList: {
     flex: 1,
