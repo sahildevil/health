@@ -782,78 +782,45 @@ const ChatScreen = () => {
     </TouchableOpacity>
   );
 
-  const renderMessage = ({item}) => {
-    const isOwnMessage = item.senderId === user?.id;
-    const messageTime = new Date(item.timestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+const renderMessage = ({ item, index }) => {
+  const isOwnMessage = item.senderId === user?.id;
+  const messageTime = new Date(item.timestamp).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
-    // Check if message is a file attachment
-    const isAttachment =
-      item.isAttachment === true || item.file_url || item.fileUrl;
+  // For inverted lists, we need the opposite logic of normal lists
+  const currentDate = new Date(item.timestamp);
+  const currentDateStr = currentDate.toDateString();
+  
+  // Get the next message's date (which is visually below in an inverted list)
+  // In your case, with inverted=true, the NEXT message in array is the OLDER message
+  const messages = getFilteredMessages(); // Access your messages array
+  const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
+  const nextDateStr = nextMessage ? new Date(nextMessage.timestamp).toDateString() : null;
+  
+  // Show separator when date changes between this message and the next (older) one
+  const showDateSeparator = nextDateStr === null || currentDateStr !== nextDateStr;
+  
+  // Format date like "Tue May 13 2025" as shown in your screenshots
+  const formattedDate = currentDate.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short', 
+    day: 'numeric',
+    year: 'numeric'
+  });
 
-    const isImageAttachment =
-      (isAttachment && item.attachmentType === 'image') ||
-      (isAttachment && item.fileType && item.fileType.includes('image')) ||
-      (isAttachment &&
-        (item.fileUrl || item.file_url) &&
-        (item.fileUrl || item.file_url).match(/\.(jpeg|jpg|gif|png)$/i));
-
-    const fileUrl = item.fileUrl || item.file_url;
-    const fileName = item.fileName || item.file_name;
-    const fileSize = item.fileSize || item.file_size;
-
-    return (
+  return (
+    <>
+      {/* Message first */}
       <View
         style={[
           styles.messageContainer,
           isOwnMessage ? styles.ownMessage : styles.otherMessage,
           item.pending && styles.pendingMessage,
-        ]}>
-        {isImageAttachment ? (
-          <TouchableOpacity
-            onPress={() => openPreview(item)}
-            style={styles.imageContainer}>
-            {cachedImages[fileUrl] ? (
-              <Image
-                source={{uri: cachedImages[fileUrl]}}
-                style={styles.attachedImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <Image
-                source={{uri: fileUrl}}
-                style={styles.attachedImage}
-                resizeMode="cover"
-                onLoadStart={() => console.log('Loading image:', fileUrl)}
-                onLoad={() => downloadAndCacheImage(fileUrl)}
-                onError={e =>
-                  console.error('Error loading image:', e.nativeEvent.error)
-                }
-              />
-            )}
-          </TouchableOpacity>
-        ) : isAttachment ? (
-          <TouchableOpacity
-            onPress={() => openPreview(item)}
-            style={styles.documentContainer}>
-            <View style={styles.documentIconContainer}>
-              <Icon name="file-document-outline" size={24} color="#2e7af5" />
-            </View>
-            <View style={styles.documentInfo}>
-              <Text style={styles.documentName} numberOfLines={1}>
-                {fileName || 'Document'}
-              </Text>
-              <Text style={styles.documentSize}>
-                {fileSize ? `${(fileSize / 1024).toFixed(1)} KB` : ''}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ) : (
-          <Text style={styles.messageText}>{item.text || item.content}</Text>
-        )}
-
+        ]}
+      >
+        <Text style={styles.messageText}>{item.text || item.content}</Text>
         <View style={styles.messageFooter}>
           <Text style={styles.timestamp}>{messageTime}</Text>
           {isOwnMessage && (
@@ -861,14 +828,26 @@ const ChatScreen = () => {
               style={[
                 styles.statusIcon,
                 item.pending ? styles.pendingIcon : styles.deliveredIcon,
-              ]}>
+              ]}
+            >
               {item.pending ? '⌛' : '✓✓'}
             </Text>
           )}
         </View>
       </View>
-    );
-  };
+      
+      {/* Date separator comes AFTER message in inverted lists */}
+      {showDateSeparator && (
+  <View style={styles.dateSeparator}>
+    <View style={styles.line} />
+    <Text style={styles.dateSeparatorText}>{formattedDate}</Text>
+    <View style={styles.line} />
+  </View>
+)}
+
+    </>
+  );
+};
 
   // Function to retry connecting to the server
   const retryConnection = () => {
@@ -1456,6 +1435,31 @@ const styles = StyleSheet.create({
     color: '#666666',
     fontSize: 16,
   },
+  dateSeparator: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginVertical: 10,
+  gap: 10, // For spacing between line and text (React Native 0.71+), else use marginHorizontal
+},
+
+dateSeparatorText: {
+  backgroundColor: '#f4edff',
+  color: '#575657',
+  fontSize: 13,
+  fontWeight: '500',
+  paddingHorizontal: 16,
+  paddingVertical: 6,
+  borderRadius: 20,
+  textAlign: 'center',
+},
+
+line: {
+  flex: 1,
+  height: 1,
+  backgroundColor: '#ccc',
+},
+
   attachButton: {
     padding: 10,
     justifyContent: 'center',
