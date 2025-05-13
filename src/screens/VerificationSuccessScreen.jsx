@@ -1,10 +1,11 @@
 import React from 'react';
 import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const VerificationSuccessScreen = ({navigation}) => {
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <View style={styles.iconContainer}>
         <Icon name="check-circle" size={100} color="#4caf50" />
       </View>
@@ -20,7 +21,7 @@ const VerificationSuccessScreen = ({navigation}) => {
         onPress={() => navigation.navigate('Login')}>
         <Text style={styles.loginButtonText}>Proceed to Login</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 };
 

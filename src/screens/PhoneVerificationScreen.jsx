@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const PhoneVerificationScreen = ({navigation, route}) => {
   const {phone} = route.params || {};
@@ -64,7 +65,7 @@ const PhoneVerificationScreen = ({navigation, route}) => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <View style={styles.iconContainer}>
         <Icon name="cellphone-message" size={80} color="#2e7af5" />
       </View>
@@ -145,7 +146,7 @@ const PhoneVerificationScreen = ({navigation, route}) => {
         onPress={() => navigation.navigate('Login')}>
         <Text style={styles.backButtonText}>Back to Login</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 };
 

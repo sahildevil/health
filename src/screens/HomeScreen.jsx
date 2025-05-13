@@ -256,7 +256,7 @@ const HomeScreen = ({navigation}) => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <StatusBar barStyle="dark-content" backgroundColor="white" />
       {/* Header */}
       <View style={styles.header}>

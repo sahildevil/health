@@ -25,6 +25,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Linking} from 'react-native';
 import FastImage from '@d11/react-native-fast-image';
 import RNFS from 'react-native-fs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const SOCKET_URL = 'http://192.168.1.9:5000';
 const API_URL = 'http://192.168.1.9:5000';
 const ChatScreen = () => {
@@ -923,7 +924,7 @@ const ChatScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <StatusBar backgroundColor="#fff" barStyle="dark-content" />
 
       {selectedDoctor ? (

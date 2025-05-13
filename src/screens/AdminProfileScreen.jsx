@@ -11,8 +11,8 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AdminProfileScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
@@ -43,7 +43,7 @@ const AdminProfileScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <StatusBar barStyle="dark-content" backgroundColor="#f7f9fc" />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>

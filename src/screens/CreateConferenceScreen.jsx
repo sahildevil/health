@@ -18,6 +18,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {useAuth} from '../context/AuthContext';
 import { eventService } from '../services/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const CreateConferenceScreen = ({navigation}) => {
   const {user} = useAuth();
   const isAdmin = user && user.role === 'admin';
@@ -287,7 +288,7 @@ const CreateConferenceScreen = ({navigation}) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <StatusBar barStyle="dark-content" />
 
       {/* Header */}

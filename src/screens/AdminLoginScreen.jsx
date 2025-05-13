@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AdminLoginScreen = ({navigation}) => {
   const [email, setEmail] = useState('');
@@ -42,7 +43,7 @@ const AdminLoginScreen = ({navigation}) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <ScrollView contentContainerStyle={styles.container}>
         <TouchableOpacity
           style={styles.backButton}

@@ -18,6 +18,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import {eventService} from '../services/api';
 import {useAuth} from '../context/AuthContext';
 import PdfViewer from '../components/PdfViewer';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Event Status Badge Component (reused from HomeScreen)
 const EventStatusBadge = ({status}) => {
@@ -204,7 +205,7 @@ const EventDetailsScreen = ({route, navigation}) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <StatusBar barStyle="dark-content" />
 
       {/* Header */}

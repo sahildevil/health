@@ -17,6 +17,7 @@ import WebViewDocumentPicker from '../components/WebViewDocumentPicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Platform} from 'react-native';
 import api, { userService } from '../services/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const UploadDocumentsScreen = ({navigation}) => {
   const [documents, setDocuments] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -184,7 +185,7 @@ const handleUploadDocuments = async () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}

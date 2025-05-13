@@ -15,6 +15,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { eventService } from '../services/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const EditEventScreen = ({ route, navigation }) => {
   const { eventId } = route.params;
@@ -144,7 +145,7 @@ const EditEventScreen = ({ route, navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <StatusBar barStyle="dark-content" />
       
       <View style={styles.header}>

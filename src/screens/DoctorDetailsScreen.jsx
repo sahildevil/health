@@ -162,7 +162,7 @@ const DoctorDetailsScreen = ({route, navigation}) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}

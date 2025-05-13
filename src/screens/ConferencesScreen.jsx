@@ -255,8 +255,7 @@ const ConferencesScreen = ({navigation}) => {
   );
 
   return (
-    <SafeAreaView
-      style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <StatusBar barStyle="dark-content" backgroundColor="white" />
 
       {/* Header */}

@@ -14,6 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {eventService} from '../services/api';
 import {useAuth} from '../context/AuthContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const RegisteredEventsScreen = ({navigation}) => {
   const [events, setEvents] = useState([]);
@@ -97,7 +98,7 @@ const RegisteredEventsScreen = ({navigation}) => {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -116,7 +117,7 @@ const RegisteredEventsScreen = ({navigation}) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <StatusBar barStyle="dark-content" backgroundColor="#f7f9fc" />
 
       <View style={styles.header}>

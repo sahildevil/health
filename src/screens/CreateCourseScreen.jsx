@@ -15,6 +15,7 @@ import {courseService} from '../services/api';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'react-native-image-picker';
 import {useAuth} from '../context/AuthContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const CATEGORIES = [
   'Clinical Practice',
@@ -108,7 +109,7 @@ const CreateCourseScreen = ({navigation}) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}

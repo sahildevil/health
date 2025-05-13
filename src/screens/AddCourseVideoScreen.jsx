@@ -17,6 +17,7 @@ import * as ImagePicker from 'react-native-image-picker';
 import WebViewDocumentPicker from '../components/WebViewDocumentPicker';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Add this import
 import api from '../services/api'; // Add this import for direct API access
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AddCourseVideoScreen = ({route, navigation}) => {
   const {courseId} = route.params;
@@ -226,7 +227,7 @@ const AddCourseVideoScreen = ({route, navigation}) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}

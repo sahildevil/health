@@ -12,6 +12,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
 import {meetingService} from '../services/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MyMeetingsScreen = ({navigation}) => {
   const {user} = useAuth();
@@ -151,7 +152,7 @@ const fetchMeetings = async () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}

@@ -16,6 +16,7 @@ import {courseService} from '../services/api';
 import Video from 'react-native-video';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const {width} = Dimensions.get('window');
 
@@ -142,7 +143,7 @@ const CourseDetailsScreen = ({route, navigation}) => {
     (user.role === 'doctor' && user.id === course.creator_id));
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}

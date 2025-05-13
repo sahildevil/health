@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {useAuth} from '../context/AuthContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const LoginScreen = ({navigation}) => {
   const [email, setEmail] = useState('');
@@ -82,7 +83,7 @@ const LoginScreen = ({navigation}) => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <View style={styles.header}>
         <Text style={styles.title}>Welcome Back</Text>
         <Text style={styles.subtitle}>Login to your account</Text>

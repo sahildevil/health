@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const EmailVerificationScreen = ({navigation, route}) => {
   const {email} = route.params || {};
@@ -42,7 +43,7 @@ const EmailVerificationScreen = ({navigation, route}) => {
   };
 
   return (
-    <View style={styles.container}>
+   <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <View style={styles.iconContainer}>
         <Icon name="email-check-outline" size={80} color="#2e7af5" />
       </View>
@@ -81,7 +82,7 @@ const EmailVerificationScreen = ({navigation, route}) => {
         onPress={() => navigation.navigate('Login')}>
         <Text style={styles.loginButtonText}>Back to Login</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 };
 

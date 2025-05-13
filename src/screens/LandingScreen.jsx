@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const LandingScreen = ({navigation}) => {
   return (
-<View style={[styles.container]}>
+<SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <StatusBar barStyle="dark-content" backgroundColor='white'/>
       <View style={styles.logoContainer}>
         <TouchableOpacity onPress={() => navigation.navigate('AdminLogin')}>
@@ -37,7 +38,7 @@ const LandingScreen = ({navigation}) => {
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 

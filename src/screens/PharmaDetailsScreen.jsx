@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {adminService} from '../services/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const PharmaDetailsScreen = ({route, navigation}) => {
   const {pharmaId} = route.params;
@@ -91,7 +92,7 @@ const PharmaDetailsScreen = ({route, navigation}) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -111,7 +112,7 @@ const PharmaDetailsScreen = ({route, navigation}) => {
 
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -136,7 +137,7 @@ const PharmaDetailsScreen = ({route, navigation}) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}

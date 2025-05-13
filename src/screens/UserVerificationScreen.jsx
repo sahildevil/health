@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { adminService } from '../services/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const UserVerificationScreen = ({ navigation }) => {
   const [doctors, setDoctors] = useState([]);
@@ -274,7 +275,7 @@ const UserVerificationScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
 
       <StatusBar barStyle="dark-content" />
       

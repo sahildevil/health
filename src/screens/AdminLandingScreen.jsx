@@ -7,13 +7,15 @@ import {
   Image,
   useColorScheme,
   StatusBar,
+  SafeAreaView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AdminLandingScreen = ({navigation}) => {
   const isDarkMode = useColorScheme() === 'dark';
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <StatusBar barStyle= 'dark-content' />
       <View style={styles.logoContainer}>
         <Text style={styles.logoText}>MedEvent Health</Text>
@@ -43,7 +45,7 @@ const AdminLandingScreen = ({navigation}) => {
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 

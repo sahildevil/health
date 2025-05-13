@@ -13,6 +13,7 @@ import {
 import {courseService} from '../services/api';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const CoursesScreen = ({navigation}) => {
   const {user} = useAuth();
@@ -83,7 +84,7 @@ const CoursesScreen = ({navigation}) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Educational Courses</Text>
         {(user?.role === 'admin' || user?.role === 'doctor') && (
