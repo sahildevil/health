@@ -19,7 +19,7 @@ import RNFS from 'react-native-fs';
 import WebViewDocumentPicker from '../components/WebViewDocumentPicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api, {userService} from '../services/api';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const SignUpScreen = ({navigation}) => {
   const [step, setStep] = useState(1);
@@ -35,7 +35,7 @@ const SignUpScreen = ({navigation}) => {
   // Additional fields based on role
   const [degree, setDegree] = useState('');
   const [company, setCompany] = useState('');
-
+  const insets = useSafeAreaInsets();
   // Document upload states
   const [documents, setDocuments] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -348,7 +348,7 @@ const SignUpScreen = ({navigation}) => {
 
   // Registration Form Screen
   return (
-    <ScrollView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <ScrollView style={[styles.container, {paddingTop: insets.top}]}>
       <TouchableOpacity style={styles.backButton} onPress={() => setStep(1)}>
         <Icon name="arrow-left" size={24} color="#2e7af5" />
       </TouchableOpacity>

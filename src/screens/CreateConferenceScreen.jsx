@@ -17,9 +17,10 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {useAuth} from '../context/AuthContext';
-import { eventService } from '../services/api';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {eventService} from '../services/api';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 const CreateConferenceScreen = ({navigation}) => {
+    const insets = useSafeAreaInsets();
   const {user} = useAuth();
   const isAdmin = user && user.role === 'admin';
   const [title, setTitle] = useState('');
@@ -165,44 +166,39 @@ const CreateConferenceScreen = ({navigation}) => {
       Alert.alert('Missing Information', 'Please fill all required fields.');
       return;
     }
-  
-  if(isAdmin && !venue) {
-    if (!validateEmail(organizerEmail)) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address.');
-      return;
+
+    if (isAdmin && !venue) {
+      if (!validateEmail(organizerEmail)) {
+        Alert.alert('Invalid Email', 'Please enter a valid email address.');
+        return;
+      }
+
+      if (endDate < startDate) {
+        Alert.alert('Invalid Dates', 'End date must be after start date.');
+        return;
+      }
+
+      if (!agreeToTerms) {
+        Alert.alert(
+          'Terms and Conditions',
+          'You must agree to the terms and conditions to create an event.',
+        );
+        return;
+      }
     }
-  
-    if (endDate < startDate) {
-      Alert.alert('Invalid Dates', 'End date must be after start date.');
-      return;
-    }
-  
-    if (!agreeToTerms) {
-      Alert.alert(
-        'Terms and Conditions',
-        'You must agree to the terms and conditions to create an event.',
-      );
-      return;
-    }
-  }
-  
+
     // Combine date and time for start and end dates
     const combinedStartDate = new Date(startDate);
     combinedStartDate.setHours(
       startTime.getHours(),
       startTime.getMinutes(),
       0,
-      0
-    );
-    
-    const combinedEndDate = new Date(endDate);
-    combinedEndDate.setHours(
-      endTime.getHours(),
-      endTime.getMinutes(),
       0,
-      0
     );
-  
+
+    const combinedEndDate = new Date(endDate);
+    combinedEndDate.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
+
     // Create event object
     const newEvent = {
       title,
@@ -213,8 +209,8 @@ const CreateConferenceScreen = ({navigation}) => {
       organizerPhone,
       startDate: combinedStartDate.toISOString(),
       endDate: combinedEndDate.toISOString(),
-      start_time: formatTime(startTime),  // Must match backend field name
-      end_time: formatTime(endTime),      // Must match backend field name
+      start_time: formatTime(startTime), // Must match backend field name
+      end_time: formatTime(endTime), // Must match backend field name
       type: conferenceType,
       mode: conferenceMode,
       capacity: capacity ? parseInt(capacity, 10) : null,
@@ -225,16 +221,16 @@ const CreateConferenceScreen = ({navigation}) => {
       sponsors,
       speakers,
     };
-  
-    console.log("Submitting event:", newEvent);
-  
+
+    console.log('Submitting event:', newEvent);
+
     try {
       // Set loading state
       setIsSubmitting(true);
-  
+
       // Submit to API
       const result = await eventService.createEvent(newEvent);
-  
+
       // Show success message
       Alert.alert(
         'Success',
@@ -288,7 +284,7 @@ const CreateConferenceScreen = ({navigation}) => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <StatusBar barStyle="dark-content" />
 
       {/* Header */}
@@ -488,41 +484,43 @@ const CreateConferenceScreen = ({navigation}) => {
           </View>
 
           {/* Location */}
-          {isAdmin && (<>
-          <Text style={styles.sectionTitle}>Location</Text>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>
-              {conferenceMode === 'Virtual'
-                ? 'Platform/Link*'
-                : 'Venue/Address*'}
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder={
-                conferenceMode === 'Virtual'
-                  ? 'e.g., Zoom, Google Meet, or platform link'
-                  : 'Enter the full address of the venue'
-              }
-              placeholderTextColor={'#999'}
-              value={venue}
-              onChangeText={setVenue}
-            />
-          </View>
+          {isAdmin && (
+            <>
+              <Text style={styles.sectionTitle}>Location</Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>
+                  {conferenceMode === 'Virtual'
+                    ? 'Platform/Link*'
+                    : 'Venue/Address*'}
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder={
+                    conferenceMode === 'Virtual'
+                      ? 'e.g., Zoom, Google Meet, or platform link'
+                      : 'Enter the full address of the venue'
+                  }
+                  placeholderTextColor={'#999'}
+                  value={venue}
+                  onChangeText={setVenue}
+                />
+              </View>
 
-          {conferenceMode === 'In-Person' && (
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Capacity</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Maximum number of attendees"
-                placeholderTextColor={'#999'}
-                value={capacity}
-                onChangeText={setCapacity}
-                keyboardType="number-pad"
-              />
-            </View>
+              {conferenceMode === 'In-Person' && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Capacity</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Maximum number of attendees"
+                    placeholderTextColor={'#999'}
+                    value={capacity}
+                    onChangeText={setCapacity}
+                    keyboardType="number-pad"
+                  />
+                </View>
+              )}
+            </>
           )}
-          </>)}
 
           {/* Speakers Section */}
           {isAdmin && (
@@ -627,7 +625,8 @@ const CreateConferenceScreen = ({navigation}) => {
           {isAdmin && (
             <>
               <Text style={styles.sectionTitle}>
-                Registration <Text style={styles.adminOnlyText}>(Admin Only)</Text>
+                Registration{' '}
+                <Text style={styles.adminOnlyText}>(Admin Only)</Text>
               </Text>
               <View style={styles.inputGroup}>
                 <View style={styles.switchContainer}>
@@ -702,38 +701,38 @@ const CreateConferenceScreen = ({navigation}) => {
           )}
 
           {/* Terms and Conditions */}
-          {isAdmin &&(
+          {isAdmin && (
             <>
-            <Text style={styles.sectionTitle}>Terms and Conditions</Text>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Terms and Conditions</Text>
-            <TextInput
-              style={[styles.input, styles.termsTextarea]}
-              placeholder="Enter the terms and conditions for your event"
-              placeholderTextColor={'#999'}
-              value={termsAndConditions}
-              onChangeText={setTermsAndConditions}
-              multiline={true}
-              numberOfLines={6}
-            />
-          </View>
+              <Text style={styles.sectionTitle}>Terms and Conditions</Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Terms and Conditions</Text>
+                <TextInput
+                  style={[styles.input, styles.termsTextarea]}
+                  placeholder="Enter the terms and conditions for your event"
+                  placeholderTextColor={'#999'}
+                  value={termsAndConditions}
+                  onChangeText={setTermsAndConditions}
+                  multiline={true}
+                  numberOfLines={6}
+                />
+              </View>
 
-          <View style={styles.inputGroup}>
-            <View style={styles.checkboxContainer}>
-              <TouchableOpacity
-                style={styles.checkbox}
-                onPress={() => setAgreeToTerms(!agreeToTerms)}>
-                {agreeToTerms && (
-                  <Icon name="check" size={16} color="#2e7af5" />
-                )}
-              </TouchableOpacity>
-              <Text style={styles.checkboxLabel}>
-                I agree to the terms and conditions for creating this event
-              </Text>
-            </View>
-          </View>
+              <View style={styles.inputGroup}>
+                <View style={styles.checkboxContainer}>
+                  <TouchableOpacity
+                    style={styles.checkbox}
+                    onPress={() => setAgreeToTerms(!agreeToTerms)}>
+                    {agreeToTerms && (
+                      <Icon name="check" size={16} color="#2e7af5" />
+                    )}
+                  </TouchableOpacity>
+                  <Text style={styles.checkboxLabel}>
+                    I agree to the terms and conditions for creating this event
+                  </Text>
+                </View>
+              </View>
             </>
-          ) }
+          )}
 
           {/* Submit Button */}
           <TouchableOpacity

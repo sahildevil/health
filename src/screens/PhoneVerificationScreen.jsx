@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const PhoneVerificationScreen = ({navigation, route}) => {
   const {phone} = route.params || {};
@@ -19,7 +19,7 @@ const PhoneVerificationScreen = ({navigation, route}) => {
   const [step, setStep] = useState('request'); // 'request' or 'verify'
   const [loading, setLoading] = useState(false);
   const {startPhoneVerification, verifyPhoneOTP} = useAuth();
-
+  const insets = useSafeAreaInsets();
   const handleSendOTP = async () => {
     if (!userPhone) {
       Alert.alert('Error', 'Please enter your phone number');
@@ -65,7 +65,7 @@ const PhoneVerificationScreen = ({navigation, route}) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <View style={styles.iconContainer}>
         <Icon name="cellphone-message" size={80} color="#2e7af5" />
       </View>

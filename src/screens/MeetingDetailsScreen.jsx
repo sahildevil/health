@@ -14,7 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
 import {meetingService} from '../services/api';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const MeetingDetailsScreen = ({route, navigation}) => {
   const {meetingId} = route.params;
@@ -22,7 +22,7 @@ const MeetingDetailsScreen = ({route, navigation}) => {
   const [meeting, setMeeting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
-
+  const insets = useSafeAreaInsets();
   useEffect(() => {
     fetchMeetingDetails();
   }, [meetingId]);
@@ -128,7 +128,7 @@ const MeetingDetailsScreen = ({route, navigation}) => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}

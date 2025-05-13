@@ -14,13 +14,13 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {eventService} from '../services/api';
 import {useAuth} from '../context/AuthContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const RegisteredEventsScreen = ({navigation}) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
+  const insets = useSafeAreaInsets();
   const fetchRegisteredEvents = async () => {
     try {
       setLoading(true);
@@ -98,7 +98,7 @@ const RegisteredEventsScreen = ({navigation}) => {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+      <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -117,7 +117,7 @@ const RegisteredEventsScreen = ({navigation}) => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <StatusBar barStyle="dark-content" backgroundColor="#f7f9fc" />
 
       <View style={styles.header}>
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f7f9fc',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    //paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
     flexDirection: 'row',

@@ -11,10 +11,11 @@ import {
   Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { adminService } from '../services/api';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {adminService} from '../services/api';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const DoctorListScreen = ({navigation}) => {
+    const insets = useSafeAreaInsets();
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -31,7 +32,10 @@ const DoctorListScreen = ({navigation}) => {
       setFilteredDoctors(data);
     } catch (err) {
       setError(err.message || 'Failed to fetch doctors');
-      Alert.alert('Error', 'Could not load doctors: ' + (err.message || 'Unknown error'));
+      Alert.alert(
+        'Error',
+        'Could not load doctors: ' + (err.message || 'Unknown error'),
+      );
     } finally {
       setLoading(false);
     }
@@ -55,70 +59,80 @@ const DoctorListScreen = ({navigation}) => {
     }
   }, [searchQuery, doctors]);
 
-  const handleVerifyDoctor = (doctorId) => {
+  const handleVerifyDoctor = doctorId => {
     Alert.alert(
       'Verify Doctor',
       'Are you sure you want to verify this doctor?',
       [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Verify', 
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Verify',
           onPress: async () => {
             try {
               setLoading(true);
               await adminService.verifyDoctor(doctorId);
-              
+
               // Update local state to reflect the change
-              const updatedDoctors = doctors.map(doctor => 
-                doctor.id === doctorId ? {...doctor, verified: true} : doctor
+              const updatedDoctors = doctors.map(doctor =>
+                doctor.id === doctorId ? {...doctor, verified: true} : doctor,
               );
               setDoctors(updatedDoctors);
               setFilteredDoctors(
-                filteredDoctors.map(doctor => 
-                  doctor.id === doctorId ? {...doctor, verified: true} : doctor
-                )
+                filteredDoctors.map(doctor =>
+                  doctor.id === doctorId ? {...doctor, verified: true} : doctor,
+                ),
               );
-              
+
               Alert.alert('Success', 'Doctor has been verified');
             } catch (err) {
-              Alert.alert('Error', 'Failed to verify doctor: ' + (err.message || 'Unknown error'));
+              Alert.alert(
+                'Error',
+                'Failed to verify doctor: ' + (err.message || 'Unknown error'),
+              );
             } finally {
               setLoading(false);
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
-  const handleDeleteDoctor = (doctorId) => {
+  const handleDeleteDoctor = doctorId => {
     Alert.alert(
       'Delete Doctor',
       'Are you sure you want to delete this doctor? This action cannot be undone.',
       [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
               setLoading(true);
               await adminService.deleteDoctor(doctorId);
-              
+
               // Update local state to remove the doctor
-              const updatedDoctors = doctors.filter(doctor => doctor.id !== doctorId);
+              const updatedDoctors = doctors.filter(
+                doctor => doctor.id !== doctorId,
+              );
               setDoctors(updatedDoctors);
-              setFilteredDoctors(filteredDoctors.filter(doctor => doctor.id !== doctorId));
-              
+              setFilteredDoctors(
+                filteredDoctors.filter(doctor => doctor.id !== doctorId),
+              );
+
               Alert.alert('Success', 'Doctor has been removed');
             } catch (err) {
-              Alert.alert('Error', 'Failed to delete doctor: ' + (err.message || 'Unknown error'));
+              Alert.alert(
+                'Error',
+                'Failed to delete doctor: ' + (err.message || 'Unknown error'),
+              );
             } finally {
               setLoading(false);
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
@@ -129,45 +143,46 @@ const DoctorListScreen = ({navigation}) => {
           <Text style={styles.doctorName}>{item.name}</Text>
           <Text style={styles.doctorSpecialty}>{item.specialty}</Text>
         </View>
-        <View style={[
-          styles.verificationBadge,
-          {backgroundColor: item.verified ? '#e8f5e9' : '#fff3e0'}
-        ]}>
-          <Text style={[
-            styles.verificationText,
-            {color: item.verified ? '#2e7d32' : '#e65100'}
+        <View
+          style={[
+            styles.verificationBadge,
+            {backgroundColor: item.verified ? '#e8f5e9' : '#fff3e0'},
           ]}>
+          <Text
+            style={[
+              styles.verificationText,
+              {color: item.verified ? '#2e7d32' : '#e65100'},
+            ]}>
             {item.verified ? 'Verified' : 'Pending'}
           </Text>
         </View>
       </View>
-      
+
       <Text style={styles.doctorEmail}>{item.email}</Text>
       <Text style={styles.doctorJoined}>Joined: {item.joinedDate}</Text>
-      
+
       <View style={styles.actionButtonsContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.viewButton}
-          onPress={() => navigation.navigate('DoctorDetails', {doctorId: item.id})}
-        >
+          onPress={() =>
+            navigation.navigate('DoctorDetails', {doctorId: item.id})
+          }>
           <Icon name="eye" size={16} color="#2e7af5" />
           <Text style={styles.viewButtonText}>View Details</Text>
         </TouchableOpacity>
-        
+
         {!item.verified && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.verifyButton}
-            onPress={() => handleVerifyDoctor(item.id)}
-          >
+            onPress={() => handleVerifyDoctor(item.id)}>
             <Icon name="check-circle" size={16} color="#fff" />
             <Text style={styles.verifyButtonText}>Verify</Text>
           </TouchableOpacity>
         )}
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.deleteButton}
-          onPress={() => handleDeleteDoctor(item.id)}
-        >
+          onPress={() => handleDeleteDoctor(item.id)}>
           <Icon name="delete" size={16} color="#fff" />
           <Text style={styles.deleteButtonText}>Delete</Text>
         </TouchableOpacity>
@@ -176,12 +191,11 @@ const DoctorListScreen = ({navigation}) => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+          onPress={() => navigation.goBack()}>
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Doctors Management</Text>
@@ -221,7 +235,7 @@ const DoctorListScreen = ({navigation}) => {
           <Text style={styles.statLabel}>Pending</Text>
         </View>
       </View>
-      
+
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2e7af5" />
@@ -232,10 +246,7 @@ const DoctorListScreen = ({navigation}) => {
           <Icon name="alert-circle-outline" size={60} color="#d32f2f" />
           <Text style={styles.emptyText}>Error loading doctors</Text>
           <Text style={styles.emptySubtext}>{error}</Text>
-          <TouchableOpacity 
-            style={styles.retryButton}
-            onPress={fetchDoctors}
-          >
+          <TouchableOpacity style={styles.retryButton} onPress={fetchDoctors}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -423,6 +434,5 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: '#fff',
     fontWeight: '500',
-  }
+  },
 });
-

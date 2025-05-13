@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -14,14 +14,14 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { eventService } from '../services/api';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {eventService} from '../services/api';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
-const EditEventScreen = ({ route, navigation }) => {
-  const { eventId } = route.params;
+const EditEventScreen = ({route, navigation}) => {
+  const {eventId} = route.params;
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-
+  const insets = useSafeAreaInsets();
   // Form state
   const [eventData, setEventData] = useState({
     title: '',
@@ -43,7 +43,7 @@ const EditEventScreen = ({ route, navigation }) => {
     tags: '',
     termsAndConditions: '',
     speakers: [],
-    sponsors: []
+    sponsors: [],
   });
 
   // Date picker states
@@ -77,16 +77,18 @@ const EditEventScreen = ({ route, navigation }) => {
   const handleSave = async () => {
     try {
       setSubmitting(true);
-      
+
       const updatedEventData = {
         ...eventData,
         registrationFee: eventData.isFree ? '0' : eventData.registrationFee,
-        tags: eventData.tags ? eventData.tags.split(',').map(tag => tag.trim()) : []
+        tags: eventData.tags
+          ? eventData.tags.split(',').map(tag => tag.trim())
+          : [],
       };
 
       await eventService.updateEvent(eventId, updatedEventData);
       Alert.alert('Success', 'Event updated successfully', [
-        { text: 'OK', onPress: () => navigation.goBack() }
+        {text: 'OK', onPress: () => navigation.goBack()},
       ]);
     } catch (error) {
       console.error('Failed to update event:', error);
@@ -98,16 +100,18 @@ const EditEventScreen = ({ route, navigation }) => {
 
   const handleDateChange = (event, selectedDate, type) => {
     if (event.type === 'dismissed') {
-      type === 'start' ? setShowStartDatePicker(false) : setShowEndDatePicker(false);
+      type === 'start'
+        ? setShowStartDatePicker(false)
+        : setShowEndDatePicker(false);
       return;
     }
 
     if (selectedDate) {
       if (type === 'start') {
-        setEventData(prev => ({ ...prev, startDate: selectedDate }));
+        setEventData(prev => ({...prev, startDate: selectedDate}));
         setShowStartDatePicker(false);
       } else {
-        setEventData(prev => ({ ...prev, endDate: selectedDate }));
+        setEventData(prev => ({...prev, endDate: selectedDate}));
         setShowEndDatePicker(false);
       }
     }
@@ -115,23 +119,25 @@ const EditEventScreen = ({ route, navigation }) => {
 
   const handleTimeChange = (event, selectedTime, type) => {
     if (event.type === 'dismissed') {
-      type === 'start' ? setShowStartTimePicker(false) : setShowEndTimePicker(false);
+      type === 'start'
+        ? setShowStartTimePicker(false)
+        : setShowEndTimePicker(false);
       return;
     }
 
     if (selectedTime) {
       const timeString = selectedTime.toTimeString().split(' ')[0];
       if (type === 'start') {
-        setEventData(prev => ({ ...prev, start_time: timeString }));
+        setEventData(prev => ({...prev, start_time: timeString}));
         setShowStartTimePicker(false);
       } else {
-        setEventData(prev => ({ ...prev, end_time: timeString }));
+        setEventData(prev => ({...prev, end_time: timeString}));
         setShowEndTimePicker(false);
       }
     }
   };
 
-  const formatDate = (date) => {
+  const formatDate = date => {
     return date.toISOString().split('T')[0];
   };
 
@@ -145,9 +151,9 @@ const EditEventScreen = ({ route, navigation }) => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <StatusBar barStyle="dark-content" />
-      
+
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -177,9 +183,13 @@ const EditEventScreen = ({ route, navigation }) => {
                 styles.radioButton,
                 eventData.type === 'Conference' && styles.radioButtonSelected,
               ]}
-              onPress={() => setEventData(prev => ({ ...prev, type: 'Conference' }))}>
+              onPress={() =>
+                setEventData(prev => ({...prev, type: 'Conference'}))
+              }>
               <View style={styles.radioCircle}>
-                {eventData.type === 'Conference' && <View style={styles.radioDot} />}
+                {eventData.type === 'Conference' && (
+                  <View style={styles.radioDot} />
+                )}
               </View>
               <Text style={styles.radioText}>Conference</Text>
             </TouchableOpacity>
@@ -189,9 +199,13 @@ const EditEventScreen = ({ route, navigation }) => {
                 styles.radioButton,
                 eventData.type === 'Meeting' && styles.radioButtonSelected,
               ]}
-              onPress={() => setEventData(prev => ({ ...prev, type: 'Meeting' }))}>
+              onPress={() =>
+                setEventData(prev => ({...prev, type: 'Meeting'}))
+              }>
               <View style={styles.radioCircle}>
-                {eventData.type === 'Meeting' && <View style={styles.radioDot} />}
+                {eventData.type === 'Meeting' && (
+                  <View style={styles.radioDot} />
+                )}
               </View>
               <Text style={styles.radioText}>Meeting</Text>
             </TouchableOpacity>
@@ -205,9 +219,13 @@ const EditEventScreen = ({ route, navigation }) => {
                 styles.radioButton,
                 eventData.mode === 'In-Person' && styles.radioButtonSelected,
               ]}
-              onPress={() => setEventData(prev => ({ ...prev, mode: 'In-Person' }))}>
+              onPress={() =>
+                setEventData(prev => ({...prev, mode: 'In-Person'}))
+              }>
               <View style={styles.radioCircle}>
-                {eventData.mode === 'In-Person' && <View style={styles.radioDot} />}
+                {eventData.mode === 'In-Person' && (
+                  <View style={styles.radioDot} />
+                )}
               </View>
               <Text style={styles.radioText}>In-Person</Text>
             </TouchableOpacity>
@@ -217,9 +235,13 @@ const EditEventScreen = ({ route, navigation }) => {
                 styles.radioButton,
                 eventData.mode === 'Virtual' && styles.radioButtonSelected,
               ]}
-              onPress={() => setEventData(prev => ({ ...prev, mode: 'Virtual' }))}>
+              onPress={() =>
+                setEventData(prev => ({...prev, mode: 'Virtual'}))
+              }>
               <View style={styles.radioCircle}>
-                {eventData.mode === 'Virtual' && <View style={styles.radioDot} />}
+                {eventData.mode === 'Virtual' && (
+                  <View style={styles.radioDot} />
+                )}
               </View>
               <Text style={styles.radioText}>Virtual</Text>
             </TouchableOpacity>
@@ -232,7 +254,9 @@ const EditEventScreen = ({ route, navigation }) => {
             <TextInput
               style={styles.input}
               value={eventData.title}
-              onChangeText={text => setEventData(prev => ({ ...prev, title: text }))}
+              onChangeText={text =>
+                setEventData(prev => ({...prev, title: text}))
+              }
               placeholder="Enter event title"
             />
           </View>
@@ -242,7 +266,9 @@ const EditEventScreen = ({ route, navigation }) => {
             <TextInput
               style={[styles.input, styles.textarea]}
               value={eventData.description}
-              onChangeText={text => setEventData(prev => ({ ...prev, description: text }))}
+              onChangeText={text =>
+                setEventData(prev => ({...prev, description: text}))
+              }
               placeholder="Describe the event"
               multiline={true}
               numberOfLines={4}
@@ -254,7 +280,9 @@ const EditEventScreen = ({ route, navigation }) => {
             <TextInput
               style={styles.input}
               value={eventData.tags}
-              onChangeText={text => setEventData(prev => ({ ...prev, tags: text }))}
+              onChangeText={text =>
+                setEventData(prev => ({...prev, tags: text}))
+              }
               placeholder="e.g., healthcare, technology, education"
             />
           </View>
@@ -309,12 +337,16 @@ const EditEventScreen = ({ route, navigation }) => {
           <Text style={styles.sectionTitle}>Location</Text>
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>
-              {eventData.mode === 'Virtual' ? 'Platform/Link*' : 'Venue/Address*'}
+              {eventData.mode === 'Virtual'
+                ? 'Platform/Link*'
+                : 'Venue/Address*'}
             </Text>
             <TextInput
               style={styles.input}
               value={eventData.venue}
-              onChangeText={text => setEventData(prev => ({ ...prev, venue: text }))}
+              onChangeText={text =>
+                setEventData(prev => ({...prev, venue: text}))
+              }
               placeholder={
                 eventData.mode === 'Virtual'
                   ? 'e.g., Zoom, Google Meet, or platform link'
@@ -329,8 +361,11 @@ const EditEventScreen = ({ route, navigation }) => {
               <TextInput
                 style={styles.input}
                 value={eventData.capacity?.toString()}
-                onChangeText={text => 
-                  setEventData(prev => ({ ...prev, capacity: text ? parseInt(text) : null }))
+                onChangeText={text =>
+                  setEventData(prev => ({
+                    ...prev,
+                    capacity: text ? parseInt(text) : null,
+                  }))
                 }
                 placeholder="Maximum number of attendees"
                 keyboardType="number-pad"
@@ -345,11 +380,11 @@ const EditEventScreen = ({ route, navigation }) => {
               <Text style={styles.inputLabel}>Free Event</Text>
               <Switch
                 value={eventData.isFree}
-                onValueChange={value => 
-                  setEventData(prev => ({ 
-                    ...prev, 
+                onValueChange={value =>
+                  setEventData(prev => ({
+                    ...prev,
                     isFree: value,
-                    registrationFee: value ? '0' : prev.registrationFee 
+                    registrationFee: value ? '0' : prev.registrationFee,
                   }))
                 }
                 trackColor={{false: '#767577', true: '#81b0ff'}}
@@ -364,8 +399,8 @@ const EditEventScreen = ({ route, navigation }) => {
               <TextInput
                 style={styles.input}
                 value={eventData.registrationFee}
-                onChangeText={text => 
-                  setEventData(prev => ({ ...prev, registrationFee: text }))
+                onChangeText={text =>
+                  setEventData(prev => ({...prev, registrationFee: text}))
                 }
                 placeholder="Enter amount (e.g., 99.99)"
                 keyboardType="decimal-pad"
@@ -380,8 +415,8 @@ const EditEventScreen = ({ route, navigation }) => {
             <TextInput
               style={styles.input}
               value={eventData.organizerName}
-              onChangeText={text => 
-                setEventData(prev => ({ ...prev, organizerName: text }))
+              onChangeText={text =>
+                setEventData(prev => ({...prev, organizerName: text}))
               }
               placeholder="Enter organizer name"
             />
@@ -392,8 +427,8 @@ const EditEventScreen = ({ route, navigation }) => {
             <TextInput
               style={styles.input}
               value={eventData.organizerEmail}
-              onChangeText={text => 
-                setEventData(prev => ({ ...prev, organizerEmail: text }))
+              onChangeText={text =>
+                setEventData(prev => ({...prev, organizerEmail: text}))
               }
               placeholder="Enter organizer email"
               keyboardType="email-address"
@@ -406,8 +441,8 @@ const EditEventScreen = ({ route, navigation }) => {
             <TextInput
               style={styles.input}
               value={eventData.organizerPhone}
-              onChangeText={text => 
-                setEventData(prev => ({ ...prev, organizerPhone: text }))
+              onChangeText={text =>
+                setEventData(prev => ({...prev, organizerPhone: text}))
               }
               placeholder="Enter organizer phone"
               keyboardType="phone-pad"
@@ -421,8 +456,8 @@ const EditEventScreen = ({ route, navigation }) => {
             <TextInput
               style={[styles.input, styles.termsTextarea]}
               value={eventData.termsAndConditions}
-              onChangeText={text => 
-                setEventData(prev => ({ ...prev, termsAndConditions: text }))
+              onChangeText={text =>
+                setEventData(prev => ({...prev, termsAndConditions: text}))
               }
               placeholder="Enter terms and conditions"
               multiline={true}

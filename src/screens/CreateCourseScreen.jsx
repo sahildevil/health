@@ -15,7 +15,7 @@ import {courseService} from '../services/api';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'react-native-image-picker';
 import {useAuth} from '../context/AuthContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const CATEGORIES = [
   'Clinical Practice',
@@ -28,6 +28,7 @@ const CATEGORIES = [
 ];
 
 const CreateCourseScreen = ({navigation}) => {
+    const insets = useSafeAreaInsets();
   const {user} = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -71,7 +72,9 @@ const CreateCourseScreen = ({navigation}) => {
       // First, upload thumbnail if available
       let thumbnailUrl = null;
       if (thumbnail) {
-        const thumbnailResult = await courseService.uploadCourseThumbnail(thumbnail);
+        const thumbnailResult = await courseService.uploadCourseThumbnail(
+          thumbnail,
+        );
         thumbnailUrl = thumbnailResult.url;
       }
 
@@ -85,21 +88,18 @@ const CreateCourseScreen = ({navigation}) => {
 
       const result = await courseService.createCourse(newCourse);
 
-      Alert.alert(
-        'Success',
-        'Course created successfully!',
-        [
-          {
-            text: 'Add Videos Now',
-            onPress: () => navigation.navigate('AddCourseVideo', {courseId: result.course.id}),
-          },
-          {
-            text: 'Later',
-            onPress: () => navigation.navigate('Courses'),
-            style: 'cancel',
-          },
-        ],
-      );
+      Alert.alert('Success', 'Course created successfully!', [
+        {
+          text: 'Add Videos Now',
+          onPress: () =>
+            navigation.navigate('AddCourseVideo', {courseId: result.course.id}),
+        },
+        {
+          text: 'Later',
+          onPress: () => navigation.navigate('Courses'),
+          style: 'cancel',
+        },
+      ]);
     } catch (error) {
       console.error('Error creating course:', error);
       Alert.alert('Error', `Failed to create course: ${error.message}`);
@@ -109,7 +109,7 @@ const CreateCourseScreen = ({navigation}) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -145,15 +145,22 @@ const CreateCourseScreen = ({navigation}) => {
         <TouchableOpacity
           style={styles.categoryInput}
           onPress={() => setShowCategoryPicker(!showCategoryPicker)}>
-          <Text style={category ? styles.categorySelected : styles.categoryPlaceholder}>
+          <Text
+            style={
+              category ? styles.categorySelected : styles.categoryPlaceholder
+            }>
             {category || 'Select a category'}
           </Text>
-          <Icon name={showCategoryPicker ? "chevron-up" : "chevron-down"} size={24} color="#999" />
+          <Icon
+            name={showCategoryPicker ? 'chevron-up' : 'chevron-down'}
+            size={24}
+            color="#999"
+          />
         </TouchableOpacity>
 
         {showCategoryPicker && (
           <View style={styles.categoryPicker}>
-            {CATEGORIES.map((cat) => (
+            {CATEGORIES.map(cat => (
               <TouchableOpacity
                 key={cat}
                 style={[
@@ -177,9 +184,14 @@ const CreateCourseScreen = ({navigation}) => {
         )}
 
         <Text style={styles.label}>Course Thumbnail</Text>
-        <TouchableOpacity style={styles.thumbnailContainer} onPress={pickThumbnail}>
+        <TouchableOpacity
+          style={styles.thumbnailContainer}
+          onPress={pickThumbnail}>
           {thumbnail ? (
-            <Image source={{uri: thumbnail.uri}} style={styles.thumbnailPreview} />
+            <Image
+              source={{uri: thumbnail.uri}}
+              style={styles.thumbnailPreview}
+            />
           ) : (
             <View style={styles.thumbnailPlaceholder}>
               <Icon name="image-plus" size={40} color="#888" />

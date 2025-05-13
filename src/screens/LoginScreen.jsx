@@ -10,14 +10,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {useAuth} from '../context/AuthContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const LoginScreen = ({navigation}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const {login, resendVerification} = useAuth();
-
+    const insets = useSafeAreaInsets();
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please enter email and password');
@@ -83,7 +83,7 @@ const LoginScreen = ({navigation}) => {
   };
 
   return (
-    <ScrollView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <ScrollView style={[styles.container, {paddingTop: insets.top}]}>
       <View style={styles.header}>
         <Text style={styles.title}>Welcome Back</Text>
         <Text style={styles.subtitle}>Login to your account</Text>

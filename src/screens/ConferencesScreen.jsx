@@ -33,7 +33,7 @@ const ConferencesScreen = ({navigation}) => {
   const [loading, setLoading] = useState(true); // State for loading
   const [registeredEvents, setRegisteredEvents] = useState([]); // Add this state
   const [refreshing, setRefreshing] = useState(false);
-
+  const insets = useSafeAreaInsets();
   const formatDate = dateString => {
     const options = {
       weekday: 'short',
@@ -255,7 +255,7 @@ const ConferencesScreen = ({navigation}) => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <StatusBar barStyle="dark-content" backgroundColor="white" />
 
       {/* Header */}

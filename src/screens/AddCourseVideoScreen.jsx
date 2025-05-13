@@ -29,7 +29,7 @@ const AddCourseVideoScreen = ({route, navigation}) => {
   const [course, setCourse] = useState(null);
   const [sequenceOrder, setSequenceOrder] = useState(0);
   const [webViewPickerVisible, setWebViewPickerVisible] = useState(false);
-
+  const insets = useSafeAreaInsets();
   useEffect(() => {
     // Set the auth token for requests and debug token availability
     const setAuthToken = async () => {
@@ -227,7 +227,7 @@ const AddCourseVideoScreen = ({route, navigation}) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}

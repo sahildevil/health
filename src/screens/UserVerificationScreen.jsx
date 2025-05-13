@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -15,10 +15,10 @@ import {
   StatusBar,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { adminService } from '../services/api';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {adminService} from '../services/api';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
-const UserVerificationScreen = ({ navigation }) => {
+const UserVerificationScreen = ({navigation}) => {
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
@@ -30,7 +30,7 @@ const UserVerificationScreen = ({ navigation }) => {
   const [actionLoading, setActionLoading] = useState(false);
   const [isVerifying, setIsVerifying] = useState(true);
   const [actionModalVisible, setActionModalVisible] = useState(false);
-  
+  const insets = useSafeAreaInsets();
   const fetchPendingDoctors = async () => {
     try {
       setLoading(true);
@@ -42,8 +42,8 @@ const UserVerificationScreen = ({ navigation }) => {
       setLoading(false);
     }
   };
-  
-  const fetchDoctorDocuments = async (doctorId) => {
+
+  const fetchDoctorDocuments = async doctorId => {
     try {
       setDocumentsLoading(true);
       const documents = await adminService.getDoctorDocuments(doctorId);
@@ -54,37 +54,37 @@ const UserVerificationScreen = ({ navigation }) => {
       setDocumentsLoading(false);
     }
   };
-  
+
   useEffect(() => {
     fetchPendingDoctors();
   }, []);
-  
-  const handleDoctorSelect = async (doctor) => {
+
+  const handleDoctorSelect = async doctor => {
     setSelectedDoctor(doctor);
     await fetchDoctorDocuments(doctor.id);
   };
-  
-  const handleViewDocument = (document) => {
+
+  const handleViewDocument = document => {
     setViewingDocument(document);
     setModalVisible(true);
   };
-  
+
   const showActionModal = (verify = true) => {
     setIsVerifying(verify);
     setVerificationNotes('');
     setActionModalVisible(true);
   };
-  
+
   const handleVerifyDoctor = async () => {
     try {
       setActionLoading(true);
       await adminService.verifyDoctor(selectedDoctor.id, verificationNotes);
-      
+
       // Update local state
       setDoctors(doctors.filter(doc => doc.id !== selectedDoctor.id));
       setSelectedDoctor(null);
       setDoctorDocuments([]);
-      
+
       Alert.alert('Success', 'Doctor has been verified successfully');
       setActionModalVisible(false);
     } catch (error) {
@@ -93,22 +93,22 @@ const UserVerificationScreen = ({ navigation }) => {
       setActionLoading(false);
     }
   };
-  
+
   const handleRejectDoctor = async () => {
     if (!verificationNotes) {
       Alert.alert('Required', 'Please provide a reason for rejection');
       return;
     }
-    
+
     try {
       setActionLoading(true);
       await adminService.rejectDoctor(selectedDoctor.id, verificationNotes);
-      
+
       // Update local state
       setDoctors(doctors.filter(doc => doc.id !== selectedDoctor.id));
       setSelectedDoctor(null);
       setDoctorDocuments([]);
-      
+
       Alert.alert('Success', 'Doctor has been rejected');
       setActionModalVisible(false);
     } catch (error) {
@@ -117,68 +117,73 @@ const UserVerificationScreen = ({ navigation }) => {
       setActionLoading(false);
     }
   };
-  
-  const renderDoctorItem = ({ item }) => (
-    <TouchableOpacity 
+
+  const renderDoctorItem = ({item}) => (
+    <TouchableOpacity
       style={[
-        styles.doctorCard, 
-        selectedDoctor?.id === item.id && styles.selectedDoctorCard
+        styles.doctorCard,
+        selectedDoctor?.id === item.id && styles.selectedDoctorCard,
       ]}
-      onPress={() => handleDoctorSelect(item)}
-    >
+      onPress={() => handleDoctorSelect(item)}>
       <View style={styles.doctorInitialContainer}>
         <Text style={styles.doctorInitial}>{item.name.charAt(0)}</Text>
       </View>
       <View style={styles.doctorInfo}>
         <Text style={styles.doctorName}>{item.name}</Text>
-        <Text style={styles.doctorSpecialty}>{item.specialty || 'General Medicine'}</Text>
+        <Text style={styles.doctorSpecialty}>
+          {item.specialty || 'General Medicine'}
+        </Text>
         <Text style={styles.doctorEmail}>{item.email}</Text>
-        <Text style={styles.doctorJoined}>Joined: {new Date(item.joinedDate).toLocaleDateString()}</Text>
+        <Text style={styles.doctorJoined}>
+          Joined: {new Date(item.joinedDate).toLocaleDateString()}
+        </Text>
       </View>
       <Icon name="chevron-right" size={24} color="#ccc" />
     </TouchableOpacity>
   );
 
-  const renderDocumentItem = ({ item }) => (
-    <TouchableOpacity 
+  const renderDocumentItem = ({item}) => (
+    <TouchableOpacity
       style={styles.documentCard}
-      onPress={() => handleViewDocument(item)}
-    >
+      onPress={() => handleViewDocument(item)}>
       <View style={styles.documentIconContainer}>
-        <Icon 
-          name={item.type.includes('image') ? 'image' : 'file-pdf-box'} 
-          size={28} 
+        <Icon
+          name={item.type.includes('image') ? 'image' : 'file-pdf-box'}
+          size={28}
           color="#2e7af5"
         />
       </View>
       <View style={styles.documentInfo}>
-        <Text style={styles.documentName} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.documentName} numberOfLines={1}>
+          {item.name}
+        </Text>
         <Text style={styles.documentDate}>
-          Uploaded on {item.upload_date ? new Date(item.upload_date).toLocaleDateString() : 'Unknown date'}
+          Uploaded on{' '}
+          {item.upload_date
+            ? new Date(item.upload_date).toLocaleDateString()
+            : 'Unknown date'}
         </Text>
       </View>
       <Icon name="eye" size={24} color="#666" />
     </TouchableOpacity>
   );
-  
+
   const renderDocumentViewer = () => {
     if (!viewingDocument) return null;
-    
+
     const isImage = viewingDocument.type.includes('image');
-    
+
     return (
       <Modal
         visible={modalVisible}
         transparent={false}
         animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
-      >
+        onRequestClose={() => setModalVisible(false)}>
         <SafeAreaView style={styles.documentViewerContainer}>
           <View style={styles.documentViewerHeader}>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => setModalVisible(false)}
-              style={styles.closeButton}
-            >
+              style={styles.closeButton}>
               <Icon name="close" size={24} color="#333" />
             </TouchableOpacity>
             <Text style={styles.documentViewerTitle} numberOfLines={1}>
@@ -186,11 +191,11 @@ const UserVerificationScreen = ({ navigation }) => {
             </Text>
             <View style={{width: 24}} />
           </View>
-          
+
           <View style={styles.documentContent}>
             {isImage ? (
               <Image
-                source={{ uri: viewingDocument.url }}
+                source={{uri: viewingDocument.url}}
                 style={styles.documentImage}
                 resizeMode="contain"
               />
@@ -199,8 +204,9 @@ const UserVerificationScreen = ({ navigation }) => {
                 <Icon name="file-pdf-box" size={60} color="#e53935" />
                 <Text style={styles.pdfTitle}>{viewingDocument.name}</Text>
                 <Text style={styles.pdfHint}>
-                  This is a PDF document.{" "}
-                  <TouchableOpacity onPress={() => Linking.openURL(viewingDocument.url)}>
+                  This is a PDF document.{' '}
+                  <TouchableOpacity
+                    onPress={() => Linking.openURL(viewingDocument.url)}>
                     <Text style={styles.pdfLink}>Open PDF</Text>
                   </TouchableOpacity>
                 </Text>
@@ -218,47 +224,50 @@ const UserVerificationScreen = ({ navigation }) => {
         visible={actionModalVisible}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setActionModalVisible(false)}
-      >
+        onRequestClose={() => setActionModalVisible(false)}>
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
             <Text style={styles.modalTitle}>
               {isVerifying ? 'Verify Doctor' : 'Reject Doctor'}
             </Text>
-            
+
             {selectedDoctor && (
               <Text style={styles.modalDoctorName}>{selectedDoctor.name}</Text>
             )}
-            
-            <Text style={styles.modalLabel}>Notes {isVerifying ? '(optional)' : '(required)'}</Text>
+
+            <Text style={styles.modalLabel}>
+              Notes {isVerifying ? '(optional)' : '(required)'}
+            </Text>
             <TextInput
               style={styles.modalInput}
-              placeholder={isVerifying ? 
-                "Add any notes about verification" : 
-                "Please provide a reason for rejection"}
+              placeholder={
+                isVerifying
+                  ? 'Add any notes about verification'
+                  : 'Please provide a reason for rejection'
+              }
               multiline={true}
               numberOfLines={4}
               value={verificationNotes}
               onChangeText={setVerificationNotes}
             />
-            
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonCancel]}
                 onPress={() => setActionModalVisible(false)}
-                disabled={actionLoading}
-              >
+                disabled={actionLoading}>
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[
-                  styles.modalButton, 
-                  isVerifying ? styles.modalButtonVerify : styles.modalButtonReject
+                  styles.modalButton,
+                  isVerifying
+                    ? styles.modalButtonVerify
+                    : styles.modalButtonReject,
                 ]}
                 onPress={isVerifying ? handleVerifyDoctor : handleRejectDoctor}
-                disabled={actionLoading}
-              >
+                disabled={actionLoading}>
                 {actionLoading ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
@@ -275,25 +284,23 @@ const UserVerificationScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
-
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <StatusBar barStyle="dark-content" />
-      
+
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+          onPress={() => navigation.goBack()}>
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>User Verification</Text>
         <View style={{width: 24}} />
       </View>
-      
+
       <View style={styles.contentContainer}>
         <View style={styles.listSection}>
           <Text style={styles.sectionTitle}>Pending Verification</Text>
-          
+
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#2e7af5" />
@@ -303,7 +310,9 @@ const UserVerificationScreen = ({ navigation }) => {
             <View style={styles.emptyContainer}>
               <Icon name="check-circle-outline" size={60} color="#4caf50" />
               <Text style={styles.emptyText}>No pending verifications</Text>
-              <Text style={styles.emptySubtext}>All doctors have been verified</Text>
+              <Text style={styles.emptySubtext}>
+                All doctors have been verified
+              </Text>
             </View>
           ) : (
             <FlatList
@@ -314,52 +323,63 @@ const UserVerificationScreen = ({ navigation }) => {
             />
           )}
         </View>
-        
+
         {selectedDoctor && (
           <View style={styles.detailSection}>
             <View style={styles.detailHeader}>
               <Text style={styles.detailTitle}>Verification Details</Text>
             </View>
-            
+
             <View style={styles.doctorDetailCard}>
               <View style={styles.doctorDetailHeader}>
                 <View style={styles.doctorDetailInitialContainer}>
-                  <Text style={styles.doctorDetailInitial}>{selectedDoctor.name.charAt(0)}</Text>
+                  <Text style={styles.doctorDetailInitial}>
+                    {selectedDoctor.name.charAt(0)}
+                  </Text>
                 </View>
                 <View style={styles.doctorDetailInfo}>
-                  <Text style={styles.doctorDetailName}>{selectedDoctor.name}</Text>
+                  <Text style={styles.doctorDetailName}>
+                    {selectedDoctor.name}
+                  </Text>
                   <Text style={styles.doctorDetailSpecialty}>
                     {selectedDoctor.specialty || 'General Medicine'}
                   </Text>
                 </View>
               </View>
-              
+
               <View style={styles.doctorInfoItem}>
                 <Icon name="email-outline" size={20} color="#666" />
-                <Text style={styles.doctorInfoText}>{selectedDoctor.email}</Text>
+                <Text style={styles.doctorInfoText}>
+                  {selectedDoctor.email}
+                </Text>
               </View>
-              
+
               <View style={styles.doctorInfoItem}>
                 <Icon name="calendar" size={20} color="#666" />
                 <Text style={styles.doctorInfoText}>
-                  Joined: {new Date(selectedDoctor.joinedDate).toLocaleDateString()}
+                  Joined:{' '}
+                  {new Date(selectedDoctor.joinedDate).toLocaleDateString()}
                 </Text>
               </View>
             </View>
-            
+
             <View style={styles.documentsHeader}>
               <Text style={styles.documentsTitle}>Submitted Documents</Text>
             </View>
-            
+
             {documentsLoading ? (
               <View style={styles.documentsLoadingContainer}>
                 <ActivityIndicator size="small" color="#2e7af5" />
-                <Text style={styles.documentsLoadingText}>Loading documents...</Text>
+                <Text style={styles.documentsLoadingText}>
+                  Loading documents...
+                </Text>
               </View>
             ) : doctorDocuments.length === 0 ? (
               <View style={styles.noDocumentsContainer}>
                 <Icon name="file-document-outline" size={48} color="#ccc" />
-                <Text style={styles.noDocumentsText}>No documents submitted</Text>
+                <Text style={styles.noDocumentsText}>
+                  No documents submitted
+                </Text>
               </View>
             ) : (
               <FlatList
@@ -369,37 +389,37 @@ const UserVerificationScreen = ({ navigation }) => {
                 contentContainerStyle={styles.documentsContainer}
               />
             )}
-            
+
             <View style={styles.actionButtonsContainer}>
-              <TouchableOpacity 
-                style={styles.rejectButton} 
-                onPress={() => showActionModal(false)}
-              >
+              <TouchableOpacity
+                style={styles.rejectButton}
+                onPress={() => showActionModal(false)}>
                 <Icon name="close-circle" size={20} color="#fff" />
                 <Text style={styles.actionButtonText}>Reject</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.verifyButton} 
-                onPress={() => showActionModal(true)}
-              >
+
+              <TouchableOpacity
+                style={styles.verifyButton}
+                onPress={() => showActionModal(true)}>
                 <Icon name="check-circle" size={20} color="#fff" />
                 <Text style={styles.actionButtonText}>Verify</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
-        
+
         {!selectedDoctor && !loading && doctors.length > 0 && (
           <View style={styles.detailSection}>
             <View style={styles.selectDoctorContainer}>
               <Icon name="arrow-left" size={48} color="#ccc" />
-              <Text style={styles.selectDoctorText}>Select a doctor to view details</Text>
+              <Text style={styles.selectDoctorText}>
+                Select a doctor to view details
+              </Text>
             </View>
           </View>
         )}
       </View>
-      
+
       {renderDocumentViewer()}
       {renderActionModal()}
     </SafeAreaView>
@@ -561,7 +581,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
@@ -652,7 +672,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
@@ -771,7 +791,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,

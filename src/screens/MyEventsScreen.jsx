@@ -16,7 +16,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation} from '@react-navigation/native';
 import {eventService} from '../services/api';
 import {useAuth} from '../context/AuthContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const EventStatusBadge = ({status}) => {
   let bgColor = '#FFF3E0'; // Default pending color
@@ -55,7 +55,7 @@ const MyEventsScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation();
   const {user} = useAuth();
-
+  const insets = useSafeAreaInsets();
   const fetchEvents = async () => {
     try {
       setLoading(true);
@@ -214,7 +214,7 @@ const MyEventsScreen = () => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <StatusBar barStyle="dark-content" backgroundColor="#f7f9fc" />
 
       <View style={styles.header}>

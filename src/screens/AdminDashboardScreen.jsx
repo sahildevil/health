@@ -15,8 +15,9 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
 import api from '../services/api';
 import {adminService} from '../services/api';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 const AdminDashboardScreen = ({navigation}) => {
+    const insets = useSafeAreaInsets();
   const {user} = useAuth();
   const [stats, setStats] = useState({
     totalDoctors: 0,
@@ -82,7 +83,7 @@ const AdminDashboardScreen = ({navigation}) => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <StatusBar barStyle="dark-content" backgroundColor="#f7f9fc" />
       <View style={styles.header}>
         <View>

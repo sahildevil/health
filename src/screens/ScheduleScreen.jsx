@@ -9,12 +9,12 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const ScheduleScreen = ({navigation}) => {
   const [activeTab, setActiveTab] = useState('Upcoming');
-
+  const insets = useSafeAreaInsets();
   const renderAppointment = (doctor, specialty, date, time, confirmed) => (
     <View style={styles.appointmentCard}>
       <View style={styles.appointmentHeader}>
@@ -57,7 +57,7 @@ const ScheduleScreen = ({navigation}) => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <StatusBar barStyle="dark-content" />
 
       {/* Header */}

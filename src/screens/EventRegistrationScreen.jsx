@@ -15,9 +15,13 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
 import {eventService} from '../services/api';
-import {SafeAreaInsetsContext, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {
+  SafeAreaInsetsContext,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
 const EventRegistrationScreen = ({route, navigation}) => {
+    const insets = useSafeAreaInsets();
   const {eventId} = route.params;
   const {user} = useAuth();
   const [loading, setLoading] = useState(true);
@@ -149,7 +153,7 @@ const EventRegistrationScreen = ({route, navigation}) => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <StatusBar barStyle="dark-content" backgroundColor="white" />
 
       {/* Header */}

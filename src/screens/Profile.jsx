@@ -14,7 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
 import api from '../services/api';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const Profile = ({navigation}) => {
   const {user, logout} = useAuth();
@@ -42,7 +42,7 @@ const Profile = ({navigation}) => {
       fetchDocuments();
     }
   }, [user]);
-
+  const insets = useSafeAreaInsets();
   const handleLogout = async () => {
     await logout();
     // Navigation will be handled by AppNavigator
@@ -158,7 +158,7 @@ const Profile = ({navigation}) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}

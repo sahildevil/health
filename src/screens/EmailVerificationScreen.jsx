@@ -10,14 +10,14 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const EmailVerificationScreen = ({navigation, route}) => {
   const {email} = route.params || {};
   const [userEmail, setUserEmail] = useState(email || '');
   const [loading, setLoading] = useState(false);
   const {resendVerification} = useAuth();
-
+  const insets = useSafeAreaInsets();
   const handleResendVerification = async () => {
     if (!userEmail) {
       Alert.alert('Error', 'Please enter your email address');
@@ -43,7 +43,7 @@ const EmailVerificationScreen = ({navigation, route}) => {
   };
 
   return (
-   <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <View style={styles.iconContainer}>
         <Icon name="email-check-outline" size={80} color="#2e7af5" />
       </View>

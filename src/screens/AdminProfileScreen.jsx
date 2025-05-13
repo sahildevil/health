@@ -11,12 +11,12 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useAuth } from '../context/AuthContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useAuth} from '../context/AuthContext';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
-const AdminProfileScreen = ({ navigation }) => {
-  const { user, logout } = useAuth();
-
+const AdminProfileScreen = ({navigation}) => {
+  const {user, logout} = useAuth();
+  const insets = useSafeAreaInsets();
   const handleLogout = async () => {
     Alert.alert(
       'Logout',
@@ -38,27 +38,33 @@ const AdminProfileScreen = ({ navigation }) => {
           },
         },
       ],
-      { cancelable: true }
+      {cancelable: true},
     );
   };
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <StatusBar barStyle="dark-content" backgroundColor="#f7f9fc" />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}>
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Profile</Text>
-        <View style={{ width: 24 }} /> 
+        <View style={{width: 24}} />
       </View>
 
       <ScrollView style={styles.scrollView}>
         <View style={styles.profileSection}>
           <View style={styles.profileIconLarge}>
-            <Text style={styles.profileInitial}>{user?.name?.charAt(0) || 'A'}</Text>
+            <Text style={styles.profileInitial}>
+              {user?.name?.charAt(0) || 'A'}
+            </Text>
           </View>
-          <Text style={styles.profileName}>{user?.name || 'Administrator'}</Text>
+          <Text style={styles.profileName}>
+            {user?.name || 'Administrator'}
+          </Text>
           <View style={styles.roleBadge}>
             <Icon name="shield-account" size={16} color="#2e7af5" />
             <Text style={styles.roleText}>System Administrator</Text>
@@ -67,29 +73,50 @@ const AdminProfileScreen = ({ navigation }) => {
 
         <View style={styles.infoSection}>
           <Text style={styles.sectionTitle}>Account Information</Text>
-          
+
           <View style={styles.infoItem}>
-            <Icon name="email-outline" size={22} color="#666" style={styles.infoIcon} />
+            <Icon
+              name="email-outline"
+              size={22}
+              color="#666"
+              style={styles.infoIcon}
+            />
             <View>
               <Text style={styles.infoLabel}>Email</Text>
-              <Text style={styles.infoText}>{user?.email || 'admin@medevent.com'}</Text>
+              <Text style={styles.infoText}>
+                {user?.email || 'admin@medevent.com'}
+              </Text>
             </View>
           </View>
-          
+
           <View style={styles.infoItem}>
-            <Icon name="office-building" size={22} color="#666" style={styles.infoIcon} />
+            <Icon
+              name="office-building"
+              size={22}
+              color="#666"
+              style={styles.infoIcon}
+            />
             <View>
               <Text style={styles.infoLabel}>Department</Text>
-              <Text style={styles.infoText}>{user?.department || 'Administration'}</Text>
+              <Text style={styles.infoText}>
+                {user?.department || 'Administration'}
+              </Text>
             </View>
           </View>
-          
+
           <View style={styles.infoItem}>
-            <Icon name="clock-time-four-outline" size={22} color="#666" style={styles.infoIcon} />
+            <Icon
+              name="clock-time-four-outline"
+              size={22}
+              color="#666"
+              style={styles.infoIcon}
+            />
             <View>
               <Text style={styles.infoLabel}>Account Created</Text>
               <Text style={styles.infoText}>
-                {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Apr 15, 2025'}
+                {user?.createdAt
+                  ? new Date(user.createdAt).toLocaleDateString()
+                  : 'Apr 15, 2025'}
               </Text>
             </View>
           </View>
@@ -97,21 +124,42 @@ const AdminProfileScreen = ({ navigation }) => {
 
         <View style={styles.actionsSection}>
           <Text style={styles.sectionTitle}>Account Settings</Text>
-          
-          <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('EditProfile')}>
-            <Icon name="account-edit" size={22} color="#2e7af5" style={styles.actionIcon} />
+
+          <TouchableOpacity
+            style={styles.actionItem}
+            onPress={() => navigation.navigate('EditProfile')}>
+            <Icon
+              name="account-edit"
+              size={22}
+              color="#2e7af5"
+              style={styles.actionIcon}
+            />
             <Text style={styles.actionText}>Edit Profile</Text>
             <Icon name="chevron-right" size={22} color="#ccc" />
           </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('ChangePassword')}>
-            <Icon name="lock-outline" size={22} color="#2e7af5" style={styles.actionIcon} />
+
+          <TouchableOpacity
+            style={styles.actionItem}
+            onPress={() => navigation.navigate('ChangePassword')}>
+            <Icon
+              name="lock-outline"
+              size={22}
+              color="#2e7af5"
+              style={styles.actionIcon}
+            />
             <Text style={styles.actionText}>Change Password</Text>
             <Icon name="chevron-right" size={22} color="#ccc" />
           </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('Notifications')}>
-            <Icon name="bell-outline" size={22} color="#2e7af5" style={styles.actionIcon} />
+
+          <TouchableOpacity
+            style={styles.actionItem}
+            onPress={() => navigation.navigate('Notifications')}>
+            <Icon
+              name="bell-outline"
+              size={22}
+              color="#2e7af5"
+              style={styles.actionIcon}
+            />
             <Text style={styles.actionText}>Notification Settings</Text>
             <Icon name="chevron-right" size={22} color="#ccc" />
           </TouchableOpacity>
@@ -119,21 +167,42 @@ const AdminProfileScreen = ({ navigation }) => {
 
         <View style={styles.supportSection}>
           <Text style={styles.sectionTitle}>Support</Text>
-          
-          <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('Help')}>
-            <Icon name="help-circle-outline" size={22} color="#2e7af5" style={styles.actionIcon} />
+
+          <TouchableOpacity
+            style={styles.actionItem}
+            onPress={() => navigation.navigate('Help')}>
+            <Icon
+              name="help-circle-outline"
+              size={22}
+              color="#2e7af5"
+              style={styles.actionIcon}
+            />
             <Text style={styles.actionText}>Help & FAQ</Text>
             <Icon name="chevron-right" size={22} color="#ccc" />
           </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('Contact')}>
-            <Icon name="message-text-outline" size={22} color="#2e7af5" style={styles.actionIcon} />
+
+          <TouchableOpacity
+            style={styles.actionItem}
+            onPress={() => navigation.navigate('Contact')}>
+            <Icon
+              name="message-text-outline"
+              size={22}
+              color="#2e7af5"
+              style={styles.actionIcon}
+            />
             <Text style={styles.actionText}>Contact Support</Text>
             <Icon name="chevron-right" size={22} color="#ccc" />
           </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('About')}>
-            <Icon name="information-outline" size={22} color="#2e7af5" style={styles.actionIcon} />
+
+          <TouchableOpacity
+            style={styles.actionItem}
+            onPress={() => navigation.navigate('About')}>
+            <Icon
+              name="information-outline"
+              size={22}
+              color="#2e7af5"
+              style={styles.actionIcon}
+            />
             <Text style={styles.actionText}>About MedEvent</Text>
             <Icon name="chevron-right" size={22} color="#ccc" />
           </TouchableOpacity>

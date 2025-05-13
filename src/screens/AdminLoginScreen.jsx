@@ -12,14 +12,14 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const AdminLoginScreen = ({navigation}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const {login} = useAuth();
-
+  const insets = useSafeAreaInsets();
   const handleLogin = async () => {
     // Simple validation
     if (!email || !password) {
@@ -35,7 +35,8 @@ const AdminLoginScreen = ({navigation}) => {
     } catch (error) {
       Alert.alert(
         'Admin Login Failed',
-        error.message || 'Please check your credentials and ensure you have admin privileges',
+        error.message ||
+          'Please check your credentials and ensure you have admin privileges',
       );
     } finally {
       setIsSubmitting(false);
@@ -43,7 +44,7 @@ const AdminLoginScreen = ({navigation}) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <ScrollView contentContainerStyle={styles.container}>
         <TouchableOpacity
           style={styles.backButton}
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     backgroundColor: '#f7f9fc',
-    paddingHorizontal: 24,
+    paddingHorizontal: 9,
     paddingBottom: 24,
   },
   backButton: {

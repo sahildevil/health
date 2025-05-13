@@ -13,14 +13,14 @@ import {
 import {courseService} from '../services/api';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const CoursesScreen = ({navigation}) => {
   const {user} = useAuth();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
+  const insets = useSafeAreaInsets();
   const fetchCourses = async () => {
     try {
       setLoading(true);
@@ -84,7 +84,7 @@ const CoursesScreen = ({navigation}) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Educational Courses</Text>
         {(user?.role === 'admin' || user?.role === 'doctor') && (

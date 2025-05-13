@@ -12,13 +12,13 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
 import {meetingService} from '../services/api';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const MyMeetingsScreen = ({navigation}) => {
   const {user} = useAuth();
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
-
+  const insets = useSafeAreaInsets();
   useEffect(() => {
     fetchMeetings();
 
@@ -42,29 +42,29 @@ const MyMeetingsScreen = ({navigation}) => {
   //     setLoading(false);
   //   }
   // };
-const fetchMeetings = async () => {
-  try {
-    setLoading(true);
-    let response;
-    
-    // Use the proper method based on user role
-    if (user?.role === 'pharma') {
-      response = await meetingService.getOrganizedMeetings();
-    } else if (user?.role === 'doctor') {
-      response = await meetingService.getInvitedMeetings();
-    } else {
-      response = await meetingService.getAllMeetings();
+  const fetchMeetings = async () => {
+    try {
+      setLoading(true);
+      let response;
+
+      // Use the proper method based on user role
+      if (user?.role === 'pharma') {
+        response = await meetingService.getOrganizedMeetings();
+      } else if (user?.role === 'doctor') {
+        response = await meetingService.getInvitedMeetings();
+      } else {
+        response = await meetingService.getAllMeetings();
+      }
+
+      setMeetings(response);
+    } catch (error) {
+      console.error('Failed to fetch meetings:', error);
+      Alert.alert('Error', 'Failed to load meetings');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    
-    setMeetings(response);
-  } catch (error) {
-    console.error('Failed to fetch meetings:', error);
-    Alert.alert('Error', 'Failed to load meetings');
-  } finally {
-    setLoading(false);
-    setRefreshing(false);
-  }
-};
+  };
   const handleViewMeeting = meetingId => {
     navigation.navigate('MeetingDetails', {meetingId});
   };
@@ -152,7 +152,7 @@ const fetchMeetings = async () => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}

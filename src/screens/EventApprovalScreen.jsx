@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,10 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { eventService } from '../services/api';
+import {eventService} from '../services/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const EventApprovalScreen = ({ navigation }) => {
+const EventApprovalScreen = ({navigation}) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -25,7 +26,7 @@ const EventApprovalScreen = ({ navigation }) => {
   const [isApproving, setIsApproving] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const insets = useSafeAreaInsets();
   const fetchPendingEvents = async () => {
     try {
       setLoading(true);
@@ -34,7 +35,10 @@ const EventApprovalScreen = ({ navigation }) => {
       setEvents(data);
     } catch (err) {
       setError(err.message || 'Failed to fetch pending events');
-      Alert.alert('Error', 'Could not load events: ' + (err.message || 'Unknown error'));
+      Alert.alert(
+        'Error',
+        'Could not load events: ' + (err.message || 'Unknown error'),
+      );
     } finally {
       setLoading(false);
     }
@@ -56,10 +60,10 @@ const EventApprovalScreen = ({ navigation }) => {
       Alert.alert('Error', 'Event ID is missing or invalid.');
       return;
     }
-  
+
     try {
       setActionLoading(true);
-  
+
       if (isApproving) {
         await eventService.approveEvent(selectedEvent.id, verificationNotes); // Use `id`, not `_id`
         Alert.alert('Success', 'Event has been approved');
@@ -67,7 +71,7 @@ const EventApprovalScreen = ({ navigation }) => {
         await eventService.rejectEvent(selectedEvent.id, verificationNotes); // Use `id`, not `_id`
         Alert.alert('Success', 'Event has been rejected');
       }
-  
+
       // Remove the event from the list
       setEvents(events.filter(event => event.id !== selectedEvent.id));
       setModalVisible(false);
@@ -75,7 +79,7 @@ const EventApprovalScreen = ({ navigation }) => {
       Alert.alert(
         'Error',
         `Failed to ${isApproving ? 'approve' : 'reject'} event: ` +
-          (err.message || 'Unknown error')
+          (err.message || 'Unknown error'),
       );
     } finally {
       setActionLoading(false);
@@ -85,10 +89,10 @@ const EventApprovalScreen = ({ navigation }) => {
   const handleApprove = async () => {
     try {
       setIsSubmitting(true);
-      console.log("Approving event with ID:", selectedEvent?.id); // Debug to check ID
+      console.log('Approving event with ID:', selectedEvent?.id); // Debug to check ID
 
       if (!selectedEvent || !selectedEvent.id) {
-        Alert.alert("Error", "Event ID is missing.");
+        Alert.alert('Error', 'Event ID is missing.');
         setIsSubmitting(false);
         return;
       }
@@ -96,42 +100,45 @@ const EventApprovalScreen = ({ navigation }) => {
       await eventService.approveEvent(selectedEvent.id, verificationNotes);
       setModalVisible(false);
       setVerificationNotes('');
-      
+
       // Update events list by filtering out the approved event
       setEvents(events.filter(event => event.id !== selectedEvent.id));
-      
-      Alert.alert("Success", "Event has been approved successfully.");
+
+      Alert.alert('Success', 'Event has been approved successfully.');
     } catch (error) {
-      console.error("Approval error:", error);
-      Alert.alert("Error", `Failed to approve event: ${error.message}`);
+      console.error('Approval error:', error);
+      Alert.alert('Error', `Failed to approve event: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleViewDetails = (eventId) => {
-    navigation.navigate('EventDetails', { eventId });
+  const handleViewDetails = eventId => {
+    navigation.navigate('EventDetails', {eventId});
   };
 
-  const handleEditEvent = (eventId) => {
-    navigation.navigate('AdminEditEvent', { eventId, fromApproval: true });
+  const handleEditEvent = eventId => {
+    navigation.navigate('AdminEditEvent', {eventId, fromApproval: true});
   };
 
-  const renderEventItem = ({ item }) => (
+  const renderEventItem = ({item}) => (
     <View style={styles.eventCard}>
       <View style={styles.eventHeader}>
         <Text style={styles.eventType}>{item.type}</Text>
         <Text style={styles.eventMode}>{item.mode}</Text>
       </View>
-      
+
       <Text style={styles.eventTitle}>{item.title}</Text>
-      <Text style={styles.eventDescription} numberOfLines={2}>{item.description}</Text>
-      
+      <Text style={styles.eventDescription} numberOfLines={2}>
+        {item.description}
+      </Text>
+
       <View style={styles.eventDetails}>
         <View style={styles.detailItem}>
           <Icon name="calendar" size={16} color="#666" />
           <Text style={styles.detailText}>
-            {new Date(item.startDate).toLocaleDateString()} - {new Date(item.endDate).toLocaleDateString()}
+            {new Date(item.startDate).toLocaleDateString()} -{' '}
+            {new Date(item.endDate).toLocaleDateString()}
           </Text>
         </View>
         <View style={styles.detailItem}>
@@ -140,7 +147,9 @@ const EventApprovalScreen = ({ navigation }) => {
         </View>
         <View style={styles.detailItem}>
           <Icon name="account" size={16} color="#666" />
-          <Text style={styles.detailText}>By: {item.createdBy?.name || 'Unknown'}</Text>
+          <Text style={styles.detailText}>
+            By: {item.createdBy?.name || 'Unknown'}
+          </Text>
         </View>
         <View style={styles.detailItem}>
           <Icon name="clock-outline" size={16} color="#666" />
@@ -149,37 +158,33 @@ const EventApprovalScreen = ({ navigation }) => {
           </Text>
         </View>
       </View>
-      
+
       <View style={styles.actionButtons}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.viewButton}
-          onPress={() => handleViewDetails(item.id)}
-        >
+          onPress={() => handleViewDetails(item.id)}>
           <Icon name="eye" size={16} color="#2e7af5" />
           <Text style={styles.viewButtonText}>View Details</Text>
         </TouchableOpacity>
 
-             {/* Add Edit button */}
-      <TouchableOpacity 
-        style={styles.editButton}
-        onPress={() => handleEditEvent(item.id)}
-      >
-        <Icon name="pencil" size={16} color="#fff" />
-        <Text style={styles.editButtonText}>Edit</Text>
-      </TouchableOpacity>
-        
-        <TouchableOpacity 
+        {/* Add Edit button */}
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => handleEditEvent(item.id)}>
+          <Icon name="pencil" size={16} color="#fff" />
+          <Text style={styles.editButtonText}>Edit</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={styles.approveButton}
-          onPress={() => showVerificationModal(item, true)}
-        >
+          onPress={() => showVerificationModal(item, true)}>
           <Icon name="check-circle" size={16} color="#fff" />
           <Text style={styles.approveButtonText}>Approve</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.rejectButton}
-          onPress={() => showVerificationModal(item, false)}
-        >
+          onPress={() => showVerificationModal(item, false)}>
           <Icon name="close-circle" size={16} color="#fff" />
           <Text style={styles.rejectButtonText}>Reject</Text>
         </TouchableOpacity>
@@ -188,16 +193,15 @@ const EventApprovalScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+          onPress={() => navigation.goBack()}>
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Event Approval</Text>
-        <View style={{ width: 24 }} />
+        <View style={{width: 24}} />
       </View>
 
       {loading ? (
@@ -212,8 +216,7 @@ const EventApprovalScreen = ({ navigation }) => {
           <Text style={styles.errorSubtext}>{error}</Text>
           <TouchableOpacity
             style={styles.retryButton}
-            onPress={fetchPendingEvents}
-          >
+            onPress={fetchPendingEvents}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -239,48 +242,50 @@ const EventApprovalScreen = ({ navigation }) => {
         animationType="slide"
         transparent={true}
         visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
+        onRequestClose={() => setModalVisible(false)}>
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
             <Text style={styles.modalTitle}>
               {isApproving ? 'Approve Event' : 'Reject Event'}
             </Text>
-            
+
             {selectedEvent && (
               <Text style={styles.modalEventTitle}>{selectedEvent.title}</Text>
             )}
-            
-            <Text style={styles.modalLabel}>Verification Notes (optional):</Text>
+
+            <Text style={styles.modalLabel}>
+              Verification Notes (optional):
+            </Text>
             <TextInput
               style={styles.modalInput}
-              placeholder={isApproving ? 
-                "Add any notes about the approval" : 
-                "Please provide a reason for rejection"
+              placeholder={
+                isApproving
+                  ? 'Add any notes about the approval'
+                  : 'Please provide a reason for rejection'
               }
               multiline={true}
               numberOfLines={4}
               value={verificationNotes}
               onChangeText={setVerificationNotes}
             />
-            
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonCancel]}
                 onPress={() => setModalVisible(false)}
-                disabled={actionLoading}
-              >
+                disabled={actionLoading}>
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[
-                  styles.modalButton, 
-                  isApproving ? styles.modalButtonApprove : styles.modalButtonReject
+                  styles.modalButton,
+                  isApproving
+                    ? styles.modalButtonApprove
+                    : styles.modalButtonReject,
                 ]}
                 onPress={handleVerificationSubmit}
-                disabled={actionLoading}
-              >
+                disabled={actionLoading}>
                 {actionLoading ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {adminService} from '../services/api';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const DoctorManagementScreen = ({navigation}) => {
   const [doctors, setDoctors] = useState([]);
@@ -20,25 +20,28 @@ const DoctorManagementScreen = ({navigation}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredDoctors, setFilteredDoctors] = useState([]);
   const [error, setError] = useState(null);
-
+  const insets = useSafeAreaInsets();
   // Load doctors from API
   const fetchDoctors = async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await adminService.getDoctors();
-      
+
       // Ensure each doctor has a proper id property
       const formattedData = data.map(doctor => ({
         ...doctor,
         id: doctor.id || doctor._id, // Use either id or _id
         // Format date if needed
-        joinedDate: doctor.joinedDate || 
-                   (doctor.createdAt ? new Date(doctor.createdAt).toLocaleDateString() : 'Unknown')
+        joinedDate:
+          doctor.joinedDate ||
+          (doctor.createdAt
+            ? new Date(doctor.createdAt).toLocaleDateString()
+            : 'Unknown'),
       }));
-      
+
       console.log('Formatted doctor data:', formattedData[0]); // Debug log
-      
+
       setDoctors(formattedData);
       setFilteredDoctors(formattedData);
     } catch (err) {
@@ -124,7 +127,7 @@ const DoctorManagementScreen = ({navigation}) => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}

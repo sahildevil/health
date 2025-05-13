@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {adminService} from '../services/api';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const PharmaManagementScreen = ({navigation}) => {
   const [pharmaReps, setPharmaReps] = useState([]);
@@ -20,7 +20,7 @@ const PharmaManagementScreen = ({navigation}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredPharmaReps, setFilteredPharmaReps] = useState([]);
   const [error, setError] = useState(null);
-
+  const insets = useSafeAreaInsets();
   // Load pharma representatives from API
   const fetchPharmaReps = async () => {
     try {
@@ -128,7 +128,7 @@ const PharmaManagementScreen = ({navigation}) => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}

@@ -16,13 +16,13 @@ import RNFS from 'react-native-fs';
 import WebViewDocumentPicker from '../components/WebViewDocumentPicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Platform} from 'react-native';
-import api, { userService } from '../services/api';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import api, {userService} from '../services/api';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 const UploadDocumentsScreen = ({navigation}) => {
   const [documents, setDocuments] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [webViewPickerVisible, setWebViewPickerVisible] = useState(false);
-
+  const insets = useSafeAreaInsets();
   const pickDocument = () => {
     setWebViewPickerVisible(true);
   };
@@ -96,82 +96,87 @@ const UploadDocumentsScreen = ({navigation}) => {
     });
   };
 
-// In handleUploadDocuments function
+  // In handleUploadDocuments function
 
-const handleUploadDocuments = async () => {
-  if (documents.length === 0) {
-    Alert.alert('Error', 'Please select at least one document to upload');
-    return;
-  }
+  const handleUploadDocuments = async () => {
+    if (documents.length === 0) {
+      Alert.alert('Error', 'Please select at least one document to upload');
+      return;
+    }
 
-  setIsSubmitting(true);
+    setIsSubmitting(true);
 
-  try {
-    const uploadedDocs = [];
-    const token = await getAuthToken();
+    try {
+      const uploadedDocs = [];
+      const token = await getAuthToken();
 
-    for (const doc of documents) {
-      console.log(`Uploading document: ${doc.name}`);
-      
-      // Create form data
-      const formData = new FormData();
-      
-      // Add file to form data
-      formData.append('document', {
-        uri: Platform.OS === 'ios' ? doc.uri.replace('file://', '') : doc.uri,
-        type: doc.type || 'application/octet-stream',
-        name: doc.name || `file-${Date.now()}.${doc.uri.split('.').pop()}`
-      });
-      
-      // Upload to our server endpoint
-      const response = await fetch(`${api.defaults.baseURL}/uploads/document`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          // Don't set Content-Type for multipart/form-data
-        },
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Upload failed:', errorText);
-        throw new Error(`Upload failed: ${response.status} ${errorText}`);
+      for (const doc of documents) {
+        console.log(`Uploading document: ${doc.name}`);
+
+        // Create form data
+        const formData = new FormData();
+
+        // Add file to form data
+        formData.append('document', {
+          uri: Platform.OS === 'ios' ? doc.uri.replace('file://', '') : doc.uri,
+          type: doc.type || 'application/octet-stream',
+          name: doc.name || `file-${Date.now()}.${doc.uri.split('.').pop()}`,
+        });
+
+        // Upload to our server endpoint
+        const response = await fetch(
+          `${api.defaults.baseURL}/uploads/document`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              // Don't set Content-Type for multipart/form-data
+            },
+            body: formData,
+          },
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Upload failed:', errorText);
+          throw new Error(`Upload failed: ${response.status} ${errorText}`);
+        }
+
+        const result = await response.json();
+        console.log('Upload result:', result);
+
+        // Create document object with Supabase URL and storage path
+        uploadedDocs.push({
+          name: doc.name,
+          type: doc.type,
+          size: doc.size,
+          url: result.url,
+          storage_path: result.storage_path,
+          upload_date: new Date().toISOString(),
+          verified: false,
+        });
       }
-      
-      const result = await response.json();
-      console.log('Upload result:', result);
-      
-      // Create document object with Supabase URL and storage path
-      uploadedDocs.push({
-        name: doc.name,
-        type: doc.type,
-        size: doc.size,
-        url: result.url,
-        storage_path: result.storage_path,
-        upload_date: new Date().toISOString(),
-        verified: false,
-      });
-    }
 
-    // Upload the documents to user profile
-    if (uploadedDocs.length > 0) {
-      await userService.uploadDocuments(uploadedDocs);
-      
-      Alert.alert('Success', 'Documents uploaded successfully', [
-        {text: 'OK', onPress: () => navigation.goBack()},
-      ]);
+      // Upload the documents to user profile
+      if (uploadedDocs.length > 0) {
+        await userService.uploadDocuments(uploadedDocs);
+
+        Alert.alert('Success', 'Documents uploaded successfully', [
+          {text: 'OK', onPress: () => navigation.goBack()},
+        ]);
+      }
+    } catch (error) {
+      console.error('Error uploading documents:', error);
+      Alert.alert(
+        'Upload Failed',
+        `${
+          error.message || 'Please try again later'
+        }\n\nCheck your network connection and server status.`,
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-  } catch (error) {
-    console.error('Error uploading documents:', error);
-    Alert.alert(
-      'Upload Failed', 
-      `${error.message || 'Please try again later'}\n\nCheck your network connection and server status.`
-    );
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
   // Add this helper function to get the auth token
   const getAuthToken = async () => {
@@ -185,7 +190,7 @@ const handleUploadDocuments = async () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}

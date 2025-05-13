@@ -14,6 +14,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {adminService} from '../services/api';
 
 const DoctorDetailsScreen = ({route, navigation}) => {
+    const insets = useSafeAreaInsets();
   const {doctorId} = route.params;
   const [doctor, setDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -162,7 +163,7 @@ const DoctorDetailsScreen = ({route, navigation}) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+      <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}

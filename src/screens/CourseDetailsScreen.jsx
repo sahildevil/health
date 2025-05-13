@@ -16,7 +16,7 @@ import {courseService} from '../services/api';
 import Video from 'react-native-video';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const {width} = Dimensions.get('window');
 
@@ -28,7 +28,7 @@ const CourseDetailsScreen = ({route, navigation}) => {
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef(null);
-
+    const insets = useSafeAreaInsets();
   useEffect(() => {
     fetchCourseDetails();
   }, [courseId]);
@@ -38,7 +38,7 @@ const CourseDetailsScreen = ({route, navigation}) => {
       setLoading(true);
       const data = await courseService.getCourseById(courseId);
       setCourse(data);
-      
+
       // Select the first video by default if available
       if (data.videos && data.videos.length > 0) {
         setSelectedVideo(data.videos[0]);
@@ -78,34 +78,34 @@ const CourseDetailsScreen = ({route, navigation}) => {
     );
   };
 
-  const handleSelectVideo = (video) => {
+  const handleSelectVideo = video => {
     setSelectedVideo(video);
     setIsPlaying(true);
   };
 
   const renderVideoItem = ({item}) => {
     const isActive = selectedVideo && selectedVideo.id === item.id;
-    
+
     return (
       <TouchableOpacity
         style={[styles.videoItem, isActive && styles.activeVideoItem]}
         onPress={() => handleSelectVideo(item)}>
         <View style={styles.videoItemContent}>
-          <Icon 
-            name={isActive ? "play-circle" : "play-circle-outline"} 
-            size={24} 
-            color={isActive ? "#2e7af5" : "#888"} 
+          <Icon
+            name={isActive ? 'play-circle' : 'play-circle-outline'}
+            size={24}
+            color={isActive ? '#2e7af5' : '#888'}
           />
           <View style={styles.videoTextContainer}>
-            <Text 
+            <Text
               style={[styles.videoTitle, isActive && styles.activeVideoTitle]}
-              numberOfLines={2}
-            >
+              numberOfLines={2}>
               {item.title}
             </Text>
             {item.duration && (
               <Text style={styles.videoDuration}>
-                {Math.floor(item.duration / 60)}:{(item.duration % 60).toString().padStart(2, '0')}
+                {Math.floor(item.duration / 60)}:
+                {(item.duration % 60).toString().padStart(2, '0')}
               </Text>
             )}
           </View>
@@ -128,7 +128,7 @@ const CourseDetailsScreen = ({route, navigation}) => {
       <SafeAreaView style={styles.errorContainer}>
         <Icon name="alert-circle-outline" size={60} color="#ff6b6b" />
         <Text style={styles.errorText}>Course not found</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}>
           <Text style={styles.backButtonText}>Go Back</Text>
@@ -137,29 +137,31 @@ const CourseDetailsScreen = ({route, navigation}) => {
     );
   }
 
-  const canManageCourse = 
-    user && 
-    (user.role === 'admin' || 
-    (user.role === 'doctor' && user.id === course.creator_id));
+  const canManageCourse =
+    user &&
+    (user.role === 'admin' ||
+      (user.role === 'doctor' && user.id === course.creator_id));
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: useSafeAreaInsets.top}]}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}>
           <Icon name="arrow-left" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{course.title}</Text>
-        
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {course.title}
+        </Text>
+
         {canManageCourse && (
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.headerButton}
-              onPress={() => navigation.navigate('AddCourseVideo', { courseId })}>
+              onPress={() => navigation.navigate('AddCourseVideo', {courseId})}>
               <Icon name="plus-circle" size={24} color="#fff" />
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={styles.headerButton}
               onPress={handleDeleteCourse}>
@@ -183,14 +185,18 @@ const CourseDetailsScreen = ({route, navigation}) => {
             />
             <Text style={styles.videoTitle}>{selectedVideo.title}</Text>
             {selectedVideo.description && (
-              <Text style={styles.videoDescription}>{selectedVideo.description}</Text>
+              <Text style={styles.videoDescription}>
+                {selectedVideo.description}
+              </Text>
             )}
           </View>
         ) : (
           <View style={styles.noVideoContainer}>
             <Image
               source={{
-                uri: course.thumbnail_url || 'https://via.placeholder.com/400x225?text=Course+Thumbnail',
+                uri:
+                  course.thumbnail_url ||
+                  'https://via.placeholder.com/400x225?text=Course+Thumbnail',
               }}
               style={styles.courseThumbnail}
             />
@@ -199,24 +205,28 @@ const CourseDetailsScreen = ({route, navigation}) => {
 
         <View style={styles.courseInfoSection}>
           <Text style={styles.sectionTitle}>About This Course</Text>
-          <Text style={styles.courseDescription}>{course.description || 'No description available'}</Text>
-          
+          <Text style={styles.courseDescription}>
+            {course.description || 'No description available'}
+          </Text>
+
           <View style={styles.metadataContainer}>
             <View style={styles.metadataItem}>
               <Icon name="account" size={16} color="#666" />
               <Text style={styles.metadataText}>{course.creator_name}</Text>
             </View>
-            
+
             {course.category && (
               <View style={styles.metadataItem}>
                 <Icon name="tag" size={16} color="#666" />
                 <Text style={styles.metadataText}>{course.category}</Text>
               </View>
             )}
-            
+
             <View style={styles.metadataItem}>
               <Icon name="video" size={16} color="#666" />
-              <Text style={styles.metadataText}>{course.videos?.length || 0} videos</Text>
+              <Text style={styles.metadataText}>
+                {course.videos?.length || 0} videos
+              </Text>
             </View>
           </View>
         </View>
@@ -237,7 +247,9 @@ const CourseDetailsScreen = ({route, navigation}) => {
               {canManageCourse && (
                 <TouchableOpacity
                   style={styles.addVideoButton}
-                  onPress={() => navigation.navigate('AddCourseVideo', { courseId })}>
+                  onPress={() =>
+                    navigation.navigate('AddCourseVideo', {courseId})
+                  }>
                   <Text style={styles.addVideoButtonText}>Add a Video</Text>
                 </TouchableOpacity>
               )}
