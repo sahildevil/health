@@ -125,8 +125,8 @@ const AddCourseVideoScreen = ({route, navigation}) => {
   const pickThumbnail = () => {
     const options = {
       mediaType: 'photo',
-      quality: 0.7,  // Reduced quality for better performance
-      maxWidth: 600,  // Reduced dimensions for better performance
+      quality: 0.7, // Reduced quality for better performance
+      maxWidth: 600, // Reduced dimensions for better performance
       maxHeight: 600,
     };
 
@@ -138,7 +138,7 @@ const AddCourseVideoScreen = ({route, navigation}) => {
       } else {
         try {
           const asset = response.assets[0];
-          
+
           // Log detailed information about the selected image
           console.log('[THUMB DEBUG] Selected image:', {
             uri: asset.uri?.substring(0, 50) + '...',
@@ -146,13 +146,13 @@ const AddCourseVideoScreen = ({route, navigation}) => {
             fileName: asset.fileName,
             fileSize: asset.fileSize,
           });
-          
+
           // Guard against invalid assets
           if (!asset.uri || !asset.type) {
             Alert.alert('Error', 'Invalid image selected');
             return;
           }
-          
+
           // Set thumbnail with properly structured data
           setThumbnail({
             uri: asset.uri,
@@ -160,10 +160,13 @@ const AddCourseVideoScreen = ({route, navigation}) => {
             name: asset.fileName || `image-${Date.now()}.jpg`,
             size: asset.fileSize,
           });
-          
+
           console.log('[THUMB DEBUG] Thumbnail set successfully');
         } catch (error) {
-          console.error('[THUMB DEBUG] Error processing selected image:', error);
+          console.error(
+            '[THUMB DEBUG] Error processing selected image:',
+            error,
+          );
           Alert.alert('Error', 'Failed to process the selected image');
         }
       }
