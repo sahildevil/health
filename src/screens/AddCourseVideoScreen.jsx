@@ -17,7 +17,7 @@ import * as ImagePicker from 'react-native-image-picker';
 import WebViewDocumentPicker from '../components/WebViewDocumentPicker';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Add this import
 import api from '../services/api'; // Add this import for direct API access
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const AddCourseVideoScreen = ({route, navigation}) => {
   const {courseId} = route.params;
@@ -37,23 +37,38 @@ const AddCourseVideoScreen = ({route, navigation}) => {
         // Log all possible token locations for debugging
         const asyncToken = await AsyncStorage.getItem('token');
         const atToken = await AsyncStorage.getItem('@token');
-        
+
         console.log('[TOKEN DEBUG] AsyncStorage token:', asyncToken);
         console.log('[TOKEN DEBUG] AsyncStorage @token:', atToken);
-        console.log('[TOKEN DEBUG] Current API headers:', api.defaults.headers.common['Authorization']);
-        
+        console.log(
+          '[TOKEN DEBUG] Current API headers:',
+          api.defaults.headers.common['Authorization'],
+        );
+
         // Try both token formats
         const token = asyncToken || atToken;
-        
+
         if (token) {
-          console.log('[TOKEN DEBUG] Setting auth token for requests:', token.substring(0, 10) + '...');
+          console.log(
+            '[TOKEN DEBUG] Setting auth token for requests:',
+            token.substring(0, 10) + '...',
+          );
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-          courseService.setAuthToken(token); // Make sure courseService has this method
+
+          // Remove this line or check if the method exists first
+          // courseService.setAuthToken(token);
+
+          // Instead, use this:
+          if (typeof courseService.setAuthToken === 'function') {
+            courseService.setAuthToken(token);
+          }
         } else {
           console.warn('[TOKEN DEBUG] No token found in AsyncStorage');
-          
+
           // Check if user might be logged in through context
-          const userString = await AsyncStorage.getItem('user') || await AsyncStorage.getItem('@user');
+          const userString =
+            (await AsyncStorage.getItem('user')) ||
+            (await AsyncStorage.getItem('@user'));
           console.log('[TOKEN DEBUG] User data available:', !!userString);
         }
       } catch (error) {
@@ -69,7 +84,7 @@ const AddCourseVideoScreen = ({route, navigation}) => {
     try {
       const data = await courseService.getCourseById(courseId);
       setCourse(data);
-      
+
       // Set the next sequence number
       if (data.videos && data.videos.length > 0) {
         const maxSequence = Math.max(...data.videos.map(v => v.sequence_order));
@@ -85,10 +100,10 @@ const AddCourseVideoScreen = ({route, navigation}) => {
     setWebViewPickerVisible(true);
   };
 
-  const handleWebViewFilesSelected = (files) => {
+  const handleWebViewFilesSelected = files => {
     if (files && files.length > 0) {
       const selectedVideo = files[0];
-      
+
       // Check if file is a video
       if (!selectedVideo.type.includes('video/')) {
         Alert.alert('Invalid File', 'Please select a video file');
@@ -110,7 +125,9 @@ const AddCourseVideoScreen = ({route, navigation}) => {
   const pickThumbnail = () => {
     const options = {
       mediaType: 'photo',
-      quality: 0.8,
+      quality: 0.7,  // Reduced quality for better performance
+      maxWidth: 600,  // Reduced dimensions for better performance
+      maxHeight: 600,
     };
 
     ImagePicker.launchImageLibrary(options, response => {
@@ -119,13 +136,36 @@ const AddCourseVideoScreen = ({route, navigation}) => {
       } else if (response.errorCode) {
         Alert.alert('Error', 'ImagePicker Error: ' + response.errorMessage);
       } else {
-        const asset = response.assets[0];
-        setThumbnail({
-          uri: asset.uri,
-          type: asset.type,
-          name: asset.fileName || `image-${Date.now()}.jpg`,
-          size: asset.fileSize,
-        });
+        try {
+          const asset = response.assets[0];
+          
+          // Log detailed information about the selected image
+          console.log('[THUMB DEBUG] Selected image:', {
+            uri: asset.uri?.substring(0, 50) + '...',
+            type: asset.type,
+            fileName: asset.fileName,
+            fileSize: asset.fileSize,
+          });
+          
+          // Guard against invalid assets
+          if (!asset.uri || !asset.type) {
+            Alert.alert('Error', 'Invalid image selected');
+            return;
+          }
+          
+          // Set thumbnail with properly structured data
+          setThumbnail({
+            uri: asset.uri,
+            type: asset.type || 'image/jpeg',
+            name: asset.fileName || `image-${Date.now()}.jpg`,
+            size: asset.fileSize,
+          });
+          
+          console.log('[THUMB DEBUG] Thumbnail set successfully');
+        } catch (error) {
+          console.error('[THUMB DEBUG] Error processing selected image:', error);
+          Alert.alert('Error', 'Failed to process the selected image');
+        }
       }
     });
   };
@@ -143,48 +183,90 @@ const AddCourseVideoScreen = ({route, navigation}) => {
 
     try {
       setLoading(true);
-      
+
       // Debug token before upload attempts
       const asyncToken = await AsyncStorage.getItem('token');
       const atToken = await AsyncStorage.getItem('@token');
-      console.log('[TOKEN DEBUG] Before upload - token available:', !!asyncToken || !!atToken);
-      console.log('[TOKEN DEBUG] API headers:', api.defaults.headers.common['Authorization']);
+      console.log(
+        '[TOKEN DEBUG] Before upload - token available:',
+        !!asyncToken || !!atToken,
+      );
 
-      // If no token, try to refresh it
-      if (!asyncToken && !atToken) {
+      // Ensure token is properly set in API headers
+      const token = asyncToken || atToken;
+      if (token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        console.log('[TOKEN DEBUG] API headers set with token');
+      }
+
+      // If no valid token, prompt for login
+      if (!token) {
         Alert.alert(
           'Authentication Issue',
           'Your login session appears to have expired. Please re-login.',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.navigate('Login')
-            }
-          ]
+          [{text: 'OK', onPress: () => navigation.navigate('Login')}],
         );
         return;
       }
 
-      // Upload video file
-      const videoResult = await courseService.uploadCourseVideo(video);
-      console.log('Video uploaded:', videoResult);
+      console.log('[VIDEO DEBUG] Starting video upload');
+      // Upload video file with improved error handling
+      let videoResult;
+      try {
+        videoResult = await courseService.uploadCourseVideo(video);
+        console.log(
+          '[VIDEO DEBUG] Video uploaded successfully:',
+          videoResult.url?.substring(0, 50) + '...',
+        );
+      } catch (videoError) {
+        console.error('[VIDEO DEBUG] Video upload failed:', videoError);
+        throw new Error(`Video upload failed: ${videoError.message}`);
+      }
 
       // Upload thumbnail if available
       let thumbnailUrl = null;
       if (thumbnail) {
-        const thumbnailResult = await courseService.uploadCourseThumbnail(thumbnail);
-        thumbnailUrl = thumbnailResult.url;
+        try {
+          console.log('[THUMB DEBUG] Starting thumbnail upload');
+          const thumbnailResult = await courseService.uploadCourseThumbnail(
+            thumbnail,
+          );
+          thumbnailUrl = thumbnailResult.url;
+          console.log(
+            '[THUMB DEBUG] Thumbnail uploaded successfully:',
+            thumbnailUrl?.substring(0, 50) + '...',
+          );
+        } catch (thumbError) {
+          console.error('[THUMB DEBUG] Thumbnail upload failed:', thumbError);
+          // Continue with video even if thumbnail fails
+          Alert.alert(
+            'Warning',
+            'Thumbnail upload failed, but continuing with video upload',
+          );
+        }
       }
 
-      // Add video to course
-      await courseService.addVideoToCourse(courseId, {
-        title: title.trim(),
-        description: description.trim(),
-        video_url: videoResult.url,
-        thumbnail_url: thumbnailUrl,
-        sequence_order: sequenceOrder,
-        duration: 0, // This would need to be calculated or provided
-      });
+      // Add video to course with proper error handling
+      try {
+        await courseService.addVideoToCourse(courseId, {
+          title: title.trim(),
+          description: description.trim(),
+          video_url: videoResult.url,
+          thumbnail_url: thumbnailUrl,
+          sequence_order: sequenceOrder,
+          duration: 0,
+        });
+
+        console.log('[COURSE DEBUG] Video added to course successfully');
+      } catch (courseError) {
+        console.error(
+          '[COURSE DEBUG] Failed to add video to course:',
+          courseError,
+        );
+        throw new Error(
+          `Failed to add video to course: ${courseError.message}`,
+        );
+      }
 
       Alert.alert('Success', 'Video added to the course', [
         {
@@ -205,18 +287,13 @@ const AddCourseVideoScreen = ({route, navigation}) => {
       ]);
     } catch (error) {
       console.error('Error adding video:', error);
-      
+
       // Enhanced error handling
       if (error.message && error.message.includes('Authentication token')) {
         Alert.alert(
           'Session Expired',
           'Your login session has expired. Please login again.',
-          [
-            {
-              text: 'Login',
-              onPress: () => navigation.navigate('Login')
-            }
-          ]
+          [{text: 'Login', onPress: () => navigation.navigate('Login')}],
         );
       } else {
         Alert.alert('Error', `Failed to add video: ${error.message}`);
@@ -288,9 +365,7 @@ const AddCourseVideoScreen = ({route, navigation}) => {
           ) : (
             <View style={styles.uploadContent}>
               <Icon name="upload" size={32} color="#888" />
-              <Text style={styles.uploadText}>
-                Tap to select a video file
-              </Text>
+              <Text style={styles.uploadText}>Tap to select a video file</Text>
               <Text style={styles.uploadSubtext}>
                 MP4, MOV, or other video formats
               </Text>

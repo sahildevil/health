@@ -14,9 +14,9 @@ const api = axios.create({
 });
 async function isServerReachable() {
   try {
-    const response = await fetch(`${API_URL.split('/api')[0]}/health`, { 
+    const response = await fetch(`${API_URL.split('/api')[0]}/health`, {
       method: 'GET',
-      timeout: 5000
+      timeout: 5000,
     });
     return response.ok;
   } catch (error) {
@@ -773,167 +773,168 @@ export const courseService = {
     }
   },
 
-  // Upload course video
+  // Upload course video - Fixed express-fileupload eligibility issue
   uploadCourseVideo: async videoFile => {
     try {
-      // Create form data
-      const formData = new FormData();
-      
-      // Convert base64 to blob if needed
-      let fileToUpload = videoFile;
-      
-      // If URI is a base64 string (from WebView)
-      if (videoFile.uri && videoFile.uri.startsWith('data:')) {
-        // Extract the base64 part
-        const base64Data = videoFile.uri.split(',')[1];
-        const byteCharacters = atob(base64Data);
-        const byteArrays = [];
+      // Get token
+      const token =
+        (await AsyncStorage.getItem('token')) ||
+        (await AsyncStorage.getItem('@token'));
 
-        for (let offset = 0; offset < byteCharacters.length; offset += 512) {
-          const slice = byteCharacters.slice(offset, offset + 512);
-          const byteNumbers = new Array(slice.length);
-          
-          for (let i = 0; i < slice.length; i++) {
-            byteNumbers[i] = slice.charCodeAt(i);
-          }
-          
-          const byteArray = new Uint8Array(byteNumbers);
-          byteArrays.push(byteArray);
-        }
-        
-        const blob = new Blob(byteArrays, {type: videoFile.type});
-        
-        // Create file from blob
-        fileToUpload = {
-          uri: videoFile.uri,
-          type: videoFile.type,
-          name: videoFile.name,
-          size: videoFile.size,
-        };
+      if (!token) {
+        throw new Error(
+          'Authentication token is missing. Please log in again.',
+        );
       }
-      
-      formData.append('file', {
-        uri: fileToUpload.uri,
-        type: fileToUpload.type,
-        name: fileToUpload.name,
+
+      // Prepare properly formatted token
+      const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+
+      console.log('[VIDEO DEBUG] Starting upload with file:', {
+        name: videoFile.name,
+        type: videoFile.type,
+        size: videoFile.size
+          ? `${(videoFile.size / 1024 / 1024).toFixed(2)}MB`
+          : 'unknown',
       });
-      
-      formData.append('fileType', 'video');
 
-      // Upload using multipart/form-data
-      const response = await axios.post(
-        `${API_URL}/uploads/course-video`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            Authorization: `Bearer ${await AsyncStorage.getItem('token')}`,
-          },
-          timeout: 60000, // 60 seconds for large files
-        },
-      );
+      // Create form data with the video file
+      const formData = new FormData();
 
-      return response.data;
+      // IMPORTANT: Key must be 'file' to match what express-fileupload looks for
+      formData.append('file', {
+        uri:
+          Platform.OS === 'ios'
+            ? videoFile.uri.replace('file://', '')
+            : videoFile.uri,
+        type: videoFile.type || 'video/mp4',
+        name: videoFile.name || `video-${Date.now()}.mp4`,
+      });
+
+      // Use XMLHttpRequest for better multipart handling
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        // Track upload progress
+        xhr.upload.onprogress = event => {
+          if (event.lengthComputable) {
+            const percentComplete = (event.loaded / event.total) * 100;
+            console.log(
+              `[VIDEO DEBUG] Upload progress: ${percentComplete.toFixed(2)}%`,
+            );
+          }
+        };
+
+        xhr.open('POST', `${API_URL}/uploads/course-video`);
+        xhr.setRequestHeader('Authorization', authToken);
+        // DO NOT set Content-Type header - let XMLHttpRequest set it properly with boundary
+
+        // Set timeout for larger files
+        xhr.timeout = 300000; // 5 minutes
+
+        xhr.onload = function () {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              resolve(data);
+            } catch (e) {
+              reject(new Error(`Invalid server response: ${xhr.responseText}`));
+            }
+          } else {
+            reject(
+              new Error(`Upload failed: ${xhr.status} ${xhr.responseText}`),
+            );
+          }
+        };
+
+        xhr.onerror = function () {
+          reject(new Error('Network error occurred during upload'));
+        };
+
+        xhr.ontimeout = function () {
+          reject(new Error('Upload timed out'));
+        };
+
+        xhr.send(formData);
+      });
     } catch (error) {
       console.error('Upload course video error:', error);
       throw error;
     }
   },
 
-  // Upload course thumbnail
-uploadCourseThumbnail: async imageFile => {
-  try {
-    // Get token with detailed logging
-    const token = await AsyncStorage.getItem('token') || await AsyncStorage.getItem('@token');
-    console.log('[TOKEN DEBUG] In uploadCourseThumbnail - token exists:', !!token);
-    
-    if (!token) {
-      // Try one last attempt to get from default headers
-      const headerToken = api.defaults.headers.common['Authorization'];
-      console.log('[TOKEN DEBUG] Trying from headers:', !!headerToken);
-      
-      if (headerToken && headerToken.startsWith('Bearer ')) {
-        // Use the token from headers
-        const extractedToken = headerToken.split(' ')[1];
-        console.log('[TOKEN DEBUG] Using token from headers');
-        
-        // Proceed with upload using this token
-        const formData = new FormData();
-        formData.append('file', {
-          uri: imageFile.uri,
-          type: imageFile.type,
-          name: imageFile.name,
-        });
-        formData.append('fileType', 'image');
+  // Upload course thumbnail - Fixed express-fileupload eligibility issue
+  uploadCourseThumbnail: async imageFile => {
+    try {
+      // Get token
+      const token =
+        (await AsyncStorage.getItem('token')) ||
+        (await AsyncStorage.getItem('@token'));
 
-        const response = await axios.post(
-          `${API_URL}/uploads/course-thumbnail`,
-          formData,
-          {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-              'Authorization': headerToken,
-            },
-            timeout: 60000, // 60 second timeout for uploads
-          },
+      if (!token) {
+        throw new Error(
+          'Authentication token is missing. Please log in again.',
         );
-
-        return response.data;
       }
-      
-      throw new Error('Authentication token is missing. Please log in again.');
+
+      // Prepare properly formatted token
+      const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+
+      console.log('[THUMB DEBUG] Starting upload with file:', {
+        name: imageFile.name,
+        type: imageFile.type,
+        size: imageFile.size
+          ? `${(imageFile.size / 1024).toFixed(2)}KB`
+          : 'unknown',
+      });
+
+      // Create form data with the image file
+      const formData = new FormData();
+
+      // IMPORTANT: Key must be 'file' to match what express-fileupload looks for
+      formData.append('file', {
+        uri:
+          Platform.OS === 'ios'
+            ? imageFile.uri.replace('file://', '')
+            : imageFile.uri,
+        type: imageFile.type || 'image/jpeg',
+        name: imageFile.name || `image-${Date.now()}.jpg`,
+      });
+
+      // Use XMLHttpRequest for better multipart handling
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        xhr.open('POST', `${API_URL}/uploads/course-thumbnail`);
+        xhr.setRequestHeader('Authorization', authToken);
+        // DO NOT set Content-Type header - let XMLHttpRequest set it properly with boundary
+
+        xhr.onload = function () {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              resolve(data);
+            } catch (e) {
+              reject(new Error(`Invalid server response: ${xhr.responseText}`));
+            }
+          } else {
+            reject(
+              new Error(`Upload failed: ${xhr.status} ${xhr.responseText}`),
+            );
+          }
+        };
+
+        xhr.onerror = function () {
+          reject(new Error('Network error occurred during upload'));
+        };
+
+        xhr.send(formData);
+      });
+    } catch (error) {
+      console.error('Upload course thumbnail error:', error);
+      throw error;
     }
-    
-    // Create form data
-    const formData = new FormData();
-    formData.append('file', {
-      uri: imageFile.uri,
-      type: imageFile.type,
-      name: imageFile.name,
-    });
-    formData.append('fileType', 'image');
-
-    // Log the request we're about to make
-    console.log('[TOKEN DEBUG] Making thumbnail upload request with token');
-    console.log('[TOKEN DEBUG] API URL:', `${API_URL}/uploads/course-thumbnail`);
-    console.log('[TOKEN DEBUG] File details:', {
-      name: imageFile.name,
-      type: imageFile.type,
-      size: imageFile.size,
-      uri: imageFile.uri ? imageFile.uri.substring(0, 50) + '...' : 'undefined'
-    });
-
-    // Upload using multipart/form-data with proper authorization header
-    const response = await axios.post(
-      `${API_URL}/uploads/course-thumbnail`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${token}`,
-        },
-        timeout: 60000, // 60 second timeout for uploads
-      },
-    );
-
-    console.log('[TOKEN DEBUG] Upload successful:', response.status);
-    return response.data;
-  } catch (error) {
-    console.error('Upload course thumbnail error:', error);
-    
-    // Enhanced network error debugging
-    if (error.message === 'Network Error') {
-      console.log('[TOKEN DEBUG] Network Error Details:');
-      console.log('- API URL:', `${API_URL}/uploads/course-thumbnail`);
-      console.log('- Server reachable:', await isServerReachable());
-      console.log('- Device connection:', await NetInfo.fetch().then(state => state.isConnected ? 'Connected' : 'Disconnected'));
-    }
-    
-    console.log('[TOKEN DEBUG] Request failed with status:', error.response?.status);
-    console.log('[TOKEN DEBUG] Error details:', error.response?.data);
-    throw error;
-  }
-},
+  },
 
   // Add video to course
   addVideoToCourse: async (courseId, videoData) => {
@@ -960,7 +961,9 @@ uploadCourseThumbnail: async imageFile => {
   // Delete video from course
   deleteVideoFromCourse: async (courseId, videoId) => {
     try {
-      const response = await api.delete(`/courses/${courseId}/videos/${videoId}`);
+      const response = await api.delete(
+        `/courses/${courseId}/videos/${videoId}`,
+      );
       return response.data;
     } catch (error) {
       console.error('Delete video from course error:', error);
