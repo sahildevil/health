@@ -4,6 +4,7 @@ import {ActivityIndicator, View, StyleSheet} from 'react-native';
 import {useAuth} from '../context/AuthContext';
 
 // Import screens
+import SplashScreen from '../screens/SplashScreen';
 import LandingScreen from '../screens/LandingScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
@@ -54,7 +55,10 @@ const AdminNavigator = () => {
         name="AdminDashboard"
         component={AdminDashboardScreen}
       />
-      <AdminStack.Screen name="MeetingDetails" component={MeetingDetailsScreen} />
+      <AdminStack.Screen
+        name="MeetingDetails"
+        component={MeetingDetailsScreen}
+      />
       <AdminStack.Screen name="AdminProfile" component={AdminProfileScreen} />
       <AdminStack.Screen name="EventApproval" component={EventApprovalScreen} />
       <AdminStack.Screen name="EventDetails" component={EventDetailsScreen} />
@@ -87,8 +91,10 @@ const AdminNavigator = () => {
         component={EventRegistrationsScreen}
       />
       <Stack.Screen name="AdminEventDetails" component={AdminEventDetails} />
-      <Stack.Screen name="AdminPrivateMeetings" component={AdminPrivateMeetingsScreen} />
-      
+      <Stack.Screen
+        name="AdminPrivateMeetings"
+        component={AdminPrivateMeetingsScreen}
+      />
     </AdminStack.Navigator>
   );
 };
@@ -108,9 +114,9 @@ const AppNavigator = () => {
   const isAdmin = user?.role === 'admin';
 
   return (
-    <Stack.Navigator
+   <Stack.Navigator
       initialRouteName={
-        isAuthenticated ? (isAdmin ? 'AdminFlow' : 'MainApp') : 'Landing'
+        isAuthenticated ? (isAdmin ? 'AdminFlow' : 'MainApp') : 'Splash'
       }
       screenOptions={{
         headerShown: false,
@@ -155,19 +161,35 @@ const AppNavigator = () => {
               options={{headerShown: false}}
             />
             <Stack.Screen name="Chat" component={ChatScreen} />
-            <Stack.Screen name="CreatePrivateMeeting" component={CreatePrivateMeetingScreen} />
-<Stack.Screen name="MyMeetings" component={MyMeetingsScreen} />
-<Stack.Screen name="MeetingDetails" component={MeetingDetailsScreen} />
-<Stack.Screen name="MeetingInvitations" component={MeetingInvitationsScreen} />
-<Stack.Screen name="Courses" component={CoursesScreen} />
-<Stack.Screen name="CourseDetails" component={CourseDetailsScreen} />
-<Stack.Screen name="CreateCourse" component={CreateCourseScreen} />
-<Stack.Screen name="AddCourseVideo" component={AddCourseVideoScreen} />
+            <Stack.Screen
+              name="CreatePrivateMeeting"
+              component={CreatePrivateMeetingScreen}
+            />
+            <Stack.Screen name="MyMeetings" component={MyMeetingsScreen} />
+            <Stack.Screen
+              name="MeetingDetails"
+              component={MeetingDetailsScreen}
+            />
+            <Stack.Screen
+              name="MeetingInvitations"
+              component={MeetingInvitationsScreen}
+            />
+            <Stack.Screen name="Courses" component={CoursesScreen} />
+            <Stack.Screen
+              name="CourseDetails"
+              component={CourseDetailsScreen}
+            />
+            <Stack.Screen name="CreateCourse" component={CreateCourseScreen} />
+            <Stack.Screen
+              name="AddCourseVideo"
+              component={AddCourseVideoScreen}
+            />
           </>
         )
       ) : (
         // Not authenticated routes
         <>
+          <Stack.Screen name="Splash" component={SplashScreen} />
           <Stack.Screen name="Landing" component={LandingScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="SignUp" component={SignUpScreen} />
