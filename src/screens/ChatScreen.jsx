@@ -26,8 +26,8 @@ import {Linking} from 'react-native';
 import FastImage from '@d11/react-native-fast-image';
 import RNFS from 'react-native-fs';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-const SOCKET_URL = 'http://192.168.1.9:5000';
-const API_URL = 'http://192.168.1.9:5000';
+const SOCKET_URL = 'http://192.168.1.12:5000';
+const API_URL = 'http://192.168.1.12:5000';
 const ChatScreen = () => {
   const {user, getToken} = useAuth();
   const [messages, setMessages] = useState([]);
@@ -428,28 +428,23 @@ const ChatScreen = () => {
   const getAuthToken = async () => {
     try {
       // Try to get from AsyncStorage first
-      const token = await AsyncStorage.getItem('@token');
+      let token = await AsyncStorage.getItem('@token');
+      if (!token) {
+        token = await AsyncStorage.getItem('token');
+      }
+
       if (token) {
-        return token;
+        // Make sure token has proper format
+        return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
       }
 
       // If not in AsyncStorage, try to get from context
       if (user && user.token) {
-        console.log('Using token from user context');
-        return user.token;
+        return user.token.startsWith('Bearer ')
+          ? user.token
+          : `Bearer ${user.token}`;
       }
 
-      // Try to get via the auth service
-      const {authService} = require('../services/api');
-      if (authService && authService.getAuthToken) {
-        const serviceToken = authService.getAuthToken();
-        if (serviceToken) {
-          return serviceToken;
-        }
-      }
-      console.log('Token available?', !!token);
-      console.log('User object available?', !!user);
-      console.log('User has token?', !!(user && user.token));
       console.error('No valid auth token found');
       return null;
     } catch (error) {
@@ -465,27 +460,34 @@ const ChatScreen = () => {
       setUploading(true);
 
       // Upload the file first
-      const token = await getToken();
+      const token = await getAuthToken();
       if (!token) {
         Alert.alert('Error', 'Authentication required');
         return;
       }
 
+      // Create form data with proper structure for express-fileupload
       const formData = new FormData();
+
+      // IMPORTANT: The field name must be 'document' to match server expectations
       formData.append('document', {
         uri: Platform.OS === 'ios' ? file.uri.replace('file://', '') : file.uri,
         type: file.type || 'application/octet-stream',
         name: file.name || `file-${Date.now()}.${file.uri.split('.').pop()}`,
       });
 
-      // Upload to server
-      const response = await fetch(`${API_URL}/api/uploads/document`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
+      // Use the API_URL correctly without the /api prefix in the URL, as it's already included
+      const response = await fetch(
+        `${API_URL}/api/uploads/chat-document?userId=${user.id}`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: token,
+            // DO NOT set Content-Type header - let fetch set it automatically
+          },
+          body: formData,
         },
-        body: formData,
-      });
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -496,7 +498,7 @@ const ChatScreen = () => {
       const result = await response.json();
       console.log('File upload result:', result);
 
-      // Now send a message with the file info
+      // Rest of your function remains the same...
       const roomId = [user.id, selectedDoctor.id].sort().join('-');
       const tempId = `temp-${Date.now()}`;
 
@@ -528,20 +530,8 @@ const ChatScreen = () => {
         isAttachment: true,
         attachmentType: isImage ? 'image' : 'document',
       };
-      console.log(
-        'Created message data:',
-        JSON.stringify(
-          {
-            isImage,
-            attachmentType: messageData.attachmentType,
-            fileType: messageData.fileType,
-            fileUrl: messageData.fileUrl,
-          },
-          null,
-          2,
-        ),
-      );
-      // Create temporary message
+
+      // Create temporary message and continue with your existing code...
       const tempMessage = {
         ...messageData,
         id: tempId,
@@ -578,6 +568,7 @@ const ChatScreen = () => {
       setUploading(false);
     }
   };
+
   const sendMessage = () => {
     if (newMessage.trim().length === 0 || !selectedDoctor || !user) {
       return;
@@ -782,72 +773,73 @@ const ChatScreen = () => {
     </TouchableOpacity>
   );
 
-const renderMessage = ({ item, index }) => {
-  const isOwnMessage = item.senderId === user?.id;
-  const messageTime = new Date(item.timestamp).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const renderMessage = ({item, index}) => {
+    const isOwnMessage = item.senderId === user?.id;
+    const messageTime = new Date(item.timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
-  // For inverted lists, we need the opposite logic of normal lists
-  const currentDate = new Date(item.timestamp);
-  const currentDateStr = currentDate.toDateString();
-  
-  // Get the next message's date (which is visually below in an inverted list)
-  // In your case, with inverted=true, the NEXT message in array is the OLDER message
-  const messages = getFilteredMessages(); // Access your messages array
-  const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
-  const nextDateStr = nextMessage ? new Date(nextMessage.timestamp).toDateString() : null;
-  
-  // Show separator when date changes between this message and the next (older) one
-  const showDateSeparator = nextDateStr === null || currentDateStr !== nextDateStr;
-  
-  // Format date like "Tue May 13 2025" as shown in your screenshots
-  const formattedDate = currentDate.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short', 
-    day: 'numeric',
-    year: 'numeric'
-  });
+    // For inverted lists, we need the opposite logic of normal lists
+    const currentDate = new Date(item.timestamp);
+    const currentDateStr = currentDate.toDateString();
 
-  return (
-    <>
-      {/* Message first */}
-      <View
-        style={[
-          styles.messageContainer,
-          isOwnMessage ? styles.ownMessage : styles.otherMessage,
-          item.pending && styles.pendingMessage,
-        ]}
-      >
-        <Text style={styles.messageText}>{item.text || item.content}</Text>
-        <View style={styles.messageFooter}>
-          <Text style={styles.timestamp}>{messageTime}</Text>
-          {isOwnMessage && (
-            <Text
-              style={[
-                styles.statusIcon,
-                item.pending ? styles.pendingIcon : styles.deliveredIcon,
-              ]}
-            >
-              {item.pending ? '⌛' : '✓✓'}
-            </Text>
-          )}
+    // Get the next message's date (which is visually below in an inverted list)
+    // In your case, with inverted=true, the NEXT message in array is the OLDER message
+    const messages = getFilteredMessages(); // Access your messages array
+    const nextMessage =
+      index < messages.length - 1 ? messages[index + 1] : null;
+    const nextDateStr = nextMessage
+      ? new Date(nextMessage.timestamp).toDateString()
+      : null;
+
+    // Show separator when date changes between this message and the next (older) one
+    const showDateSeparator =
+      nextDateStr === null || currentDateStr !== nextDateStr;
+
+    // Format date like "Tue May 13 2025" as shown in your screenshots
+    const formattedDate = currentDate.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+
+    return (
+      <>
+        {/* Message first */}
+        <View
+          style={[
+            styles.messageContainer,
+            isOwnMessage ? styles.ownMessage : styles.otherMessage,
+            item.pending && styles.pendingMessage,
+          ]}>
+          <Text style={styles.messageText}>{item.text || item.content}</Text>
+          <View style={styles.messageFooter}>
+            <Text style={styles.timestamp}>{messageTime}</Text>
+            {isOwnMessage && (
+              <Text
+                style={[
+                  styles.statusIcon,
+                  item.pending ? styles.pendingIcon : styles.deliveredIcon,
+                ]}>
+                {item.pending ? '⌛' : '✓✓'}
+              </Text>
+            )}
+          </View>
         </View>
-      </View>
-      
-      {/* Date separator comes AFTER message in inverted lists */}
-      {showDateSeparator && (
-  <View style={styles.dateSeparator}>
-    <View style={styles.line} />
-    <Text style={styles.dateSeparatorText}>{formattedDate}</Text>
-    <View style={styles.line} />
-  </View>
-)}
 
-    </>
-  );
-};
+        {/* Date separator comes AFTER message in inverted lists */}
+        {showDateSeparator && (
+          <View style={styles.dateSeparator}>
+            <View style={styles.line} />
+            <Text style={styles.dateSeparatorText}>{formattedDate}</Text>
+            <View style={styles.line} />
+          </View>
+        )}
+      </>
+    );
+  };
 
   // Function to retry connecting to the server
   const retryConnection = () => {
@@ -1436,29 +1428,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   dateSeparator: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginVertical: 10,
-  gap: 10, // For spacing between line and text (React Native 0.71+), else use marginHorizontal
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10,
+    gap: 10, // For spacing between line and text (React Native 0.71+), else use marginHorizontal
+  },
 
-dateSeparatorText: {
-  backgroundColor: '#f4edff',
-  color: '#575657',
-  fontSize: 13,
-  fontWeight: '500',
-  paddingHorizontal: 16,
-  paddingVertical: 6,
-  borderRadius: 20,
-  textAlign: 'center',
-},
+  dateSeparatorText: {
+    backgroundColor: '#f4edff',
+    color: '#575657',
+    fontSize: 13,
+    fontWeight: '500',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    textAlign: 'center',
+  },
 
-line: {
-  flex: 1,
-  height: 1,
-  backgroundColor: '#ccc',
-},
+  line: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ccc',
+  },
 
   attachButton: {
     padding: 10,

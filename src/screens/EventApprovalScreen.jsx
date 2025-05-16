@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {eventService} from '../services/api';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const EventApprovalScreen = ({navigation}) => {
   const [events, setEvents] = useState([]);
@@ -160,34 +160,38 @@ const EventApprovalScreen = ({navigation}) => {
       </View>
 
       <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={styles.viewButton}
-          onPress={() => handleViewDetails(item.id)}>
-          <Icon name="eye" size={16} color="#2e7af5" />
-          <Text style={styles.viewButtonText}>View Details</Text>
-        </TouchableOpacity>
+        <View style={styles.actionButtonsRow}>
+          <TouchableOpacity
+            style={styles.viewButton}
+            onPress={() => handleViewDetails(item.id)}>
+            <Icon name="eye" size={16} color="#2e7af5" />
+            <Text style={styles.viewButtonText}>View Details</Text>
+          </TouchableOpacity>
 
-        {/* Add Edit button */}
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => handleEditEvent(item.id)}>
-          <Icon name="pencil" size={16} color="#fff" />
-          <Text style={styles.editButtonText}>Edit</Text>
-        </TouchableOpacity>
+          {/* Add Edit button */}
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => handleEditEvent(item.id)}>
+            <Icon name="pencil" size={16} color="#fff" />
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
+        </View>
 
-        <TouchableOpacity
-          style={styles.approveButton}
-          onPress={() => showVerificationModal(item, true)}>
-          <Icon name="check-circle" size={16} color="#fff" />
-          <Text style={styles.approveButtonText}>Approve</Text>
-        </TouchableOpacity>
+        <View style={styles.actionButtonsRow}>
+          <TouchableOpacity
+            style={styles.approveButton}
+            onPress={() => showVerificationModal(item, true)}>
+            <Icon name="check-circle" size={16} color="#fff" />
+            <Text style={styles.approveButtonText}>Approve</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.rejectButton}
-          onPress={() => showVerificationModal(item, false)}>
-          <Icon name="close-circle" size={16} color="#fff" />
-          <Text style={styles.rejectButtonText}>Reject</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.rejectButton}
+            onPress={() => showVerificationModal(item, false)}>
+            <Icon name="close-circle" size={16} color="#fff" />
+            <Text style={styles.rejectButtonText}>Reject</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -443,14 +447,23 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   actionButtons: {
+    flexDirection: 'column',
+    marginTop: 8,
+  },
+  actionButtonsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 8,
   },
   viewButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
+    backgroundColor: '#f0f6ff',
+    borderRadius: 4,
+    flex: 0.48,
+    justifyContent: 'center',
   },
   viewButtonText: {
     color: '#2e7af5',
@@ -465,6 +478,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     paddingVertical: 8,
     paddingHorizontal: 12,
+    flex: 0.48,
+    justifyContent: 'center',
   },
   approveButtonText: {
     color: '#fff',
@@ -479,6 +494,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     paddingVertical: 8,
     paddingHorizontal: 12,
+    flex: 0.48,
+    justifyContent: 'center',
   },
   rejectButtonText: {
     color: '#fff',
@@ -570,6 +587,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     paddingVertical: 8,
     paddingHorizontal: 12,
+    flex: 0.48,
+    justifyContent: 'center',
   },
   editButtonText: {
     color: '#fff',

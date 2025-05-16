@@ -165,13 +165,13 @@ const AdminDashboardScreen = ({navigation}) => {
             <Icon name="chevron-right" size={24} color="#ccc" />
           </TouchableOpacity> */}
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.quickActionButton}
             onPress={() => navigation.navigate('SystemSettings')}>
             <Icon name="cog" size={24} color="#2e7af5" />
             <Text style={styles.quickActionText}>System Settings</Text>
             <Icon name="chevron-right" size={24} color="#ccc" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity
             style={styles.quickActionButton}

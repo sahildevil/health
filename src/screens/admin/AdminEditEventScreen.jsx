@@ -18,6 +18,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import {eventService} from '../../services/api';
 import {useAuth} from '../../context/AuthContext';
 import BrochureUploader from '../../components/BrochureUploader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const AdminEditEventScreen = ({route, navigation}) => {
   const {eventId, fromApproval} = route.params;
   const {user} = useAuth();
@@ -28,7 +29,7 @@ const AdminEditEventScreen = ({route, navigation}) => {
   const [newSpeakerName, setNewSpeakerName] = useState('');
   const [newSpeakerTitle, setNewSpeakerTitle] = useState('');
   const [newSpeakerBio, setNewSpeakerBio] = useState('');
-
+  const insets = useSafeAreaInsets();
   // Form state
   const [eventData, setEventData] = useState({
     title: '',
@@ -257,7 +258,7 @@ const AdminEditEventScreen = ({route, navigation}) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <StatusBar barStyle="dark-content" />
 
       <View style={styles.header}>

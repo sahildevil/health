@@ -12,11 +12,12 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../../context/AuthContext';
 import {meetingService} from '../../services/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AdminPrivateMeetingsScreen = ({navigation}) => {
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
-
+  const insets = useSafeAreaInsets();
   useEffect(() => {
     fetchAllMeetings();
 
@@ -157,7 +158,7 @@ const AdminPrivateMeetingsScreen = ({navigation}) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {adminService} from '../../services/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const EventRegistrationsScreen = ({route, navigation}) => {
   const {eventId} = route.params;
@@ -22,7 +23,7 @@ const EventRegistrationsScreen = ({route, navigation}) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'doctors', 'pharma'
-
+  const insets = useSafeAreaInsets();
   useEffect(() => {
     fetchEventDetails();
     fetchRegistrations();
@@ -252,7 +253,7 @@ const EventRegistrationsScreen = ({route, navigation}) => {
   ).length;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <StatusBar barStyle="dark-content" backgroundColor="#f7f9fc" />
 
       <View style={styles.header}>

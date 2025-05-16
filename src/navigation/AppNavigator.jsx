@@ -54,6 +54,7 @@ const AdminNavigator = () => {
         name="AdminDashboard"
         component={AdminDashboardScreen}
       />
+      <AdminStack.Screen name="MeetingDetails" component={MeetingDetailsScreen} />
       <AdminStack.Screen name="AdminProfile" component={AdminProfileScreen} />
       <AdminStack.Screen name="EventApproval" component={EventApprovalScreen} />
       <AdminStack.Screen name="EventDetails" component={EventDetailsScreen} />
@@ -87,6 +88,7 @@ const AdminNavigator = () => {
       />
       <Stack.Screen name="AdminEventDetails" component={AdminEventDetails} />
       <Stack.Screen name="AdminPrivateMeetings" component={AdminPrivateMeetingsScreen} />
+      
     </AdminStack.Navigator>
   );
 };

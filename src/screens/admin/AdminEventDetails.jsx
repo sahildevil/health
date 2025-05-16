@@ -15,6 +15,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {eventService, adminService} from '../../services/api';
 import PdfViewer from '../../components/PdfViewer';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Event Status Badge Component
 const EventStatusBadge = ({status}) => {
@@ -56,7 +57,7 @@ const AdminEventDetails = ({route, navigation}) => {
   const [registrationsLoading, setRegistrationsLoading] = useState(false);
   const [brochure, setBrochure] = useState(null);
   const [brochureLoading, setBrochureLoading] = useState(false);
-
+  const insets = useSafeAreaInsets();
   useEffect(() => {
     fetchEventDetails();
     fetchEventBrochure();
@@ -292,7 +293,7 @@ const AdminEventDetails = ({route, navigation}) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <StatusBar barStyle="dark-content" />
 
       {/* Header */}

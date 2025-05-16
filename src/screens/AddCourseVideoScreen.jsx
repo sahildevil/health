@@ -14,9 +14,8 @@ import {
 import {courseService} from '../services/api';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'react-native-image-picker';
-import WebViewDocumentPicker from '../components/WebViewDocumentPicker';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Add this import
-import api from '../services/api'; // Add this import for direct API access
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../services/api';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const AddCourseVideoScreen = ({route, navigation}) => {
@@ -28,8 +27,8 @@ const AddCourseVideoScreen = ({route, navigation}) => {
   const [loading, setLoading] = useState(false);
   const [course, setCourse] = useState(null);
   const [sequenceOrder, setSequenceOrder] = useState(0);
-  const [webViewPickerVisible, setWebViewPickerVisible] = useState(false);
   const insets = useSafeAreaInsets();
+
   useEffect(() => {
     // Set the auth token for requests and debug token availability
     const setAuthToken = async () => {
@@ -55,10 +54,6 @@ const AddCourseVideoScreen = ({route, navigation}) => {
           );
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-          // Remove this line or check if the method exists first
-          // courseService.setAuthToken(token);
-
-          // Instead, use this:
           if (typeof courseService.setAuthToken === 'function') {
             courseService.setAuthToken(token);
           }
@@ -96,30 +91,60 @@ const AddCourseVideoScreen = ({route, navigation}) => {
     }
   };
 
-  const openVideoPicker = () => {
-    setWebViewPickerVisible(true);
-  };
+  const pickVideo = () => {
+    const options = {
+      mediaType: 'video',
+      quality: 1,
+      videoQuality: 'high', // 'low', 'medium', or 'high'
+      durationLimit: 300, // 5 minute limit
+      saveToPhotos: false,
+    };
 
-  const handleWebViewFilesSelected = files => {
-    if (files && files.length > 0) {
-      const selectedVideo = files[0];
+    ImagePicker.launchImageLibrary(options, response => {
+      if (response.didCancel) {
+        console.log('User cancelled video picker');
+      } else if (response.errorCode) {
+        Alert.alert('Error', 'Video Picker Error: ' + response.errorMessage);
+      } else {
+        try {
+          const asset = response.assets[0];
+          
+          // Log detailed information about the selected video
+          console.log('[VIDEO DEBUG] Selected video:', {
+            uri: asset.uri?.substring(0, 50) + '...',
+            type: asset.type,
+            fileName: asset.fileName,
+            fileSize: asset.fileSize,
+            duration: asset.duration,
+          });
 
-      // Check if file is a video
-      if (!selectedVideo.type.includes('video/')) {
-        Alert.alert('Invalid File', 'Please select a video file');
-        setWebViewPickerVisible(false);
-        return;
+          // Guard against invalid assets
+          if (!asset.uri || !asset.type) {
+            Alert.alert('Error', 'Invalid video selected');
+            return;
+          }
+
+          // Make sure it's a video
+          if (!asset.type.startsWith('video/')) {
+            Alert.alert('Error', 'Please select a video file');
+            return;
+          }
+
+          // Set video with properly structured data
+          setVideo({
+            uri: asset.uri,
+            type: asset.type || 'video/mp4',
+            name: asset.fileName || `video-${Date.now()}.mp4`,
+            size: asset.fileSize,
+          });
+
+          console.log('[VIDEO DEBUG] Video set successfully');
+        } catch (error) {
+          console.error('[VIDEO DEBUG] Error processing selected video:', error);
+          Alert.alert('Error', 'Failed to process the selected video');
+        }
       }
-
-      // Set the video state
-      setVideo({
-        uri: selectedVideo.uri,
-        type: selectedVideo.type,
-        name: selectedVideo.name,
-        size: selectedVideo.size,
-      });
-    }
-    setWebViewPickerVisible(false);
+    });
   };
 
   const pickThumbnail = () => {
@@ -351,7 +376,7 @@ const AddCourseVideoScreen = ({route, navigation}) => {
         <Text style={styles.label}>Upload Video *</Text>
         <TouchableOpacity
           style={styles.uploadContainer}
-          onPress={openVideoPicker}>
+          onPress={pickVideo}>
           {video ? (
             <View style={styles.videoSelectedContainer}>
               <Icon name="file-video" size={32} color="#2e7af5" />
@@ -367,10 +392,10 @@ const AddCourseVideoScreen = ({route, navigation}) => {
             </View>
           ) : (
             <View style={styles.uploadContent}>
-              <Icon name="upload" size={32} color="#888" />
-              <Text style={styles.uploadText}>Tap to select a video file</Text>
+              <Icon name="video-plus" size={40} color="#888" />
+              <Text style={styles.uploadText}>Tap to select a video</Text>
               <Text style={styles.uploadSubtext}>
-                MP4, MOV, or other video formats
+                Choose from your device videos
               </Text>
             </View>
           )}
@@ -413,13 +438,6 @@ const AddCourseVideoScreen = ({route, navigation}) => {
           )}
         </TouchableOpacity>
       </ScrollView>
-
-      {/* WebView Document Picker */}
-      <WebViewDocumentPicker
-        visible={webViewPickerVisible}
-        onClose={() => setWebViewPickerVisible(false)}
-        onFilesSelected={handleWebViewFilesSelected}
-      />
     </SafeAreaView>
   );
 };
