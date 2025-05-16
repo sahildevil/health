@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Base URL for API calls
 //const API_URL = 'https://health-server-fawn.vercel.app/api';
-const API_URL = 'http://192.168.1.9:5000/api';
+const API_URL = 'http://192.168.1.12:5000/api';
 // Create axios instance
 const api = axios.create({
   baseURL: API_URL,
