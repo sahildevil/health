@@ -15,6 +15,7 @@ import {
   SafeAreaView,
   Modal,
 } from 'react-native';
+import * as Assets from '../assets';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'react-native-image-picker';
 import WebViewDocumentPicker from '../components/WebViewDocumentPicker';
@@ -102,19 +103,20 @@ const ChatScreen = () => {
     }
   };
 
-  const openPreview = item => {
-    // Unify field names
-    const fileData = {
-      ...item,
-      fileUrl: item.fileUrl || item.file_url,
-      fileName: item.fileName || item.file_name,
-      fileType: item.fileType || item.file_type,
-      fileSize: item.fileSize || item.file_size,
-    };
-
-    setPreviewItem(fileData);
-    setPreviewVisible(true);
+const openPreview = item => {
+  // Unify field names
+  const fileData = {
+    ...item,
+    fileUrl: item.fileUrl || item.file_url,
+    fileName: item.fileName || item.file_name,
+    fileType: item.fileType || item.file_type,
+    fileSize: item.fileSize || item.file_size,
   };
+
+  console.log('Opening preview for:', fileData);
+  setPreviewItem(fileData);
+  setPreviewVisible(true);
+};
 
   // Fetch all doctors
   useEffect(() => {
@@ -161,57 +163,132 @@ const ChatScreen = () => {
       fetchMessageHistory();
     }
   }, [selectedDoctor]);
+// Update your fetchMessageHistory function
 
-  const fetchMessageHistory = async () => {
-    if (!selectedDoctor || !user) return;
+const fetchMessageHistory = async () => {
+  if (!selectedDoctor || !user) return;
 
-    try {
-      const roomId = [user.id, selectedDoctor.id].sort().join('-');
-      console.log('Fetching messages for room:', roomId);
+  try {
+    const roomId = [user.id, selectedDoctor.id].sort().join('-');
+    console.log('Fetching messages for room:', roomId);
 
-      // Check if we already have messages for this room in our chat history
-      if (chatHistory[roomId] && chatHistory[roomId].length > 0) {
-        console.log('Using cached messages for room:', roomId);
-        setMessages(chatHistory[roomId]);
-      }
+    // Check if we already have messages for this room in our chat history
+    if (chatHistory[roomId] && chatHistory[roomId].length > 0) {
+      console.log('Using cached messages for room:', roomId);
+      setMessages(chatHistory[roomId]);
+    }
 
-      // Fetch messages from the server regardless (to ensure we have the latest)
-      const response = await axios.get(`${API_URL}/api/messages/${roomId}`);
-      console.log('Message history response:', response.data);
+    // Fetch messages from the server regardless
+    const response = await axios.get(`${API_URL}/api/messages/${roomId}`);
+    console.log('Message history response:', response.data);
 
-      if (response.data && Array.isArray(response.data)) {
-        // Transform data to match UI expectations
-        const formattedMessages = response.data.map(msg => ({
-          id: msg.id,
-          text: msg.content || msg.text,
-          senderId: msg.sender_id || msg.senderId,
-          senderName: msg.sender_name || msg.senderName,
-          receiverId: msg.receiver_id || msg.receiverId,
-          timestamp: msg.created_at || msg.timestamp,
-          roomId: msg.room_id || msg.roomId,
-        }));
+    if (response.data && Array.isArray(response.data)) {
+      // Transform data to match UI expectations with explicit boolean conversion
+      const formattedMessages = response.data.map(msg => ({
+        id: msg.id,
+        text: msg.content || msg.text,
+        senderId: msg.sender_id || msg.senderId,
+        senderName: msg.sender_name || msg.senderName,
+        receiverId: msg.receiver_id || msg.receiverId,
+        timestamp: msg.created_at || msg.timestamp,
+        roomId: msg.room_id || msg.roomId,
+        // Use explicit boolean conversion for attachment flags
+        isAttachment: msg.is_attachment === true || msg.isAttachment === true,
+        attachmentType: msg.attachment_type || msg.attachmentType,
+        fileUrl: msg.file_url || msg.fileUrl,
+        fileName: msg.file_name || msg.fileName,
+        fileType: msg.file_type || msg.fileType,
+        fileSize: msg.file_size || msg.fileSize,
+      }));
 
-        // Update both the current messages and the chat history
-        setMessages(formattedMessages);
-        setChatHistory(prev => ({
-          ...prev,
-          [roomId]: formattedMessages,
-        }));
-      }
-    } catch (error) {
-      console.error('Error fetching message history:', error);
-      Alert.alert(
-        'Error',
-        'Failed to load message history. Will try to continue with cached messages.',
+      // Debug the formatted messages
+      console.log('Formatted messages with attachment info:', 
+        formattedMessages.filter(m => m.isAttachment).map(m => ({
+          id: m.id, 
+          isAtt: m.isAttachment,
+          type: m.attachmentType,
+          fileUrl: m.fileUrl?.substring(0, 30) + '...'
+        }))
       );
 
-      // If we have cached messages, use those
-      const roomId = [user.id, selectedDoctor.id].sort().join('-');
-      if (chatHistory[roomId]) {
-        setMessages(chatHistory[roomId]);
-      }
+      // Update both the current messages and the chat history
+      setMessages(formattedMessages);
+      setChatHistory(prev => ({
+        ...prev,
+        [roomId]: formattedMessages,
+      }));
     }
-  };
+  } catch (error) {
+    console.error('Error fetching message history:', error);
+    Alert.alert(
+      'Error',
+      'Failed to load message history. Will try to continue with cached messages.',
+    );
+
+    // If we have cached messages, use those
+    const roomId = [user.id, selectedDoctor.id].sort().join('-');
+    if (chatHistory[roomId]) {
+      setMessages(chatHistory[roomId]);
+    }
+  }
+};
+// const fetchMessageHistory = async () => {
+//   if (!selectedDoctor || !user) return;
+
+//   try {
+//     const roomId = [user.id, selectedDoctor.id].sort().join('-');
+//     console.log('Fetching messages for room:', roomId);
+
+//     // Check if we already have messages for this room in our chat history
+//     if (chatHistory[roomId] && chatHistory[roomId].length > 0) {
+//       console.log('Using cached messages for room:', roomId);
+//       setMessages(chatHistory[roomId]);
+//     }
+
+//     // Fetch messages from the server regardless (to ensure we have the latest)
+//     const response = await axios.get(`${API_URL}/api/messages/${roomId}`);
+//     console.log('Message history response:', response.data);
+
+//     if (response.data && Array.isArray(response.data)) {
+//       // Transform data to match UI expectations - INCLUDE ATTACHMENT FIELDS
+//       const formattedMessages = response.data.map(msg => ({
+//         id: msg.id,
+//         text: msg.content || msg.text,
+//         senderId: msg.sender_id || msg.senderId,
+//         senderName: msg.sender_name || msg.senderName,
+//         receiverId: msg.receiver_id || msg.receiverId,
+//         timestamp: msg.created_at || msg.timestamp,
+//         roomId: msg.room_id || msg.roomId,
+//         // Add these crucial attachment fields
+//         isAttachment: msg.is_attachment || msg.isAttachment || false,
+//         attachmentType: msg.attachment_type || msg.attachmentType,
+//         fileUrl: msg.file_url || msg.fileUrl,
+//         fileName: msg.file_name || msg.fileName,
+//         fileType: msg.file_type || msg.fileType,
+//         fileSize: msg.file_size || msg.fileSize,
+//       }));
+
+//       // Update both the current messages and the chat history
+//       setMessages(formattedMessages);
+//       setChatHistory(prev => ({
+//         ...prev,
+//         [roomId]: formattedMessages,
+//       }));
+//     }
+//   } catch (error) {
+//     console.error('Error fetching message history:', error);
+//     Alert.alert(
+//       'Error',
+//       'Failed to load message history. Will try to continue with cached messages.',
+//     );
+
+//     // If we have cached messages, use those
+//     const roomId = [user.id, selectedDoctor.id].sort().join('-');
+//     if (chatHistory[roomId]) {
+//       setMessages(chatHistory[roomId]);
+//     }
+//   }
+// };
 
   // Socket connection
   useEffect(() => {
@@ -252,7 +329,7 @@ const ChatScreen = () => {
       socketRef.current.on('receive_message', message => {
         console.log('Received message:', message);
 
-        // Handle received message
+        // Handle received message - INCLUDE ALL ATTACHMENT FIELDS
         const newMessage = {
           id: message.id,
           text: message.text || message.content,
@@ -261,6 +338,13 @@ const ChatScreen = () => {
           receiverId: message.receiverId || message.receiver_id,
           timestamp: message.timestamp || message.created_at,
           roomId: message.roomId || message.room_id,
+          // Add these crucial attachment fields
+          isAttachment: message.isAttachment || message.is_attachment || false,
+          attachmentType: message.attachmentType || message.attachment_type,
+          fileUrl: message.fileUrl || message.file_url,
+          fileName: message.fileName || message.file_name,
+          fileType: message.fileType || message.file_type,
+          fileSize: message.fileSize || message.file_size,
         };
 
         // Immediately update messages without checking for duplicates
@@ -322,38 +406,48 @@ const ChatScreen = () => {
     }
   }, [selectedDoctor, user]);
 
-  useEffect(() => {
-    const loadImages = async () => {
-      const imagesToLoad = messages.filter(
-        msg =>
-          (msg.isAttachment === true && msg.attachmentType === 'image') ||
-          (msg.fileType && msg.fileType.includes('image')) ||
-          (msg.fileUrl && msg.fileUrl.match(/\.(jpeg|jpg|gif|png)$/i)),
-      );
+useEffect(() => {
+  const loadImages = async () => {
+    const imagesToLoad = messages.filter(
+      msg =>
+        (msg.isAttachment === true && msg.attachmentType === 'image') ||
+        (msg.fileType && msg.fileType.includes('image')) ||
+        (msg.fileUrl && msg.fileUrl.match(/\.(jpeg|jpg|gif|png)$/i)),
+    );
 
-      for (const msg of imagesToLoad) {
-        if (msg.fileUrl && !cachedImages[msg.fileUrl]) {
-          console.log('Caching image:', msg.fileUrl);
-          try {
-            // Create a unique key based on the URL
-            const cacheKey = msg.fileUrl.split('/').pop();
-            const localUri = await downloadAndCacheImage(msg.fileUrl, cacheKey);
+    // Add this debug output to see what images need to be loaded
+    console.log('Images to load:', imagesToLoad.length, 
+      imagesToLoad.map(m => ({
+        isAtt: m.isAttachment,
+        type: m.attachmentType,
+        fileType: m.fileType,
+        url: m.fileUrl?.substring(0, 40) + '...'
+      }))
+    );
 
-            if (localUri) {
-              setCachedImages(prev => ({
-                ...prev,
-                [msg.fileUrl]: localUri,
-              }));
-            }
-          } catch (error) {
-            console.error('Error caching image:', error);
+    for (const msg of imagesToLoad) {
+      if (msg.fileUrl && !cachedImages[msg.fileUrl]) {
+        console.log('Caching image:', msg.fileUrl);
+        try {
+          // Create a unique key based on the URL
+          const cacheKey = msg.fileUrl.split('/').pop();
+          const localUri = await downloadAndCacheImage(msg.fileUrl);
+
+          if (localUri) {
+            setCachedImages(prev => ({
+              ...prev,
+              [msg.fileUrl]: localUri,
+            }));
           }
+        } catch (error) {
+          console.error('Error caching image:', error);
         }
       }
-    };
+    }
+  };
 
-    loadImages();
-  }, [messages]);
+  loadImages();
+}, [messages]);
   // Add this function to handle document picking
   const pickDocument = () => {
     setShowAttachmentOptions(false);
@@ -681,6 +775,12 @@ const ChatScreen = () => {
       timestamp: confirmedMessage.timestamp || confirmedMessage.created_at,
       roomId: confirmedMessage.roomId || confirmedMessage.room_id,
       pending: false,
+          isAttachment: confirmedMessage.isAttachment || confirmedMessage.is_attachment || false,
+    attachmentType: confirmedMessage.attachmentType || confirmedMessage.attachment_type,
+    fileUrl: confirmedMessage.fileUrl || confirmedMessage.file_url,
+    fileName: confirmedMessage.fileName || confirmedMessage.file_name,
+    fileType: confirmedMessage.fileType || confirmedMessage.file_type,
+    fileSize: confirmedMessage.fileSize || confirmedMessage.file_size,
     };
 
     // Update displayed messages if this is the current room
@@ -773,73 +873,214 @@ const ChatScreen = () => {
     </TouchableOpacity>
   );
 
-  const renderMessage = ({item, index}) => {
-    const isOwnMessage = item.senderId === user?.id;
-    const messageTime = new Date(item.timestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
 
-    // For inverted lists, we need the opposite logic of normal lists
-    const currentDate = new Date(item.timestamp);
-    const currentDateStr = currentDate.toDateString();
+  // Update your renderMessage function with this improved version
+const renderMessage = ({item, index}) => {
+  const isOwnMessage = item.senderId === user?.id;
+  const messageTime = new Date(item.timestamp).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
-    // Get the next message's date (which is visually below in an inverted list)
-    // In your case, with inverted=true, the NEXT message in array is the OLDER message
-    const messages = getFilteredMessages(); // Access your messages array
-    const nextMessage =
-      index < messages.length - 1 ? messages[index + 1] : null;
-    const nextDateStr = nextMessage
-      ? new Date(nextMessage.timestamp).toDateString()
-      : null;
+  // Date separator logic
+  const currentDate = new Date(item.timestamp);
+  const currentDateStr = currentDate.toDateString();
+  const messages = getFilteredMessages();
+  const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
+  const nextDateStr = nextMessage
+    ? new Date(nextMessage.timestamp).toDateString()
+    : null;
+  const showDateSeparator =
+    nextDateStr === null || currentDateStr !== nextDateStr;
+  const formattedDate = currentDate.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 
-    // Show separator when date changes between this message and the next (older) one
-    const showDateSeparator =
-      nextDateStr === null || currentDateStr !== nextDateStr;
+  // Check if this is an image attachment
+  const isAttachment = item.isAttachment === true || item.is_attachment === true;
+  
+  const isImage = 
+    (item.attachmentType === 'image' || item.attachment_type === 'image') ||
+    (item.fileType && item.fileType.includes('image')) ||
+    (item.file_type && item.file_type.includes('image'));
+  
+  // Get image URL and check if it's cached
+  const imageUrl = item.fileUrl || item.file_url;
+  const cachedImageUri = imageUrl && cachedImages[imageUrl];
+  
+  // Use for debugging
+  if (isAttachment && isImage) {
+    console.log(`Rendering image: ${item.id} with URL: ${imageUrl || 'undefined'} and cached: ${cachedImageUri || 'not cached'}`);
+  }
 
-    // Format date like "Tue May 13 2025" as shown in your screenshots
-    const formattedDate = currentDate.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+  const handleImagePress = () => {
+    if (isImage && imageUrl) {
+      openPreview(item);
+    }
+  };
 
-    return (
-      <>
-        {/* Message first */}
-        <View
-          style={[
-            styles.messageContainer,
-            isOwnMessage ? styles.ownMessage : styles.otherMessage,
-            item.pending && styles.pendingMessage,
-          ]}>
+  return (
+    <>
+      <View
+        style={[
+          styles.messageContainer,
+          isOwnMessage ? styles.ownMessage : styles.otherMessage,
+          item.pending && styles.pendingMessage,
+        ]}>
+        
+        {/* For image messages, display the actual image with improved error handling */}
+        {isAttachment && isImage && (imageUrl || cachedImageUri) ? (
+          <TouchableOpacity 
+            activeOpacity={0.7}
+            onPress={handleImagePress}
+            style={styles.imageContainer}>
+<Image
+  source={{ uri: cachedImageUri || imageUrl }}
+  style={styles.attachedImage}
+  resizeMode="cover"
+  onLoadStart={() => setLoading(true)}
+  onLoad={() => {
+    console.log(`Image loaded successfully: ${imageUrl?.substring(0, 30)}`);
+    setLoading(false);
+  }}
+  onError={(e) => {
+    console.error(`Image load error: ${e.nativeEvent?.error || 'Unknown error'} for ${imageUrl?.substring(0, 30)}`);
+    setImageError(true);
+    setLoading(false);
+  }}
+  // defaultSource={placeholderImage}
+/>
+            <View style={styles.imagePressIndicator}>
+              <Icon name="eye" size={16} color="#fff" />
+              <Text style={styles.imagePressText}>View</Text>
+            </View>
+          </TouchableOpacity>
+        ) : (!isAttachment || !isImage) ? (
           <Text style={styles.messageText}>{item.text || item.content}</Text>
-          <View style={styles.messageFooter}>
-            <Text style={styles.timestamp}>{messageTime}</Text>
-            {isOwnMessage && (
-              <Text
-                style={[
-                  styles.statusIcon,
-                  item.pending ? styles.pendingIcon : styles.deliveredIcon,
-                ]}>
-                {item.pending ? '⌛' : '✓✓'}
-              </Text>
-            )}
-          </View>
-        </View>
-
-        {/* Date separator comes AFTER message in inverted lists */}
-        {showDateSeparator && (
-          <View style={styles.dateSeparator}>
-            <View style={styles.line} />
-            <Text style={styles.dateSeparatorText}>{formattedDate}</Text>
-            <View style={styles.line} />
+        ) : (
+          // Fallback for image attachments with missing URL
+          <View style={styles.fallbackImageContainer}>
+            <Icon name="image-off" size={32} color="#888" />
+            <Text style={styles.fallbackImageText}>Image unavailable</Text>
           </View>
         )}
-      </>
-    );
-  };
+
+        <View style={styles.messageFooter}>
+          <Text style={styles.timestamp}>{messageTime}</Text>
+          {isOwnMessage && (
+            <Text style={[styles.statusIcon, item.pending ? styles.pendingIcon : styles.deliveredIcon]}>
+              {item.pending ? '⌛' : '✓✓'}
+            </Text>
+          )}
+        </View>
+      </View>
+
+      {showDateSeparator && (
+        <View style={styles.dateSeparator}>
+          <View style={styles.line} />
+          <Text style={styles.dateSeparatorText}>{formattedDate}</Text>
+          <View style={styles.line} />
+        </View>
+      )}
+    </>
+  );
+};
+
+  // const renderMessage = ({item, index}) => {
+  //   const isOwnMessage = item.senderId === user?.id;
+  //   const messageTime = new Date(item.timestamp).toLocaleTimeString([], {
+  //     hour: '2-digit',
+  //     minute: '2-digit',
+  //   });
+
+  //   // Get date separator logic
+  //   const currentDate = new Date(item.timestamp);
+  //   const currentDateStr = currentDate.toDateString();
+  //   const messages = getFilteredMessages();
+  //   const nextMessage =
+  //     index < messages.length - 1 ? messages[index + 1] : null;
+  //   const nextDateStr = nextMessage
+  //     ? new Date(nextMessage.timestamp).toDateString()
+  //     : null;
+  //   const showDateSeparator =
+  //     nextDateStr === null || currentDateStr !== nextDateStr;
+  //   const formattedDate = currentDate.toLocaleDateString('en-US', {
+  //     weekday: 'short',
+  //     month: 'short',
+  //     day: 'numeric',
+  //     year: 'numeric',
+  //   });
+
+  //   // Check if this is an attachment message
+  //   const isAttachment = item.isAttachment || item.is_attachment;
+  //   const isImageAttachment =
+  //     isAttachment &&
+  //     (item.attachmentType === 'image' ||
+  //       item.attachment_type === 'image' ||
+  //       (item.fileType && item.fileType.includes('image')) ||
+  //       (item.file_type && item.file_type.includes('image')));
+
+  //   const fileUrl = item.fileUrl || item.file_url;
+  //   const cachedImageUri = fileUrl ? cachedImages[fileUrl] : null;
+
+  //   return (
+  //     <>
+  //       {/* Message bubble */}
+  //       <View
+  //         style={[
+  //           styles.messageContainer,
+  //           isOwnMessage ? styles.ownMessage : styles.otherMessage,
+  //           item.pending && styles.pendingMessage,
+  //         ]}>
+  //         {/* For image attachments, display the actual image */}
+  //         {isImageAttachment && fileUrl && (
+  //           <TouchableOpacity
+  //             activeOpacity={0.9}
+  //             onPress={() => openPreview(item)}
+  //             style={styles.imageContainer}>
+  //             <Image
+  //               source={{uri: cachedImageUri || fileUrl}}
+  //               style={styles.attachedImage}
+  //               resizeMode="cover"
+  //               // loadingIndicatorSource={require('../assets/image-placeholder.png')}
+  //             />
+  //           </TouchableOpacity>
+  //         )}
+
+  //         {/* For text messages, show the text */}
+  //         {!isImageAttachment && (
+  //           <Text style={styles.messageText}>{item.text || item.content}</Text>
+  //         )}
+
+  //         {/* Message footer with timestamp and status */}
+  //         <View style={styles.messageFooter}>
+  //           <Text style={styles.timestamp}>{messageTime}</Text>
+  //           {isOwnMessage && (
+  //             <Text
+  //               style={[
+  //                 styles.statusIcon,
+  //                 item.pending ? styles.pendingIcon : styles.deliveredIcon,
+  //               ]}>
+  //               {item.pending ? '⌛' : '✓✓'}
+  //             </Text>
+  //           )}
+  //         </View>
+  //       </View>
+
+  //       {/* Date separator */}
+  //       {showDateSeparator && (
+  //         <View style={styles.dateSeparator}>
+  //           <View style={styles.line} />
+  //           <Text style={styles.dateSeparatorText}>{formattedDate}</Text>
+  //           <View style={styles.line} />
+  //         </View>
+  //       )}
+  //     </>
+  //   );
+  // };
 
   // Function to retry connecting to the server
   const retryConnection = () => {
@@ -1479,17 +1720,60 @@ const styles = StyleSheet.create({
     color: '#333',
     fontSize: 14,
   },
-  imageContainer: {
-    width: '100%',
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  attachedImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
+  // imageContainer: {
+  //   width: '100%',
+  //   borderRadius: 8,
+  //   overflow: 'hidden',
+  // },
+  // attachedImage: {
+  //   width: '100%',
+  //   height: 200,
+  //   borderRadius: 8,
+  //   marginBottom: 8,
+  // },
+imageContainer: {
+  width: '100%',
+  height: 200,
+  borderRadius: 8,
+  overflow: 'hidden',
+  marginBottom: 4,
+  backgroundColor: '#f0f0f0',
+  position: 'relative', // Important for positioning the overlay
+},
+attachedImage: {
+  width: '100%',
+  height: '100%',
+  borderRadius: 4,
+},
+imagePressIndicator: {
+  position: 'absolute',
+  bottom: 8,
+  right: 8,
+  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  borderRadius: 16,
+  paddingHorizontal: 12,
+  paddingVertical: 6,
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+imagePressText: {
+  color: '#fff',
+  fontSize: 12,
+  fontWeight: '500',
+  marginLeft: 4,
+},
+fallbackImageContainer: {
+  width: '100%',
+  padding: 16,
+  alignItems: 'center',
+  backgroundColor: '#f5f5f5',
+  borderRadius: 8,
+},
+fallbackImageText: {
+  marginTop: 8,
+  color: '#888',
+  fontSize: 14,
+},
   documentContainer: {
     flexDirection: 'row',
     alignItems: 'center',
