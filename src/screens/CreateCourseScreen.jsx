@@ -91,8 +91,19 @@ const CreateCourseScreen = ({navigation}) => {
       Alert.alert('Success', 'Course created successfully!', [
         {
           text: 'Add Videos Now',
-          onPress: () =>
-            navigation.navigate('AddCourseVideo', {courseId: result.course.id}),
+          onPress: () => {
+            // Check if result and result.course exist before accessing id
+            if (result && result.course && result.course.id) {
+              navigation.navigate('AddCourseVideo', {courseId: result.course.id});
+            } else if (result && result.id) {
+              // Alternative structure - if the course ID is directly on the result
+              navigation.navigate('AddCourseVideo', {courseId: result.id});
+            } else {
+              // Fallback if no course ID can be found
+              console.error('Course ID not found in API response:', result);
+              navigation.navigate('Courses');
+            }
+          },
         },
         {
           text: 'Later',
