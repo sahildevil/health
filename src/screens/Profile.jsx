@@ -10,17 +10,133 @@ import {
   Image,
   ActivityIndicator,
   Linking,
+  Alert,
+  Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
 import api from '../services/api';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import * as ImagePicker from 'react-native-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Profile = ({navigation}) => {
   const {user, logout} = useAuth();
   const [userDocuments, setUserDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [viewingDocument, setViewingDocument] = useState(null);
+  const [profileImage, setProfileImage] = useState(user?.avatar_url || null);
+  const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
+  const insets = useSafeAreaInsets();
+
+  // Fetch user profile with document and avatar
+  const fetchUserProfile = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch updated user profile - USE CORRECT ENDPOINT
+      // Either use the user-specific endpoint:
+      const userResponse = await api.get(`/user-profile/${user.id}`);
+      // OR use the general endpoint if you have one that returns the current user:
+      // const userResponse = await api.get('/auth/me');
+      
+      if (userResponse.data && userResponse.data.avatar_url) {
+        setProfileImage(userResponse.data.avatar_url);
+      }
+      
+      // Fetch documents if user is a doctor
+      if (user?.role === 'doctor') {
+        const docResponse = await api.get(`/users/my-documents`);
+        setUserDocuments(docResponse.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, [user]);
+
+  // Function to pick an image from gallery
+  const pickProfileImage = () => {
+    const options = {
+      mediaType: 'photo',
+      quality: 0.8,
+      maxWidth: 500,
+      maxHeight: 500,
+    };
+
+    ImagePicker.launchImageLibrary(options, response => {
+      if (response.didCancel) {
+        console.log('User cancelled image picker');
+      } else if (response.errorCode) {
+        Alert.alert('Error', 'ImagePicker Error: ' + response.errorMessage);
+      } else {
+        const asset = response.assets[0];
+        uploadProfileImage({
+          uri: asset.uri,
+          type: asset.type || 'image/jpeg',
+          name: asset.fileName || `profile-${Date.now()}.jpg`,
+          size: asset.fileSize,
+        });
+      }
+    });
+  };
+
+  // Function to upload the selected profile image
+  const uploadProfileImage = async (imageFile) => {
+    if (!imageFile) return;
+
+    try {
+      setUploadingProfileImage(true);
+
+      // Get auth token
+      const token = await AsyncStorage.getItem('@token');
+      if (!token) {
+        Alert.alert('Error', 'You need to be logged in to upload a profile picture');
+        return;
+      }
+
+      // Create form data
+      const formData = new FormData();
+      formData.append('profile_image', {
+        uri: Platform.OS === 'ios' ? imageFile.uri.replace('file://', '') : imageFile.uri,
+        type: imageFile.type,
+        name: imageFile.name,
+      });
+
+      // Upload to server - FIX THE URL HERE
+      const response = await fetch(`${api.defaults.baseURL}/uploads/profile-image`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Upload failed: ${response.status} ${errorText}`);
+      }
+
+      const result = await response.json();
+      
+      // Update profile image state
+      setProfileImage(result.avatar_url);
+      
+      // Show success message
+      Alert.alert('Success', 'Profile picture updated successfully');
+      
+    } catch (error) {
+      console.error('Error uploading profile image:', error);
+      Alert.alert('Upload Failed', error.message || 'Failed to upload profile picture');
+    } finally {
+      setUploadingProfileImage(false);
+    }
+  };
 
   // Fetch doctor's documents
   const fetchDocuments = async () => {
@@ -42,7 +158,6 @@ const Profile = ({navigation}) => {
       fetchDocuments();
     }
   }, [user]);
-  const insets = useSafeAreaInsets();
   const handleLogout = async () => {
     await logout();
     // Navigation will be handled by AppNavigator
@@ -171,11 +286,37 @@ const Profile = ({navigation}) => {
 
       <ScrollView style={styles.content}>
         <View style={styles.profileSection}>
-          <View style={styles.profileIcon}>
-            <Text style={styles.profileInitial}>
-              {user?.name?.charAt(0) || 'U'}
-            </Text>
-          </View>
+          {/* Profile Image Section */}
+          <TouchableOpacity 
+            style={styles.profileImageContainer}
+            onPress={pickProfileImage}
+            disabled={uploadingProfileImage}>
+            {uploadingProfileImage ? (
+              <View style={styles.profileIcon}>
+                <ActivityIndicator size="large" color="#fff" />
+              </View>
+            ) : profileImage ? (
+              <View style={styles.profileImageWrapper}>
+                <Image 
+                  source={{uri: profileImage}} 
+                  style={styles.profileImage} 
+                />
+                <View style={styles.editIconContainer}>
+                  <Icon name="pencil" size={16} color="#fff" />
+                </View>
+              </View>
+            ) : (
+              <View style={styles.profileIcon}>
+                <Text style={styles.profileInitial}>
+                  {user?.name?.charAt(0) || 'U'}
+                </Text>
+                <View style={styles.editIconContainer}>
+                  <Icon name="camera" size={16} color="#fff" />
+                </View>
+              </View>
+            )}
+          </TouchableOpacity>
+          
           <Text style={styles.profileName}>{user?.name || 'User'}</Text>
           <Text style={styles.profileRole}>
             {user?.role === 'doctor'
@@ -437,6 +578,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
+  profileImageContainer: {
+    marginBottom: 16,
+  },
+profileImageWrapper: {
+  width: 100,
+  height: 100,
+  borderRadius: 50,
+  position: 'relative',
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: '#e1e1e1',
+},
+  profileImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 50,
+  },
+  editIconContainer: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#2e7af5',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
   profileIcon: {
     width: 100,
     height: 100,
@@ -444,7 +615,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#2e7af5',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    position: 'relative',
   },
   profileInitial: {
     fontSize: 42,
