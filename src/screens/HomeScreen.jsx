@@ -13,6 +13,7 @@ import {
   RefreshControl,
   Alert,
   TextInput,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -20,6 +21,7 @@ import {useAuth} from '../context/AuthContext';
 import {eventService} from '../services/api';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Calendar} from 'react-native-calendars'; // Add this import
+import api from '../services/api';
 
 // Event Status Badge Component (reused from MyEventsScreen)
 const EventStatusBadge = ({status}) => {
@@ -79,6 +81,9 @@ const HomeScreen = ({navigation}) => {
   const [showCalendar, setShowCalendar] = useState(false);
   const [markedDates, setMarkedDates] = useState({});
 
+  // Add this state variable with your other state declarations
+  const [profileImage, setProfileImage] = useState(user?.avatar_url || null);
+
   // Helper function to get proper greeting based on time of day
   const getGreeting = () => {
     const hours = new Date().getHours();
@@ -108,6 +113,19 @@ const HomeScreen = ({navigation}) => {
       setRegisteredEvents(data.map(event => event.id));
     } catch (error) {
       console.error('Failed to fetch registered events:', error);
+    }
+  };
+
+  // Add this function to fetch profile image
+  const fetchProfileImage = async () => {
+    try {
+      const response = await api.get(`/users/profile-image`);
+      if (response.data && response.data.avatar_url) {
+        setProfileImage(response.data.avatar_url);
+      }
+    } catch (error) {
+      console.log('Could not fetch profile image:', error);
+      // Keep using existing image or default
     }
   };
 
@@ -223,11 +241,13 @@ const HomeScreen = ({navigation}) => {
   // Update useEffect to fetch registered events
   useEffect(() => {
     fetchEvents();
-    fetchRegisteredEvents(); // Add this
+    fetchRegisteredEvents();
+    if (user) fetchProfileImage(); // Add this line
 
     const unsubscribe = navigation.addListener('focus', () => {
       fetchEvents();
-      fetchRegisteredEvents(); // Add this
+      fetchRegisteredEvents();
+      if (user) fetchProfileImage(); // Add this line
     });
 
     return unsubscribe;
@@ -355,56 +375,56 @@ const HomeScreen = ({navigation}) => {
 
   // Add this function before the return statement
   // Replace the existing generateMarkedDates function with this improved version
-const generateMarkedDates = eventsData => {
-  const marks = {};
+  const generateMarkedDates = eventsData => {
+    const marks = {};
 
-  eventsData.forEach(event => {
-    // Skip if no start or end date
-    if (!event.startDate || !event.endDate) return;
+    eventsData.forEach(event => {
+      // Skip if no start or end date
+      if (!event.startDate || !event.endDate) return;
 
-    // Parse dates carefully to avoid timezone issues
-    const startParts = event.startDate.split('T')[0].split('-');
-    const endParts = event.endDate.split('T')[0].split('-');
-    
-    // Create dates using year, month, day to avoid timezone shifts
-    // Note: months are 0-indexed in JavaScript Date
-    const start = new Date(
-      parseInt(startParts[0]),
-      parseInt(startParts[1]) - 1,
-      parseInt(startParts[2])
-    );
-    
-    const end = new Date(
-      parseInt(endParts[0]),
-      parseInt(endParts[1]) - 1,
-      parseInt(endParts[2])
-    );
+      // Parse dates carefully to avoid timezone issues
+      const startParts = event.startDate.split('T')[0].split('-');
+      const endParts = event.endDate.split('T')[0].split('-');
 
-    // Generate all dates in the range
-    const currentDate = new Date(start);
-    while (currentDate <= end) {
-      // Format: YYYY-MM-DD
-      const year = currentDate.getFullYear();
-      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-      const day = String(currentDate.getDate()).padStart(2, '0');
-      const dateString = `${year}-${month}-${day}`;
-      
-      // Add each date to the marked dates
-      marks[dateString] = {
-        selected: true,
-        selectedColor: '#FFA500', // Light orange color
-      };
-      
-      // Move to next day
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-  });
+      // Create dates using year, month, day to avoid timezone shifts
+      // Note: months are 0-indexed in JavaScript Date
+      const start = new Date(
+        parseInt(startParts[0]),
+        parseInt(startParts[1]) - 1,
+        parseInt(startParts[2]),
+      );
 
-  // For debugging
-  console.log('Marked dates:', Object.keys(marks));
-  
-  return marks;
-};
+      const end = new Date(
+        parseInt(endParts[0]),
+        parseInt(endParts[1]) - 1,
+        parseInt(endParts[2]),
+      );
+
+      // Generate all dates in the range
+      const currentDate = new Date(start);
+      while (currentDate <= end) {
+        // Format: YYYY-MM-DD
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const dateString = `${year}-${month}-${day}`;
+
+        // Add each date to the marked dates
+        marks[dateString] = {
+          selected: true,
+          selectedColor: '#FFA500', // Light orange color
+        };
+
+        // Move to next day
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    });
+
+    // For debugging
+    console.log('Marked dates:', Object.keys(marks));
+
+    return marks;
+  };
 
   // Add this useEffect
   useEffect(() => {
@@ -439,11 +459,24 @@ const generateMarkedDates = eventsData => {
               : "Here's your overview today"}
           </Text>
         </View>
-        <View style={styles.profileIcon}>
-          <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-            <Ionicons name="person" size={24} color={'#2e7af5'} />
-          </TouchableOpacity>
-        </View>
+
+        {/* Replace the profile icon with this */}
+        <TouchableOpacity
+          style={styles.profileIconContainer}
+          onPress={() => navigation.navigate('Profile')}>
+          {profileImage ? (
+            <Image
+              source={{uri: profileImage}}
+              style={styles.profileImage}
+            />
+          ) : (
+            <View style={styles.profileInitialContainer}>
+              <Text style={styles.profileInitialText}>
+                {user?.name?.charAt(0) || 'U'}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Stats Cards */}
@@ -675,15 +708,37 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  profileIcon: {
+  profileIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#f8f8f8',
-    borderRadius: 50,
-    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
+    overflow: 'hidden',
+  },
+  profileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  profileInitialContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#2e7af5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileInitialText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   welcomeText: {
     fontSize: 24,
