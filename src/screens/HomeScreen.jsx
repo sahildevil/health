@@ -12,12 +12,14 @@ import {
   FlatList,
   RefreshControl,
   Alert,
+  TextInput,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {useAuth} from '../context/AuthContext';
 import {eventService} from '../services/api';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {Calendar} from 'react-native-calendars'; // Add this import
 
 // Event Status Badge Component (reused from MyEventsScreen)
 const EventStatusBadge = ({status}) => {
@@ -62,6 +64,21 @@ const HomeScreen = ({navigation}) => {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('my'); // 'my', 'ongoing', 'recommended'
 
+  // Add state for stats
+  const [stats, setStats] = useState({
+    upcomingEvents: 0,
+    newRegistrations: 0,
+    meetingsThisWeek: 0,
+    nextMeetingDays: null,
+  });
+
+  // Add new state for search
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredEvents, setFilteredEvents] = useState([]);
+  // Add these near your other state declarations
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [markedDates, setMarkedDates] = useState({});
+
   // Helper function to get proper greeting based on time of day
   const getGreeting = () => {
     const hours = new Date().getHours();
@@ -94,8 +111,46 @@ const HomeScreen = ({navigation}) => {
     }
   };
 
-  // Update the fetchEvents function to include brochure data
+  // Calculate real stats from events data
+  const calculateStats = eventsData => {
+    const now = new Date();
 
+    // Count upcoming events (events that haven't ended yet)
+    const upcoming = eventsData.filter(event => new Date(event.endDate) >= now);
+
+    // Count this week's meetings/events
+    const oneWeekFromNow = new Date(now);
+    oneWeekFromNow.setDate(now.getDate() + 7);
+
+    const thisWeekMeetings = upcoming.filter(
+      event => new Date(event.startDate) <= oneWeekFromNow,
+    );
+
+    // Find next meeting
+    const nextMeeting = upcoming.sort(
+      (a, b) => new Date(a.startDate) - new Date(b.startDate),
+    )[0];
+
+    let nextMeetingDays = null;
+    if (nextMeeting) {
+      const diffTime = Math.abs(new Date(nextMeeting.startDate) - now);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      nextMeetingDays = diffDays;
+    }
+
+    // Get new registrations this week (dummy logic - replace with actual if available)
+    // This would ideally be fetched from the server
+    const newRegistrations = Math.min(upcoming.length, 2);
+
+    setStats({
+      upcomingEvents: upcoming.length,
+      newRegistrations,
+      meetingsThisWeek: thisWeekMeetings.length,
+      nextMeetingDays,
+    });
+  };
+
+  // Update the fetchEvents function to filter ongoing events for today only
   const fetchEvents = async () => {
     try {
       setLoading(true);
@@ -106,7 +161,34 @@ const HomeScreen = ({navigation}) => {
           data = await eventService.getMyEvents();
           break;
         case 'ongoing':
+          // Get all events first
           data = await eventService.getOngoingEvents();
+
+          // Filter to show only events scheduled for today
+          const today = new Date();
+          today.setHours(0, 0, 0, 0); // Reset time to start of day
+
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1); // Get tomorrow's date
+
+          // Filter events that are happening today (current date falls between start and end dates)
+          data = data.filter(event => {
+            const startDate = new Date(event.startDate);
+            startDate.setHours(0, 0, 0, 0);
+
+            const endDate = new Date(event.endDate);
+            endDate.setHours(23, 59, 59, 999); // End of day
+
+            return startDate <= today && endDate >= today;
+          });
+          break;
+        case 'participated':
+          // Get registered events (full details) when participated tab is selected
+          data = await eventService.getRegisteredEvents();
+          // Sort by start date (newest first)
+          data = data.sort(
+            (a, b) => new Date(b.startDate) - new Date(a.startDate),
+          );
           break;
         case 'recommended':
           data = await eventService.getRecommendedEvents();
@@ -129,6 +211,7 @@ const HomeScreen = ({navigation}) => {
       );
 
       setEvents(eventsWithBrochures);
+      calculateStats(eventsWithBrochures); // Calculate stats based on events
     } catch (error) {
       console.error('Failed to load events:', error);
     } finally {
@@ -255,6 +338,90 @@ const HomeScreen = ({navigation}) => {
     </TouchableOpacity>
   );
 
+  // Add search filtering effect
+  useEffect(() => {
+    if (events.length > 0) {
+      const filtered = events.filter(
+        event =>
+          event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          event.venue.toLowerCase().includes(searchTerm.toLowerCase()),
+      );
+      setFilteredEvents(filtered);
+    } else {
+      setFilteredEvents([]);
+    }
+  }, [searchTerm, events]);
+
+  // Add this function before the return statement
+  // Replace the existing generateMarkedDates function with this improved version
+const generateMarkedDates = eventsData => {
+  const marks = {};
+
+  eventsData.forEach(event => {
+    // Skip if no start or end date
+    if (!event.startDate || !event.endDate) return;
+
+    // Parse dates carefully to avoid timezone issues
+    const startParts = event.startDate.split('T')[0].split('-');
+    const endParts = event.endDate.split('T')[0].split('-');
+    
+    // Create dates using year, month, day to avoid timezone shifts
+    // Note: months are 0-indexed in JavaScript Date
+    const start = new Date(
+      parseInt(startParts[0]),
+      parseInt(startParts[1]) - 1,
+      parseInt(startParts[2])
+    );
+    
+    const end = new Date(
+      parseInt(endParts[0]),
+      parseInt(endParts[1]) - 1,
+      parseInt(endParts[2])
+    );
+
+    // Generate all dates in the range
+    const currentDate = new Date(start);
+    while (currentDate <= end) {
+      // Format: YYYY-MM-DD
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const day = String(currentDate.getDate()).padStart(2, '0');
+      const dateString = `${year}-${month}-${day}`;
+      
+      // Add each date to the marked dates
+      marks[dateString] = {
+        selected: true,
+        selectedColor: '#FFA500', // Light orange color
+      };
+      
+      // Move to next day
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+  });
+
+  // For debugging
+  console.log('Marked dates:', Object.keys(marks));
+  
+  return marks;
+};
+
+  // Add this useEffect
+  useEffect(() => {
+    if (events && events.length > 0) {
+      try {
+        const marks = generateMarkedDates(events);
+        setMarkedDates(marks);
+      } catch (error) {
+        console.error('Error generating marked dates:', error);
+        // Fallback to empty object if there's an error
+        setMarkedDates({});
+      }
+    } else {
+      setMarkedDates({});
+    }
+  }, [events]);
+
   return (
     <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
       <StatusBar barStyle="dark-content" backgroundColor="white" />
@@ -287,34 +454,44 @@ const HomeScreen = ({navigation}) => {
         }>
         <View style={styles.statsContainer}>
           {/* Upcoming Conferences Card */}
-          <View style={styles.card}>
+          <View style={[styles.card, styles.widerCard]}>
             <View style={styles.cardHeader}>
               <Ionicons name="people-outline" size={24} color={'#ffffff'} />
               <Text style={styles.cardTitle}>Upcoming Events</Text>
             </View>
-            <Text style={styles.statNumber}>4</Text>
-            <Text style={styles.statSubtext}>+2 registered this week</Text>
+            <Text style={styles.statNumber}>{stats.upcomingEvents}</Text>
+            <Text style={styles.statSubtext}>
+              {stats.newRegistrations > 0
+                ? `+${stats.newRegistrations} registered this week`
+                : 'No new registrations this week'}
+            </Text>
           </View>
 
           {/* Meetings This Week Card */}
-          <View style={styles.card}>
+          <View style={[styles.card, styles.widerCard]}>
             <View style={styles.cardHeader}>
               <Ionicons name="calendar-outline" size={24} color={'#ffffff'} />
               <Text style={styles.cardTitle}>Meetings This Week</Text>
             </View>
-            <Text style={styles.statNumber}>7</Text>
-            <Text style={styles.statSubtext}>Next one in 2 days</Text>
+            <Text style={styles.statNumber}>{stats.meetingsThisWeek}</Text>
+            <Text style={styles.statSubtext}>
+              {stats.nextMeetingDays !== null
+                ? `Next one in ${stats.nextMeetingDays} day${
+                    stats.nextMeetingDays !== 1 ? 's' : ''
+                  }`
+                : 'No upcoming meetings'}
+            </Text>
           </View>
 
           {/* Available CME Courses Card */}
-          <View style={styles.card}>
+          {/* <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Icon name="book-open-variant" size={24} color="#ffffff" />
               <Text style={styles.cardTitle}>Available Courses</Text>
             </View>
             <Text style={styles.statNumber}>24</Text>
             <Text style={styles.statSubtext}>5 new courses added</Text>
-          </View>
+          </View> */}
         </View>
 
         {/* Events Tabs */}
@@ -341,20 +518,55 @@ const HomeScreen = ({navigation}) => {
               Ongoing Events
             </Text>
           </TouchableOpacity>
-          {/* <TouchableOpacity
+          <TouchableOpacity
             style={[
               styles.tab,
-              activeTab === 'recommended' && styles.activeTab,
+              activeTab === 'participated' && styles.activeTab,
             ]}
-            onPress={() => setActiveTab('recommended')}>
+            onPress={() => setActiveTab('participated')}>
             <Text
               style={[
                 styles.tabText,
-                activeTab === 'recommended' && styles.activeTabText,
+                activeTab === 'participated' && styles.activeTabText,
               ]}>
-              Recommended
+              Participated Events
             </Text>
-          </TouchableOpacity> */}
+          </TouchableOpacity>
+        </View>
+
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBar}>
+            <Icon
+              name="magnify"
+              size={20}
+              color="#666"
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={`Search ${
+                activeTab === 'my'
+                  ? 'my'
+                  : activeTab === 'ongoing'
+                  ? 'ongoing'
+                  : 'participated'
+              } events...`}
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+              placeholderTextColor="#999"
+            />
+            {searchTerm !== '' && (
+              <TouchableOpacity onPress={() => setSearchTerm('')}>
+                <Icon name="close-circle" size={18} color="#999" />
+              </TouchableOpacity>
+            )}
+          </View>
+          <TouchableOpacity
+            style={styles.calendarIconButton}
+            onPress={() => setShowCalendar(!showCalendar)}>
+            <Icon name="calendar" size={22} color="#2e7af5" />
+          </TouchableOpacity>
         </View>
 
         {/* Event Cards */}
@@ -363,6 +575,14 @@ const HomeScreen = ({navigation}) => {
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#2e7af5" />
               <Text style={styles.loadingText}>Loading events...</Text>
+            </View>
+          ) : filteredEvents.length === 0 && searchTerm !== '' ? (
+            <View style={styles.emptyContainer}>
+              <Icon name="magnify-off" size={64} color="#ccc" />
+              <Text style={styles.emptyTitle}>No Events Found</Text>
+              <Text style={styles.emptySubtitle}>
+                No events match your search criteria. Please try another term.
+              </Text>
             </View>
           ) : events.length === 0 ? (
             <View style={styles.emptyContainer}>
@@ -373,6 +593,8 @@ const HomeScreen = ({navigation}) => {
                   ? 'Create your first medical event or browse recommended events'
                   : activeTab === 'ongoing'
                   ? 'There are no ongoing events at the moment'
+                  : activeTab === 'participated'
+                  ? "You haven't registered for any events yet"
                   : "We don't have any recommendations for you yet"}
               </Text>
               {activeTab === 'my' && (
@@ -385,7 +607,7 @@ const HomeScreen = ({navigation}) => {
             </View>
           ) : (
             <FlatList
-              data={events}
+              data={filteredEvents.length > 0 ? filteredEvents : events}
               renderItem={renderEventItem}
               keyExtractor={item => item.id}
               scrollEnabled={false}
@@ -394,6 +616,47 @@ const HomeScreen = ({navigation}) => {
           )}
         </View>
       </ScrollView>
+
+      {/* Calendar Overlay */}
+      {showCalendar && (
+        <View style={styles.calendarOverlay}>
+          <View style={styles.calendarContainer}>
+            <View style={styles.calendarHeader}>
+              <Text style={styles.calendarTitle}>Event Calendar</Text>
+              <TouchableOpacity onPress={() => setShowCalendar(false)}>
+                <Icon name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <Calendar
+              markedDates={markedDates}
+              hideExtraDays={true}
+              enableSwipeMonths={true}
+              theme={{
+                backgroundColor: '#ffffff',
+                calendarBackground: '#ffffff',
+                textSectionTitleColor: '#2e7af5',
+                selectedDayBackgroundColor: '#FFA500',
+                selectedDayTextColor: '#ffffff',
+                todayTextColor: '#2e7af5',
+                dayTextColor: '#333',
+                textDisabledColor: '#d9e1e8',
+                dotColor: '#FFA500',
+                selectedDotColor: '#ffffff',
+                arrowColor: '#2e7af5',
+                monthTextColor: '#333',
+              }}
+            />
+
+            <View style={styles.calendarLegend}>
+              <View style={styles.legendItem}>
+                <View style={styles.legendDot} />
+                <Text style={styles.legendText}>Event Dates</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -453,6 +716,11 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
+
+  // Add style for wider cards (since we now have 2 instead of 3)
+  widerCard: {
+    width: '48%', // Make cards take up almost half the width
+  },
   registeredButton: {
     backgroundColor: '#4caf50',
     borderRadius: 8,
@@ -507,6 +775,40 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#2e7af5',
     fontWeight: '500',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  searchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 10,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+    padding: 0,
+  },
+  calendarIconButton: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 42,
+    height: 42,
   },
   eventCardsContainer: {
     padding: 16,
@@ -678,6 +980,59 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     marginLeft: 4,
+  },
+  calendarOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  calendarContainer: {
+    width: '90%',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  calendarTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  calendarLegend: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 16,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#FFA500',
+    marginRight: 6,
+  },
+  legendText: {
+    fontSize: 12,
+    color: '#666',
   },
 });
 

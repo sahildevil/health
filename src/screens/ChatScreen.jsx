@@ -27,8 +27,12 @@ import {Linking} from 'react-native';
 import FastImage from '@d11/react-native-fast-image';
 import RNFS from 'react-native-fs';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+
 const SOCKET_URL = 'http://192.168.1.2:5000';
 const API_URL = 'http://192.168.1.2:5000';
+//const SOCKET_URL = 'https://health-server-fawn.vercel.app/api';
+//const API_URL = 'https://health-server-fawn.vercel.app/api';
+
 const ChatScreen = () => {
   const {user, getToken} = useAuth();
   const [messages, setMessages] = useState([]);
