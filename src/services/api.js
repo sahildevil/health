@@ -12,6 +12,25 @@ const api = axios.create({
   },
   timeout: 50000, // 10 seconds timeout
 });
+
+// Add an interceptor to add the token to every request
+api.interceptors.request.use(
+  async config => {
+    try {
+      const token = await AsyncStorage.getItem('@token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  },
+  error => {
+    return Promise.reject(error);
+  },
+);
+
 async function isServerReachable() {
   try {
     const response = await fetch(`${API_URL.split('/api')[0]}/health`, {

@@ -17,7 +17,7 @@ import api from '../services/api';
 import {adminService} from '../services/api';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 const AdminDashboardScreen = ({navigation}) => {
-    const insets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   const {user} = useAuth();
   const [stats, setStats] = useState({
     totalDoctors: 0,
@@ -172,7 +172,13 @@ const AdminDashboardScreen = ({navigation}) => {
             <Text style={styles.quickActionText}>System Settings</Text>
             <Icon name="chevron-right" size={24} color="#ccc" />
           </TouchableOpacity> */}
-
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            onPress={() => navigation.navigate('AdminChat')}>
+            <Icon name="forum" size={24} color="#2e7af5" />
+            <Text style={styles.quickActionText}>Support Chats</Text>
+            <Icon name="chevron-right" size={24} color="#ccc" />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.quickActionButton}
             onPress={() => navigation.navigate('AdminEventManagement')}>
