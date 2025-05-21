@@ -10,7 +10,6 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-  Image,
   StatusBar,
   SafeAreaView,
   Modal,
@@ -688,19 +687,20 @@ const ChatScreen = () => {
     const tempId = `temp-${Date.now()}`;
 
     const messageData = {
-      // Use both fields for compatibility
       text: newMessage.trim(),
-      content: newMessage.trim(), // Add content for backend
+      content: newMessage.trim(),
       senderId: user.id,
-      sender_id: user.id, // Add sender_id for backend
+      sender_id: user.id,
       senderName: user.name,
-      sender_name: user.name, // Add sender_name for backend
+      sender_name: user.name,
       receiverId: selectedDoctor.id,
-      receiver_id: selectedDoctor.id, // Add receiver_id for backend
+      receiver_id: selectedDoctor.id,
       timestamp: new Date().toISOString(),
-      created_at: new Date().toISOString(), // Add created_at for backend
+      created_at: new Date().toISOString(),
       roomId: roomId,
-      room_id: roomId, // Add room_id for backend
+      room_id: roomId,
+      messageType: 'text',
+      message_type: 'text',
     };
 
     console.log('Sending message:', messageData);
@@ -790,6 +790,11 @@ const ChatScreen = () => {
       receiverId: confirmedMessage.receiverId || confirmedMessage.receiver_id,
       timestamp: confirmedMessage.timestamp || confirmedMessage.created_at,
       roomId: confirmedMessage.roomId || confirmedMessage.room_id,
+      documentUrl: confirmedMessage.documentUrl || confirmedMessage.document_url,
+      documentName: confirmedMessage.documentName || confirmedMessage.document_name,
+      documentType: confirmedMessage.documentType || confirmedMessage.document_type,
+      messageType: confirmedMessage.messageType || confirmedMessage.message_type || 
+                  (confirmedMessage.documentUrl || confirmedMessage.document_url ? 'document' : 'text'),
       pending: false,
       isAttachment:
         confirmedMessage.isAttachment ||
@@ -1223,6 +1228,13 @@ const ChatScreen = () => {
             }
           />
 
+          {uploading && (
+            <View style={styles.uploadingContainer}>
+              <ActivityIndicator size="small" color="#2e7af5" />
+              <Text style={styles.uploadingText}>Uploading document...</Text>
+            </View>
+          )}
+
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
@@ -1242,6 +1254,7 @@ const ChatScreen = () => {
                 placeholder="Message"
                 multiline
               />
+              
               <TouchableOpacity
                 style={styles.sendButton}
                 onPress={sendMessage}
@@ -1303,27 +1316,21 @@ const ChatScreen = () => {
           />
         </View>
       ) : (
+        // Doctor list view
         <View style={styles.container}>
           <View style={styles.whatsappHeader}>
-            <Text style={styles.whatsappTitle}>Health Insights</Text>
-            <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.headerButton}>
-                <Text style={styles.headerIcon}>🔍</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.headerButton}>
-                <Text style={styles.headerIcon}>⋮</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.whatsappTitle}>Doctors</Text>
           </View>
 
           <FlatList
             data={doctors}
             renderItem={renderDoctor}
-            keyExtractor={item => item.id?.toString()}
-            style={styles.doctorsList}
-            contentContainerStyle={styles.doctorsListContent}
+            keyExtractor={item => item.id.toString()}
+            contentContainerStyle={styles.doctorsList}
             ListEmptyComponent={
-              <Text style={styles.emptyListText}>No doctors available</Text>
+              <Text style={styles.emptyDoctorsText}>
+                No doctors available at the moment
+              </Text>
             }
           />
         </View>
@@ -1414,7 +1421,64 @@ const ChatScreen = () => {
     </SafeAreaView>
   );
 };
+
+
 //2e7af5
+// Add these improved styles for document messages
+const documentStyles = {
+  documentMessageContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f7ff',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 5,
+    borderWidth: 1,
+    borderColor: '#d4e4fc',
+  },
+  documentIconContainer: {
+    width: 46,
+    height: 46,
+    borderRadius: 8,
+    backgroundColor: '#e3efff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+  },
+  documentInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  documentName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  documentType: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 6,
+  },
+  viewDocButton: {
+    backgroundColor: '#2e7af5',
+    borderRadius: 14,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+  },
+  viewDocText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+};
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
