@@ -10,37 +10,37 @@ import {
   ActivityIndicator,
   Alert,
   StatusBar,
-  Switch,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
 import {eventService} from '../services/api';
-import {
-  SafeAreaInsetsContext,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const EventRegistrationScreen = ({route, navigation}) => {
-    const insets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   const {eventId} = route.params;
   const {user} = useAuth();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [event, setEvent] = useState(null);
-  const [isCompanySponsor, setIsCompanySponsor] = useState(false);
+  
+  // Initialize form based on user role
+  const isPharma = user?.role === 'pharma';
+  
+  // Form data with defaults
   const [formData, setFormData] = useState({
+    // Common fields
     name: user?.name || '',
     email: user?.email || '',
-    phone: '',
-    specialization: '',
-    organization: '',
+    phone: user?.phone || '',
     additionalNotes: '',
-    // New fields for company sponsors
-    isCompanySponsor: false,
-    companyName: '',
-    sponsorshipLevel: 'Standard', // Default level
-    contactPerson: '',
+    
+    // For pharma users
+    isCompanySponsor: isPharma,
+    companyName: user?.company || '',
+    contactPerson: user?.name || '',
     companyWebsite: '',
+    sponsorshipLevel: 'Standard',
   });
 
   useEffect(() => {
@@ -59,44 +59,25 @@ const EventRegistrationScreen = ({route, navigation}) => {
     }
   };
 
-  const toggleSponsorMode = value => {
-    setIsCompanySponsor(value);
-    setFormData({
-      ...formData,
-      isCompanySponsor: value,
-      // Pre-fill contact person with user's name if switching to company mode
-      contactPerson:
-        value && !formData.contactPerson
-          ? formData.name
-          : formData.contactPerson,
-    });
-  };
-
   const handleSubmit = async () => {
-    if (isCompanySponsor) {
-      // Validation for company sponsors
-      if (
-        !formData.companyName ||
-        !formData.contactPerson ||
-        !formData.email ||
-        !formData.phone
-      ) {
+    // Validate form based on user role
+    if (isPharma) {
+      // Validation for company/pharma registration
+      if (!formData.companyName || !formData.contactPerson || !formData.email || !formData.phone) {
         Alert.alert('Error', 'Please fill in all required company fields');
         return;
       }
-
-      // Only include fields that are supported by the schema
+      
+      // Prepare pharma registration data
       const registrationData = {
-        isCompanySponsor: true, // Ensure this is a boolean true, not a string
+        isCompanySponsor: true,
         companyName: formData.companyName,
         contactPerson: formData.contactPerson,
         email: formData.email,
         phone: formData.phone,
         companyWebsite: formData.companyWebsite,
-        sponsorshipLevel: formData.sponsorshipLevel,
+        additionalNotes: formData.additionalNotes,
       };
-
-      console.log('Submitting sponsor registration:', registrationData);
 
       try {
         setSubmitting(true);
@@ -113,17 +94,18 @@ const EventRegistrationScreen = ({route, navigation}) => {
         setSubmitting(false);
       }
     } else {
-      // Validation for individual registrations
-      if (!formData.name || !formData.email || !formData.phone) {
+      // Doctor registration - simple validation
+      if (!formData.name || !formData.email) {
         Alert.alert('Error', 'Please fill in all required fields');
         return;
       }
 
-      // Only include fields that are supported by the schema
+      // Prepare doctor registration data
       const registrationData = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
+        additionalNotes: formData.additionalNotes,
         isCompanySponsor: false,
       };
 
@@ -173,39 +155,18 @@ const EventRegistrationScreen = ({route, navigation}) => {
           <Text style={styles.eventType}>{event?.type}</Text>
         </View>
 
-        {/* Registration Type Selector */}
-        <View style={styles.registrationTypeContainer}>
-          <Text style={styles.registrationTypeTitle}>Registration Type</Text>
-
-          <View style={styles.switchContainer}>
-            <Text style={styles.switchLabel}>
-              {isCompanySponsor
-                ? 'Registering as Company Sponsor'
-                : 'Registering as Individual'}
-            </Text>
-            <Switch
-              value={isCompanySponsor}
-              onValueChange={toggleSponsorMode}
-              trackColor={{false: '#767577', true: '#81b0ff'}}
-              thumbColor={isCompanySponsor ? '#2e7af5' : '#f4f3f4'}
-            />
-          </View>
-
-          {isCompanySponsor && (
-            <View style={styles.sponsorNotice}>
-              <Icon name="information-outline" size={18} color="#e36135" />
-              <Text style={styles.sponsorNoticeText}>
-                Your company will be registered as a sponsor for this event
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Registration Form */}
+        {/* Registration Form - Different for doctor vs pharma */}
         <View style={styles.form}>
-          {isCompanySponsor ? (
-            // Company Sponsor Form
+          {isPharma ? (
+            // Pharma/Company Registration Form
             <>
+              <View style={styles.registrationTypeHeader}>
+                <Icon name="domain" size={24} color="#2e7af5" style={styles.registrationTypeIcon} />
+                <Text style={styles.registrationTypeText}>
+                  Company Registration
+                </Text>
+              </View>
+              
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Company Name*</Text>
                 <TextInput
@@ -271,31 +232,17 @@ const EventRegistrationScreen = ({route, navigation}) => {
                   autoCapitalize="none"
                 />
               </View>
-
-              {/* <View style={styles.inputGroup}>
-                <Text style={styles.label}>Sponsorship Level</Text>
-                <View style={styles.radioContainer}>
-                  {['Gold', 'Silver', 'Bronze', 'Standard'].map((level) => (
-                    <TouchableOpacity
-                      key={level}
-                      style={[
-                        styles.radioButton,
-                        formData.sponsorshipLevel === level && styles.radioButtonSelected
-                      ]}
-                      onPress={() => setFormData({ ...formData, sponsorshipLevel: level })}
-                    >
-                      <View style={styles.radioCircle}>
-                        {formData.sponsorshipLevel === level && <View style={styles.radioDot} />}
-                      </View>
-                      <Text style={styles.radioText}>{level}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View> */}
             </>
           ) : (
-            // Individual Registration Form
+            // Doctor's Simple Registration Form
             <>
+              <View style={styles.registrationTypeHeader}>
+                <Icon name="doctor" size={24} color="#2e7af5" style={styles.registrationTypeIcon} />
+                <Text style={styles.registrationTypeText}>
+                  Doctor Registration
+                </Text>
+              </View>
+              
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Full Name*</Text>
                 <TextInput
@@ -304,6 +251,7 @@ const EventRegistrationScreen = ({route, navigation}) => {
                   onChangeText={text => setFormData({...formData, name: text})}
                   placeholder="Enter your full name"
                   placeholderTextColor="#999"
+                  editable={!user?.name} // Make it read-only if pre-filled
                 />
               </View>
 
@@ -317,6 +265,7 @@ const EventRegistrationScreen = ({route, navigation}) => {
                   placeholderTextColor="#999"
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  editable={!user?.email} // Make it read-only if pre-filled
                 />
               </View>
 
@@ -331,35 +280,10 @@ const EventRegistrationScreen = ({route, navigation}) => {
                   keyboardType="phone-pad"
                 />
               </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Specialization</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.specialization}
-                  onChangeText={text =>
-                    setFormData({...formData, specialization: text})
-                  }
-                  placeholder="Enter your specialization"
-                  placeholderTextColor="#999"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Organization</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.organization}
-                  onChangeText={text =>
-                    setFormData({...formData, organization: text})
-                  }
-                  placeholder="Enter your organization"
-                  placeholderTextColor="#999"
-                />
-              </View>
             </>
           )}
 
+          {/* Common fields for both types */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Additional Notes</Text>
             <TextInput
@@ -369,7 +293,7 @@ const EventRegistrationScreen = ({route, navigation}) => {
                 setFormData({...formData, additionalNotes: text})
               }
               placeholder={
-                isCompanySponsor
+                isPharma
                   ? 'Additional requirements or information about your sponsorship'
                   : "Any additional information you'd like to share"
               }
@@ -391,7 +315,7 @@ const EventRegistrationScreen = ({route, navigation}) => {
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.submitButtonText}>
-              {isCompanySponsor ? 'Register as Sponsor' : 'Register'}
+              {isPharma ? 'Register as Sponsor' : 'Register'}
             </Text>
           )}
         </TouchableOpacity>
@@ -443,43 +367,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
-  registrationTypeContainer: {
-    padding: 16,
+  registrationTypeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#f0f7ff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#dce7f5',
-  },
-  registrationTypeTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
-  },
-  switchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  switchLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#2e7af5',
-    flex: 1,
-  },
-  sponsorNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff3e0',
-    padding: 12,
+    padding: 16,
     borderRadius: 8,
-    marginTop: 10,
+    marginBottom: 16,
   },
-  sponsorNoticeText: {
-    fontSize: 14,
-    color: '#e36135',
-    marginLeft: 8,
-    flex: 1,
+  registrationTypeIcon: {
+    marginRight: 12,
+  },
+  registrationTypeText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2e7af5',
   },
   form: {
     padding: 16,
@@ -503,39 +405,6 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
-  },
-  radioContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  radioButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 20,
-    marginBottom: 12,
-  },
-  radioButtonSelected: {
-    opacity: 1,
-  },
-  radioCircle: {
-    height: 20,
-    width: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#2e7af5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  radioDot: {
-    height: 10,
-    width: 10,
-    borderRadius: 5,
-    backgroundColor: '#2e7af5',
-  },
-  radioText: {
-    fontSize: 14,
-    color: '#333',
   },
   submitButton: {
     backgroundColor: '#2e7af5',

@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Base URL for API calls
 //const API_URL = 'https://health-server-fawn.vercel.app/api';
-const API_URL = 'http://192.168.1.2:5000/api';
+const API_URL = 'http://192.168.1.8:5000/api';
 // Create axios instance
 const api = axios.create({
   baseURL: API_URL,
@@ -12,6 +12,25 @@ const api = axios.create({
   },
   timeout: 50000, // 10 seconds timeout
 });
+
+// Add an interceptor to add the token to every request
+api.interceptors.request.use(
+  async config => {
+    try {
+      const token = await AsyncStorage.getItem('@token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  },
+  error => {
+    return Promise.reject(error);
+  },
+);
+
 async function isServerReachable() {
   try {
     const response = await fetch(`${API_URL.split('/api')[0]}/health`, {
