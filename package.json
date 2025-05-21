@@ -21,6 +21,7 @@
     "@react-navigation/stack": "^7.2.10",
     "@supabase/supabase-js": "^2.49.4",
     "axios": "^1.9.0",
+    "date-fns": "^4.1.0",
     "react": "19.0.0",
     "react-native": "0.79.1",
     "react-native-blob-util": "^0.21.2",

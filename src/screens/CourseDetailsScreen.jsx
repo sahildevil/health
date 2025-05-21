@@ -17,6 +17,8 @@ import Video from 'react-native-video';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import CourseDiscussion from '../components/CourseDiscussion';
+import {format} from 'date-fns';
 
 const {width} = Dimensions.get('window');
 
@@ -28,7 +30,7 @@ const CourseDetailsScreen = ({route, navigation}) => {
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef(null);
-    const insets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   useEffect(() => {
     fetchCourseDetails();
   }, [courseId]);
@@ -48,6 +50,14 @@ const CourseDetailsScreen = ({route, navigation}) => {
       Alert.alert('Error', 'Failed to load course details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshCourse = async () => {
+    try {
+      await fetchCourseDetails();
+    } catch (error) {
+      console.error('Error refreshing course:', error);
     }
   };
 
@@ -256,6 +266,16 @@ const CourseDetailsScreen = ({route, navigation}) => {
             </View>
           )}
         </View>
+
+        {/* Add Discussion Section */}
+        <View style={styles.discussionSection}>
+          <Text style={styles.sectionTitle}>Discussion</Text>
+          <CourseDiscussion
+            courseId={courseId}
+            user={user}
+            refreshDiscussions={refreshCourse}
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -446,6 +466,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  discussionSection: {
+    backgroundColor: '#fff',
+    padding: 16,
+    marginTop: 8,
+    marginBottom: 20,
   },
 });
 

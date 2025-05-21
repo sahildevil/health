@@ -989,6 +989,46 @@ export const courseService = {
       throw error;
     }
   },
+
+  // Add these methods to the courseService object
+
+  // Get discussions for a course
+  getCourseDiscussions: async courseId => {
+    try {
+      const response = await api.get(`/courses/${courseId}/discussions`);
+      return response.data;
+    } catch (error) {
+      console.error('Get course discussions error:', error);
+      throw error;
+    }
+  },
+
+  // Add a discussion to a course
+  addCourseDiscussion: async (courseId, discussionData) => {
+    try {
+      const response = await api.post(
+        `/courses/${courseId}/discussions`,
+        discussionData,
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Add course discussion error:', error);
+      throw error;
+    }
+  },
+
+  // Delete a discussion from a course
+  deleteCourseDiscussion: async (courseId, discussionId) => {
+    try {
+      const response = await api.delete(
+        `/courses/${courseId}/discussions/${discussionId}`,
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Delete course discussion error:', error);
+      throw error;
+    }
+  },
 };
 
 export default api;
