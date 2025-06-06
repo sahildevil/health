@@ -26,8 +26,8 @@ import {Linking} from 'react-native';
 import RNFS from 'react-native-fs';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
-const SOCKET_URL = 'http://192.168.1.8:5000';
-const API_URL = 'http://192.168.1.8:5000';
+const SOCKET_URL = 'http://192.168.1.10:5000';
+const API_URL = 'http://192.168.1.10:5000';
 
 const AdminChatScreen = ({navigation}) => {
   const {user} = useAuth();
@@ -70,7 +70,8 @@ const AdminChatScreen = ({navigation}) => {
     });
   }, []);
 
-  // Define fetchUsers function at component level
+  // Replace the fetchUsers function with this axios version
+
   const fetchUsers = async (isInitial = true) => {
     try {
       if (isInitial) {
@@ -84,52 +85,177 @@ const AdminChatScreen = ({navigation}) => {
       const token = await AsyncStorage.getItem('@token');
       if (!token) {
         console.error('No auth token found');
-        throw new Error('Authentication token not found');
+        Alert.alert('Authentication Error', 'Please log in again');
+        navigation.navigate('AdminLogin');
+        return;
       }
 
       console.log(`Fetching users page ${isInitial ? 0 : page + 1}`);
 
-      // Make request with pagination
-      const response = await axios.get(`${API_URL}/api/admin/all-users`, {
-        params: {
-          page: isInitial ? 0 : page + 1,
-          limit: 100,
-        },
-        headers: {Authorization: `Bearer ${token}`},
-        timeout: 15000, // 15 second timeout
-      });
+      try {
+        // Use axios with proper timeout
+        const response = await axios.get(`${API_URL}/api/admin/users-simple`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000, // Increased timeout
+        });
 
-      const {users: newUsers, hasMore} = response.data;
-      console.log(
-        `Received ${newUsers.length} users, more available: ${hasMore}`,
-      );
+        console.log('API Response:', response.data);
 
-      // Update state
-      if (isInitial) {
+        const {users: newUsers = []} = response.data;
+        console.log(`Received ${newUsers.length} users`);
+
+        // Update state
         setUsers(newUsers);
-      } else {
-        setUsers(prevUsers => [...prevUsers, ...newUsers]);
-        setPage(page + 1);
-      }
+        setHasMoreUsers(false); // Simple endpoint doesn't support pagination
+      } catch (error) {
+        console.error('Error fetching users:', error);
 
-      setHasMoreUsers(hasMore);
+        let errorMessage = 'Failed to load users';
+        let retryAction = () => fetchUsers(isInitial);
+
+        if (error.code === 'ECONNABORTED') {
+          errorMessage =
+            'Request timeout. Server is taking too long to respond.';
+        } else if (error.response?.status === 401) {
+          errorMessage = 'Session expired. Please log in again.';
+          retryAction = () => navigation.navigate('AdminLogin');
+        } else if (error.response?.status === 403) {
+          errorMessage = 'Access denied. Admin privileges required.';
+          retryAction = () => navigation.goBack();
+        } else if (error.message?.includes('Network')) {
+          errorMessage = 'Network error. Please check your connection.';
+        }
+
+        Alert.alert('Error', errorMessage, [
+          {text: 'Cancel', style: 'cancel'},
+          {text: 'Retry', onPress: retryAction},
+        ]);
+
+        // Don't reset users array if we already have some data
+        if (isInitial && users.length === 0) {
+          setUsers([]);
+        }
+      }
     } catch (error) {
-      console.error('Error fetching users:', error);
-      // Show error but don't reset users array if we already have some
-      Alert.alert(
-        'Network Error',
-        'Failed to load all users. Please check your connection and try again.',
-      );
+      console.error('Outer error:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
     } finally {
       setLoading(false);
       setFetchingMore(false);
     }
   };
 
+  // Add this fallback function
+  const fetchUsersSimple = async () => {
+    console.log('Trying simple users endpoint...');
+
+    const token = await AsyncStorage.getItem('@token');
+    if (!token) {
+      throw new Error('No authentication token');
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    try {
+      const response = await fetch(`${API_URL}/api/admin/users-simple`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('Simple API Response:', data);
+
+      setUsers(data.users || []);
+      setHasMoreUsers(false); // Simple endpoint doesn't support pagination
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
+  };
+
+  // Add this function to test connectivity
+  const testConnection = async () => {
+    try {
+      console.log('Testing admin connection...');
+      const token = await AsyncStorage.getItem('@token');
+
+      if (!token) {
+        console.error('No token available for connection test');
+        return false;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.log('Connection test timeout');
+        controller.abort();
+      }, 10000); // 10 second timeout for connection test
+
+      try {
+        const response = await fetch(`${API_URL}/api/admin/test-connection`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('Connection test successful:', result);
+          return true;
+        } else {
+          console.error('Connection test failed with status:', response.status);
+          return false;
+        }
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+
+        if (fetchError.name === 'AbortError') {
+          console.error('Connection test timed out');
+        } else {
+          console.error('Connection test fetch error:', fetchError);
+        }
+        return false;
+      }
+    } catch (error) {
+      console.error('Connection test error:', error);
+      return false;
+    }
+  };
+
   // Check admin role and fetch users
   useEffect(() => {
-    // Verify user is authenticated and has admin role
-    if (!user || user.role !== 'admin') {
+    console.log('AdminChatScreen - checking user:', user);
+
+    if (!user) {
+      console.log('No user found, redirecting to login');
+      Alert.alert(
+        'Authentication Required',
+        'Please log in to access admin features',
+        [{text: 'OK', onPress: () => navigation.navigate('AdminLogin')}],
+      );
+      return;
+    }
+
+    if (user.role !== 'admin') {
+      console.log('User role is not admin:', user.role);
       Alert.alert(
         'Access Denied',
         'You need admin privileges to access this feature',
@@ -138,8 +264,10 @@ const AdminChatScreen = ({navigation}) => {
       return;
     }
 
-    fetchUsers();
-  }, [user?.id]);
+    console.log('User verified as admin, fetching users directly...');
+    // Skip connection test for now and fetch users directly
+    fetchUsers(true);
+  }, [user?.id, user?.role]);
   const loadMoreUsers = () => {
     if (hasMoreUsers && !fetchingMore && !loading) {
       fetchUsers(false);
