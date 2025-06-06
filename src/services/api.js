@@ -2,15 +2,15 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Base URL for API calls
-//const API_URL = 'https://health-server-fawn.vercel.app/api';
 const API_URL = 'http://192.168.1.10:5000/api';
-// Create axios instance
+
+// Create axios instance with better configuration
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 50000, // 10 seconds timeout
+  timeout: 30000, // Increased timeout
 });
 
 // Add an interceptor to add the token to every request
@@ -21,43 +21,46 @@ api.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      console.log(`Making request to: ${config.baseURL}${config.url}`);
       return config;
     } catch (error) {
+      console.error('Request interceptor error:', error);
       return Promise.reject(error);
     }
   },
   error => {
+    console.error('Request interceptor error:', error);
     return Promise.reject(error);
   },
 );
 
-async function isServerReachable() {
-  try {
-    const response = await fetch(`${API_URL.split('/api')[0]}/health`, {
-      method: 'GET',
-      timeout: 5000,
-    });
-    return response.ok;
-  } catch (error) {
-    return false;
-  }
-}
-// Error handling interceptor
+// Error handling interceptor with better logging
 api.interceptors.response.use(
-  response => response,
+  response => {
+    console.log(`Response from ${response.config.url}: ${response.status}`);
+    return response;
+  },
   error => {
-    console.log('API Error:', error);
+    console.error('API Error Details:', {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      message: error.message,
+      code: error.code,
+    });
 
-    if (!error.response) {
-      return Promise.reject({
-        message:
-          'Network error - check your connection and make sure the server is running',
-      });
+    // Provide more specific error messages
+    if (error.code === 'ECONNABORTED') {
+      error.message = 'Request timeout - server took too long to respond';
+    } else if (error.code === 'NETWORK_ERROR' || !error.response) {
+      error.message = 'Network error - check your connection and server status';
+    } else if (error.response?.status === 404) {
+      error.message =
+        'Endpoint not found - please check the server configuration';
     }
 
-    return Promise.reject(
-      error.response.data || {message: 'An error occurred with the request'},
-    );
+    return Promise.reject(error);
   },
 );
 

@@ -70,7 +70,7 @@ const AdminChatScreen = ({navigation}) => {
     });
   }, []);
 
-  // Replace the fetchUsers function with this axios version
+  // Replace the fetchUsers function with this improved version
 
   const fetchUsers = async (isInitial = true) => {
     try {
@@ -92,56 +92,110 @@ const AdminChatScreen = ({navigation}) => {
 
       console.log(`Fetching users page ${isInitial ? 0 : page + 1}`);
 
+      // Try multiple endpoints with fallback
+      let response;
+      let usedEndpoint = '';
+
       try {
-        // Use axios with proper timeout
-        const response = await axios.get(`${API_URL}/api/admin/users-simple`, {
+        // Try the simple endpoint first
+        console.log('Trying simple users endpoint...');
+        usedEndpoint = 'users-simple';
+        response = await axios.get(`${API_URL}/api/admin/users-simple`, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          timeout: 30000, // Increased timeout
+          timeout: 15000,
         });
+      } catch (simpleError) {
+        console.log(
+          'Simple endpoint failed, trying main endpoint...',
+          simpleError.message,
+        );
 
-        console.log('API Response:', response.data);
+        try {
+          // Fallback to main endpoint
+          usedEndpoint = 'all-users';
+          response = await axios.get(
+            `${API_URL}/api/admin/all-users?page=0&limit=50`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              timeout: 15000,
+            },
+          );
+        } catch (mainError) {
+          console.log(
+            'Main endpoint failed, trying platform users...',
+            mainError.message,
+          );
 
-        const {users: newUsers = []} = response.data;
-        console.log(`Received ${newUsers.length} users`);
-
-        // Update state
-        setUsers(newUsers);
-        setHasMoreUsers(false); // Simple endpoint doesn't support pagination
-      } catch (error) {
-        console.error('Error fetching users:', error);
-
-        let errorMessage = 'Failed to load users';
-        let retryAction = () => fetchUsers(isInitial);
-
-        if (error.code === 'ECONNABORTED') {
-          errorMessage =
-            'Request timeout. Server is taking too long to respond.';
-        } else if (error.response?.status === 401) {
-          errorMessage = 'Session expired. Please log in again.';
-          retryAction = () => navigation.navigate('AdminLogin');
-        } else if (error.response?.status === 403) {
-          errorMessage = 'Access denied. Admin privileges required.';
-          retryAction = () => navigation.goBack();
-        } else if (error.message?.includes('Network')) {
-          errorMessage = 'Network error. Please check your connection.';
-        }
-
-        Alert.alert('Error', errorMessage, [
-          {text: 'Cancel', style: 'cancel'},
-          {text: 'Retry', onPress: retryAction},
-        ]);
-
-        // Don't reset users array if we already have some data
-        if (isInitial && users.length === 0) {
-          setUsers([]);
+          // Try platform users endpoint as last resort
+          usedEndpoint = 'all-platform-users';
+          response = await axios.get(
+            `${API_URL}/api/admin/all-platform-users`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              timeout: 15000,
+            },
+          );
         }
       }
+
+      console.log(`Successfully used endpoint: ${usedEndpoint}`);
+      console.log('API Response:', response.data);
+
+      // Handle different response formats
+      let newUsers = [];
+      if (response.data.users) {
+        newUsers = response.data.users;
+      } else if (Array.isArray(response.data)) {
+        newUsers = response.data;
+      }
+
+      console.log(`Received ${newUsers.length} users`);
+
+      // Update state
+      setUsers(newUsers);
+      setHasMoreUsers(false); // Simple endpoint doesn't support pagination
     } catch (error) {
-      console.error('Outer error:', error);
-      Alert.alert('Error', 'An unexpected error occurred');
+      console.error('All endpoints failed:', error);
+
+      let errorMessage = 'Failed to load users';
+      let retryAction = () => fetchUsers(isInitial);
+
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        errorMessage = 'Request timeout. Server is taking too long to respond.';
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Session expired. Please log in again.';
+        retryAction = () => navigation.navigate('AdminLogin');
+      } else if (error.response?.status === 403) {
+        errorMessage = 'Access denied. Admin privileges required.';
+        retryAction = () => navigation.goBack();
+      } else if (
+        error.message?.includes('Network') ||
+        error.code === 'NETWORK_ERROR'
+      ) {
+        errorMessage =
+          'Network error. Please check your connection and server status.';
+      } else if (error.response?.status >= 500) {
+        errorMessage = 'Server error. Please try again later.';
+      }
+
+      Alert.alert('Error', errorMessage, [
+        {text: 'Cancel', style: 'cancel'},
+        {text: 'Retry', onPress: retryAction},
+      ]);
+
+      // Don't reset users array if we already have some data
+      if (isInitial && users.length === 0) {
+        setUsers([]);
+      }
     } finally {
       setLoading(false);
       setFetchingMore(false);
@@ -240,6 +294,31 @@ const AdminChatScreen = ({navigation}) => {
     }
   };
 
+  // Add this function to test the connection before fetching users
+
+  const testServerConnection = async () => {
+    try {
+      console.log('Testing server connection...');
+
+      // Test basic connectivity first
+      const response = await fetch(`${API_URL}/api/health`, {
+        method: 'GET',
+        timeout: 5000,
+      });
+
+      if (response.ok) {
+        console.log('Basic server connection successful');
+        return true;
+      } else {
+        console.error('Server health check failed:', response.status);
+        return false;
+      }
+    } catch (error) {
+      console.error('Server connection test failed:', error);
+      return false;
+    }
+  };
+
   // Check admin role and fetch users
   useEffect(() => {
     console.log('AdminChatScreen - checking user:', user);
@@ -264,9 +343,36 @@ const AdminChatScreen = ({navigation}) => {
       return;
     }
 
-    console.log('User verified as admin, fetching users directly...');
-    // Skip connection test for now and fetch users directly
-    fetchUsers(true);
+    console.log('User verified as admin, testing server connection...');
+
+    // Test server connection before fetching users
+    testServerConnection()
+      .then(connectionOk => {
+        if (connectionOk) {
+          console.log('Connection test passed, fetching users...');
+          fetchUsers(true);
+        } else {
+          Alert.alert(
+            'Connection Error',
+            'Cannot connect to the server. Please check your network connection and ensure the server is running.',
+            [
+              {text: 'Cancel', style: 'cancel'},
+              {text: 'Retry', onPress: () => fetchUsers(true)},
+            ],
+          );
+        }
+      })
+      .catch(error => {
+        console.error('Connection test error:', error);
+        Alert.alert(
+          'Connection Error',
+          'Network error occurred. Please check your connection.',
+          [
+            {text: 'Cancel', style: 'cancel'},
+            {text: 'Retry', onPress: () => fetchUsers(true)},
+          ],
+        );
+      });
   }, [user?.id, user?.role]);
   const loadMoreUsers = () => {
     if (hasMoreUsers && !fetchingMore && !loading) {
@@ -331,7 +437,8 @@ const AdminChatScreen = ({navigation}) => {
   // Update currentRoomIdRef when selectedUser changes
   useEffect(() => {
     if (selectedUser && user) {
-      const roomId = ['admin', selectedUser.id].sort().join('-');
+      // Always put admin ID first for consistency
+      const roomId = `${user.id}-${selectedUser.id}`;
       currentRoomIdRef.current = roomId;
       console.log('Current room ID set to:', roomId);
     } else {
@@ -346,11 +453,13 @@ const AdminChatScreen = ({navigation}) => {
     }
   }, [selectedUser]);
 
+  // Update fetchMessageHistory function
   const fetchMessageHistory = async () => {
     if (!selectedUser || !user) return;
 
     try {
-      const roomId = ['admin', selectedUser.id].sort().join('-');
+      // Use consistent room ID format: admin-user
+      const roomId = `${user.id}-${selectedUser.id}`;
       console.log('Fetching messages for room:', roomId);
 
       // Check if we already have messages for this room in our chat history
@@ -364,7 +473,7 @@ const AdminChatScreen = ({navigation}) => {
       console.log('Message history response:', response.data);
 
       if (response.data && Array.isArray(response.data)) {
-        // Transform data to match UI expectations with explicit boolean conversion
+        // Transform data to match UI expectations
         const formattedMessages = response.data.map(msg => ({
           id: msg.id,
           text: msg.content || msg.text,
@@ -373,7 +482,6 @@ const AdminChatScreen = ({navigation}) => {
           receiverId: msg.receiver_id || msg.receiverId,
           timestamp: msg.created_at || msg.timestamp,
           roomId: msg.room_id || msg.roomId,
-          // Use explicit boolean conversion for attachment flags
           isAttachment: msg.is_attachment === true || msg.isAttachment === true,
           attachmentType: msg.attachment_type || msg.attachmentType,
           fileUrl: msg.file_url || msg.fileUrl,
@@ -424,8 +532,8 @@ const AdminChatScreen = ({navigation}) => {
         console.log('Socket connected');
         setSocketConnected(true);
 
-        // Create a unique room for the chat - admin chats have special prefix
-        const roomId = ['admin', selectedUser.id].sort().join('-');
+        // Use consistent room ID format
+        const roomId = `${user.id}-${selectedUser.id}`;
         console.log('Admin joining room:', roomId);
         socketRef.current.emit('join_room', roomId);
       });
@@ -449,7 +557,7 @@ const AdminChatScreen = ({navigation}) => {
           fileSize: message.fileSize || message.file_size,
         };
 
-        // Immediately update messages without checking for duplicates
+        // Update messages without checking for duplicates for now
         setMessages(prevMessages => {
           if (!prevMessages.some(msg => msg.id === newMessage.id)) {
             const updatedMessages = [newMessage, ...prevMessages];
@@ -488,7 +596,9 @@ const AdminChatScreen = ({navigation}) => {
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
         }
-        socketRef.current.disconnect();
+        if (socketRef.current) {
+          socketRef.current.disconnect();
+        }
         setSocketConnected(false);
       };
     }
@@ -724,15 +834,16 @@ const AdminChatScreen = ({navigation}) => {
       return;
     }
 
-    const roomId = ['admin', selectedUser.id].sort().join('-');
+    // Use consistent room ID format
+    const roomId = `${user.id}-${selectedUser.id}`;
     const tempId = `temp-${Date.now()}`;
 
     const messageData = {
       text: newMessage.trim(),
       content: newMessage.trim(),
-      senderId: user.id, // Use ACTUAL admin's UUID, not "admin"
+      senderId: user.id,
       sender_id: user.id,
-      senderName: 'Support Team', // Show as support team
+      senderName: 'Support Team',
       sender_name: 'Support Team',
       receiverId: selectedUser.id,
       receiver_id: selectedUser.id,
@@ -1034,9 +1145,6 @@ const AdminChatScreen = ({navigation}) => {
     const imageUrl = item.fileUrl || item.file_url;
     const cachedImageUri = imageUrl && cachedImages[imageUrl];
 
-    const [imageError, setImageError] = useState(false);
-    const [loading, setLoading] = useState(true);
-
     const handleImagePress = () => {
       if (isImage && imageUrl) {
         openPreview(item);
@@ -1056,41 +1164,17 @@ const AdminChatScreen = ({navigation}) => {
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={handleImagePress}
-              style={[
-                styles.imageContainer,
-                {backgroundColor: loading ? '#e1e1e1' : 'transparent'},
-              ]}>
-              {!imageError ? (
-                <Image
-                  source={{uri: cachedImageUri || imageUrl}}
-                  style={styles.attachedImage}
-                  resizeMode="cover"
-                  onLoadStart={() => setLoading(true)}
-                  onLoad={() => {
-                    setLoading(false);
-                  }}
-                  onError={e => {
-                    console.error(
-                      `Image load error for ${imageUrl?.substring(0, 30)}`,
-                    );
-                    setImageError(true);
-                    setLoading(false);
-                  }}
-                />
-              ) : (
-                <View style={styles.fallbackImageContainer}>
-                  <Icon name="image-off" size={32} color="#888" />
-                  <Text style={styles.fallbackImageText}>
-                    Image failed to load
-                  </Text>
-                </View>
-              )}
-
-              {loading && (
-                <View style={styles.imageLoadingOverlay}>
-                  <ActivityIndicator size="small" color="#2e7af5" />
-                </View>
-              )}
+              style={styles.imageContainer}>
+              <Image
+                source={{uri: cachedImageUri || imageUrl}}
+                style={styles.attachedImage}
+                resizeMode="cover"
+                onError={e => {
+                  console.error(
+                    `Image load error for ${imageUrl?.substring(0, 30)}`,
+                  );
+                }}
+              />
 
               <View style={styles.imagePressIndicator}>
                 <Icon name="eye" size={16} color="#fff" />
@@ -1185,6 +1269,35 @@ const AdminChatScreen = ({navigation}) => {
         </View>
       </View>
     );
+  };
+
+  // Send test message
+  const sendTestMessage = () => {
+    if (!selectedUser || !user) return;
+
+    const roomId = ['admin', selectedUser.id].sort().join('-');
+    const messageData = {
+      text: 'Hello from Admin',
+      content: 'Hello from Admin',
+      senderId: user.id,
+      sender_id: user.id,
+      senderName: 'Admin',
+      sender_name: 'Admin',
+      receiverId: selectedUser.id,
+      receiver_id: selectedUser.id,
+      timestamp: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      roomId: roomId,
+      room_id: roomId,
+    };
+
+    // Send via socket
+    if (socketConnected) {
+      socketRef.current.emit('send_message', messageData);
+    } else {
+      // Fallback to HTTP
+      axios.post(`${API_URL}/api/messages`, messageData);
+    }
   };
 
   if (loading) {
