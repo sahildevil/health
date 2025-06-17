@@ -28,8 +28,8 @@ import RNFS from 'react-native-fs';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {WebView} from 'react-native-webview';
 
-const SOCKET_URL = 'http://192.168.1.13:5000';
-const API_URL = 'http://192.168.1.13:5000';
+const SOCKET_URL = 'http://192.168.1.4:5000';
+const API_URL = 'http://192.168.1.4:5000';
 
 const ChatScreen = () => {
   // Auth context

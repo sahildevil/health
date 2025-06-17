@@ -32,13 +32,16 @@ const Profile = ({navigation}) => {
   // Fetch user profile with document and avatar
   const fetchUserProfile = async () => {
     try {
+      // Add check to ensure user exists before accessing properties
+      if (!user) {
+        console.log('User data not available yet');
+        return; // Exit early if user is null
+      }
+      
       setLoading(true);
       
       // Fetch updated user profile - USE CORRECT ENDPOINT
-      // Either use the user-specific endpoint:
       const userResponse = await api.get(`/user-profile/${user.id}`);
-      // OR use the general endpoint if you have one that returns the current user:
-      // const userResponse = await api.get('/auth/me');
       
       if (userResponse.data && userResponse.data.avatar_url) {
         setProfileImage(userResponse.data.avatar_url);
@@ -57,7 +60,9 @@ const Profile = ({navigation}) => {
   };
 
   useEffect(() => {
-    fetchUserProfile();
+    if (user) {
+      fetchUserProfile();
+    }
   }, [user]);
 
   // Function to pick an image from gallery
