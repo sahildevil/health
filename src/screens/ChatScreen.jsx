@@ -28,8 +28,8 @@ import RNFS from 'react-native-fs';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {WebView} from 'react-native-webview';
 
-const SOCKET_URL = 'http://192.168.1.10:5000';
-const API_URL = 'http://192.168.1.10:5000';
+const SOCKET_URL = 'http://192.168.1.13:5000';
+const API_URL = 'http://192.168.1.13:5000';
 
 const ChatScreen = () => {
   // Auth context
@@ -124,9 +124,14 @@ const ChatScreen = () => {
   // Update currentRoomIdRef when selectedDoctor changes
   useEffect(() => {
     if (selectedDoctor && user) {
-      const roomId = selectedDoctor.isAdminSupport
-        ? ['admin', user.id].sort().join('-')
-        : [user.id, selectedDoctor.id].sort().join('-');
+      let roomId;
+      if (selectedDoctor.isAdminSupport) {
+        // For admin support, always use format: admin-id-user-id
+        roomId = `66768b81-2d00-4eca-9145-4cf11f687fe8-${user.id}`;
+      } else {
+        // For doctor-to-doctor chats, sort IDs alphabetically
+        roomId = [user.id, selectedDoctor.id].sort().join('-');
+      }
       currentRoomIdRef.current = roomId;
       console.log('Current room ID set to:', roomId);
     } else {
@@ -203,17 +208,21 @@ const ChatScreen = () => {
         console.log('Socket connected');
         setSocketConnected(true);
 
-        // Create a unique room for the chat
-        const roomId = selectedDoctor.isAdminSupport
-          ? ['admin', user.id].sort().join('-')
-          : [user.id, selectedDoctor.id].sort().join('-');
+        // Create a consistent room ID
+        let roomId;
+        if (selectedDoctor.isAdminSupport) {
+          roomId = `66768b81-2d00-4eca-9145-4cf11f687fe8-${user.id}`;
+        } else {
+          roomId = [user.id, selectedDoctor.id].sort().join('-');
+        }
+
         console.log('Joining room:', roomId);
         socketRef.current.emit('join_room', roomId);
       });
 
       socketRef.current.on('receive_message', message => {
         console.log('Received message:', message);
-      
+
         // Handle received message
         const newMessage = {
           id: message.id || message.tempId, // Add fallback to tempId
@@ -230,27 +239,31 @@ const ChatScreen = () => {
           fileType: message.fileType || message.file_type,
           fileSize: message.fileSize || message.file_size,
         };
-      
+
         // Check if this is our own message coming back from the server
         const isOwnMessage = newMessage.senderId === user?.id;
-        
+
         // If it's our own message, match it with any pending messages to avoid duplicates
         if (isOwnMessage) {
           setMessages(prevMessages => {
             // Try to find an existing pending message with the same tempId or similar content
             const existingMessage = prevMessages.find(
-              msg => 
+              msg =>
                 (message.tempId && msg.id === message.tempId) ||
-                (msg.pending && msg.text === newMessage.text && msg.senderId === newMessage.senderId)
+                (msg.pending &&
+                  msg.text === newMessage.text &&
+                  msg.senderId === newMessage.senderId),
             );
-            
+
             if (existingMessage) {
               // Replace the pending message with the confirmed one
-              return prevMessages.map(msg => 
-                ((message.tempId && msg.id === message.tempId) ||
-                 (msg.pending && msg.text === newMessage.text && msg.senderId === newMessage.senderId))
-                  ? { ...newMessage, pending: false }
-                  : msg
+              return prevMessages.map(msg =>
+                (message.tempId && msg.id === message.tempId) ||
+                (msg.pending &&
+                  msg.text === newMessage.text &&
+                  msg.senderId === newMessage.senderId)
+                  ? {...newMessage, pending: false}
+                  : msg,
               );
             } else {
               // No matching message found, add as new
@@ -266,14 +279,16 @@ const ChatScreen = () => {
             return prevMessages;
           });
         }
-        
+
         // Always update chat history
         setChatHistory(prev => {
           const currentRoomMessages = prev[newMessage.roomId] || [];
-          
+
           // Check if message already exists in chat history
-          const messageExists = currentRoomMessages.some(msg => msg.id === newMessage.id);
-          
+          const messageExists = currentRoomMessages.some(
+            msg => msg.id === newMessage.id,
+          );
+
           if (!messageExists) {
             return {
               ...prev,
@@ -393,10 +408,13 @@ const ChatScreen = () => {
     if (!selectedDoctor || !user) return;
 
     try {
-      // Special handling for admin support chats
-      const roomId = selectedDoctor.isAdminSupport
-        ? ['admin', user.id].sort().join('-')
-        : [user.id, selectedDoctor.id].sort().join('-');
+      let roomId;
+      if (selectedDoctor.isAdminSupport) {
+        // Use consistent admin room format
+        roomId = `66768b81-2d00-4eca-9145-4cf11f687fe8-${user.id}`;
+      } else {
+        roomId = [user.id, selectedDoctor.id].sort().join('-');
+      }
 
       console.log('Fetching messages for room:', roomId);
 
@@ -406,7 +424,7 @@ const ChatScreen = () => {
         setMessages(chatHistory[roomId]);
       }
 
-      // Fetch messages from the server regardless
+      // Fetch messages from the server
       const response = await axios.get(`${API_URL}/api/messages/${roomId}`);
       console.log('Message history response:', response.data);
 
@@ -437,16 +455,7 @@ const ChatScreen = () => {
       }
     } catch (error) {
       console.error('Error fetching message history:', error);
-      Alert.alert(
-        'Error',
-        'Failed to load message history. Will try to continue with cached messages.',
-      );
-
-      // If we have cached messages, use those
-      const roomId = [user.id, selectedDoctor.id].sort().join('-');
-      if (chatHistory[roomId]) {
-        setMessages(chatHistory[roomId]);
-      }
+      Alert.alert('Error', 'Failed to load message history.');
     }
   };
 
@@ -633,10 +642,15 @@ const ChatScreen = () => {
       const result = await response.json();
       console.log('File upload result:', result);
 
-      // Rest of your function remains the same...
-      const roomId = [user.id, selectedDoctor.id].sort().join('-');
-      const tempId = `temp-${Date.now()}`;
+      // Use consistent room ID logic
+      let roomId;
+      if (selectedDoctor.isAdminSupport) {
+        roomId = `66768b81-2d00-4eca-9145-4cf11f687fe8-${user.id}`;
+      } else {
+        roomId = [user.id, selectedDoctor.id].sort().join('-');
+      }
 
+      const tempId = `temp-${Date.now()}`;
       const isImage = file.type && file.type.includes('image');
 
       const messageData = {
@@ -646,8 +660,12 @@ const ChatScreen = () => {
         sender_id: user.id,
         senderName: user.name,
         sender_name: user.name,
-        receiverId: selectedDoctor.id,
-        receiver_id: selectedDoctor.id,
+        receiverId: selectedDoctor.isAdminSupport
+          ? '66768b81-2d00-4eca-9145-4cf11f687fe8'
+          : selectedDoctor.id,
+        receiver_id: selectedDoctor.isAdminSupport
+          ? '66768b81-2d00-4eca-9145-4cf11f687fe8'
+          : selectedDoctor.id,
         timestamp: new Date().toISOString(),
         created_at: new Date().toISOString(),
         roomId: roomId,
@@ -709,7 +727,13 @@ const ChatScreen = () => {
       return;
     }
 
-    const roomId = [user.id, selectedDoctor.id].sort().join('-');
+    let roomId;
+    if (selectedDoctor.isAdminSupport) {
+      roomId = `66768b81-2d00-4eca-9145-4cf11f687fe8-${user.id}`;
+    } else {
+      roomId = [user.id, selectedDoctor.id].sort().join('-');
+    }
+
     const tempId = `temp-${Date.now()}`;
 
     const messageData = {
@@ -719,8 +743,12 @@ const ChatScreen = () => {
       sender_id: user.id,
       senderName: user.name,
       sender_name: user.name,
-      receiverId: selectedDoctor.id,
-      receiver_id: selectedDoctor.id,
+      receiverId: selectedDoctor.isAdminSupport
+        ? '66768b81-2d00-4eca-9145-4cf11f687fe8'
+        : selectedDoctor.id,
+      receiver_id: selectedDoctor.isAdminSupport
+        ? '66768b81-2d00-4eca-9145-4cf11f687fe8'
+        : selectedDoctor.id,
       timestamp: new Date().toISOString(),
       created_at: new Date().toISOString(),
       roomId: roomId,
@@ -913,31 +941,35 @@ const ChatScreen = () => {
   // Fetch recent chats
   const fetchRecentChats = useCallback(async () => {
     if (!user) return;
-    
+
     try {
       console.log('Fetching recent chats for user:', user.id);
       const response = await axios.get(`${API_URL}/api/chat-rooms/${user.id}`);
-      
+
       if (response.data && Array.isArray(response.data)) {
         console.log(`Found ${response.data.length} recent chats`);
-        
+
         // Transform the chat rooms into a format suitable for display
         const processedChats = response.data.map(room => {
           // Determine the other user in the conversation
           const otherUser = room.user1_id === user.id ? room.user2 : room.user1;
-          
+
           return {
             id: otherUser?.id || 'unknown',
             name: otherUser?.name || 'Unknown User',
             role: otherUser?.role || 'user',
             roomId: room.id,
             lastMessage: room.last_message?.content || null,
-            lastMessageTime: room.last_message?.created_at || room.updated_at || room.created_at,
+            lastMessageTime:
+              room.last_message?.created_at ||
+              room.updated_at ||
+              room.created_at,
             unreadCount: room.unread_count || 0,
-            isAdminSupport: otherUser?.role === 'admin' || room.room_id?.startsWith('admin-')
+            isAdminSupport:
+              otherUser?.role === 'admin' || room.room_id?.startsWith('admin-'),
           };
         });
-        
+
         setRecentChats(processedChats);
       }
     } catch (error) {
@@ -1251,20 +1283,23 @@ const ChatScreen = () => {
   // Add a new render function for recent chats
   const renderRecentChat = ({item}) => {
     const isAdminChat = item.isAdminSupport;
-    
+
     return (
       <TouchableOpacity
         style={styles.recentChatItem}
-        onPress={() => setSelectedDoctor({
-          id: item.id,
-          name: item.name,
-          role: item.role,
-          isAdminSupport: isAdminChat,
-        })}>
-        <View style={[
-          styles.avatarContainer,
-          isAdminChat && styles.adminAvatarContainer,
-        ]}>
+        onPress={() =>
+          setSelectedDoctor({
+            id: item.id,
+            name: item.name,
+            role: item.role,
+            isAdminSupport: isAdminChat,
+          })
+        }>
+        <View
+          style={[
+            styles.avatarContainer,
+            isAdminChat && styles.adminAvatarContainer,
+          ]}>
           {isAdminChat ? (
             <Icon name="headset" size={26} color="#fff" />
           ) : (
@@ -1273,7 +1308,7 @@ const ChatScreen = () => {
             </Text>
           )}
         </View>
-        
+
         <View style={styles.chatInfo}>
           <View style={styles.chatTopRow}>
             <Text style={styles.chatName}>{item.name}</Text>
@@ -1283,14 +1318,14 @@ const ChatScreen = () => {
               </Text>
             )}
           </View>
-          
+
           {item.lastMessage && (
             <Text style={styles.chatPreview} numberOfLines={1}>
               {item.lastMessage}
             </Text>
           )}
         </View>
-        
+
         {item.unreadCount > 0 && (
           <View style={styles.unreadBadge}>
             <Text style={styles.unreadCount}>{item.unreadCount}</Text>
@@ -1301,13 +1336,13 @@ const ChatScreen = () => {
   };
 
   // Helper function to format chat times
-  const formatChatTime = (date) => {
+  const formatChatTime = date => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
+
     if (date >= today) {
       // Today - show time only
-      return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      return date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
     } else if (date >= new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000)) {
       // Within the last week - show day name
       return date.toLocaleDateString([], {weekday: 'short'});

@@ -26,8 +26,8 @@ import {Linking} from 'react-native';
 import RNFS from 'react-native-fs';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
-const SOCKET_URL = 'http://192.168.1.10:5000';
-const API_URL = 'http://192.168.1.10:5000';
+const SOCKET_URL = 'http://192.168.1.13:5000';
+const API_URL = 'http://192.168.1.13:5000';
 
 const AdminChatScreen = ({navigation}) => {
   const {user} = useAuth();
@@ -557,21 +557,31 @@ const AdminChatScreen = ({navigation}) => {
           fileSize: message.fileSize || message.file_size,
         };
 
-        // Update messages without checking for duplicates for now
-        setMessages(prevMessages => {
-          if (!prevMessages.some(msg => msg.id === newMessage.id)) {
-            const updatedMessages = [newMessage, ...prevMessages];
+        // Only update messages if this is NOT our own message that we just sent
+        // Our own messages are already added to UI immediately in sendMessage
+        const isOwnMessage = newMessage.senderId === user?.id;
 
-            // Also update chat history
-            setChatHistory(prev => ({
-              ...prev,
-              [newMessage.roomId]: updatedMessages,
-            }));
+        if (!isOwnMessage) {
+          setMessages(prevMessages => {
+            // Check if message already exists
+            const messageExists = prevMessages.some(
+              msg => msg.id === newMessage.id,
+            );
 
-            return updatedMessages;
-          }
-          return prevMessages;
-        });
+            if (!messageExists) {
+              const updatedMessages = [newMessage, ...prevMessages];
+
+              // Also update chat history for messages from others
+              setChatHistory(prev => ({
+                ...prev,
+                [newMessage.roomId]: updatedMessages,
+              }));
+
+              return updatedMessages;
+            }
+            return prevMessages;
+          });
+        }
       });
 
       // Listen for message confirmation
