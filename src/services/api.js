@@ -996,9 +996,19 @@ export const courseService = {
   // Add these methods to the courseService object
 
   // Get discussions for a course
-  getCourseDiscussions: async courseId => {
+  getCourseDiscussions: async (courseId, videoId = null) => {
     try {
-      const response = await api.get(`/courses/${courseId}/discussions`);
+      let url = `/courses/${courseId}/discussions`;
+      
+      if (videoId && videoId !== 'null' && videoId !== 'undefined') {
+        url += `?video_id=${videoId}`;
+      }
+      
+      console.log('Making request to:', url);
+      
+      const response = await api.get(url);
+      console.log('API response:', response.data?.length || 0, 'discussions');
+      
       return response.data;
     } catch (error) {
       console.error('Get course discussions error:', error);
@@ -1007,12 +1017,16 @@ export const courseService = {
   },
 
   // Add a discussion to a course
-  addCourseDiscussion: async (courseId, discussionData) => {
+    addCourseDiscussion: async (courseId, discussionData) => {
     try {
+      console.log('Adding discussion with data:', discussionData);
+      
       const response = await api.post(
         `/courses/${courseId}/discussions`,
         discussionData,
       );
+      
+      console.log('Add discussion response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Add course discussion error:', error);

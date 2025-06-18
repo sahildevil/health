@@ -18,7 +18,6 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useAuth} from '../context/AuthContext';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import CourseDiscussion from '../components/CourseDiscussion';
-import {format} from 'date-fns';
 
 const {width} = Dimensions.get('window');
 
@@ -31,6 +30,7 @@ const CourseDetailsScreen = ({route, navigation}) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef(null);
   const insets = useSafeAreaInsets();
+
   useEffect(() => {
     fetchCourseDetails();
   }, [courseId]);
@@ -89,37 +89,63 @@ const CourseDetailsScreen = ({route, navigation}) => {
   };
 
   const handleSelectVideo = video => {
+    console.log('Selecting video:', {
+      id: video.id,
+      title: video.title,
+      course_id: video.course_id,
+    });
+
     setSelectedVideo(video);
     setIsPlaying(true);
   };
 
-  const renderVideoItem = ({item}) => {
+  const renderVideoItem = ({item, index}) => {
     const isActive = selectedVideo && selectedVideo.id === item.id;
 
     return (
       <TouchableOpacity
-        style={[styles.videoItem, isActive && styles.activeVideoItem]}
+        style={[styles.videoCard, isActive && styles.activeVideoCard]}
         onPress={() => handleSelectVideo(item)}>
-        <View style={styles.videoItemContent}>
-          <Icon
-            name={isActive ? 'play-circle' : 'play-circle-outline'}
-            size={24}
-            color={isActive ? '#2e7af5' : '#888'}
-          />
-          <View style={styles.videoTextContainer}>
+        <View style={styles.videoCardContent}>
+          <View style={styles.videoIconContainer}>
+            <Icon
+              name={isActive ? 'play-circle' : 'play-circle-outline'}
+              size={32}
+              color={isActive ? '#2e7af5' : '#4a90e2'}
+            />
+          </View>
+          <View style={styles.videoInfo}>
             <Text
-              style={[styles.videoTitle, isActive && styles.activeVideoTitle]}
+              style={[styles.videoCardTitle, isActive && styles.activeVideoTitle]}
               numberOfLines={2}>
               {item.title}
             </Text>
-            {item.duration && (
-              <Text style={styles.videoDuration}>
-                {Math.floor(item.duration / 60)}:
-                {(item.duration % 60).toString().padStart(2, '0')}
+            {item.description && (
+              <Text style={styles.videoCardDescription} numberOfLines={2}>
+                {item.description}
               </Text>
             )}
+            <View style={styles.videoMeta}>
+              {item.duration && (
+                <View style={styles.durationContainer}>
+                  <Icon name="clock-outline" size={14} color="#666" />
+                  <Text style={styles.videoDuration}>
+                    {Math.floor(item.duration / 60)}:
+                    {(item.duration % 60).toString().padStart(2, '0')}
+                  </Text>
+                </View>
+              )}
+              <Text style={styles.videoNumber}>Video {index + 1}</Text>
+            </View>
           </View>
         </View>
+        
+        {/* Progress indicator if needed */}
+        {isActive && (
+          <View style={styles.activeIndicator}>
+            <View style={styles.activeIndicatorBar} />
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
@@ -153,7 +179,7 @@ const CourseDetailsScreen = ({route, navigation}) => {
       (user.role === 'doctor' && user.id === course.creator_id));
 
   return (
-    <SafeAreaView style={[styles.container, {paddingTop: insets.top}]}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -199,56 +225,18 @@ const CourseDetailsScreen = ({route, navigation}) => {
                 {selectedVideo.description}
               </Text>
             )}
-          </View>
-        ) : (
-          <View style={styles.noVideoContainer}>
-            <Image
-              source={{
-                uri:
-                  course.thumbnail_url ||
-                  'https://via.placeholder.com/400x225?text=Course+Thumbnail',
-              }}
-              style={styles.courseThumbnail}
-            />
-          </View>
-        )}
 
-        <View style={styles.courseInfoSection}>
-          <Text style={styles.sectionTitle}>About This Course</Text>
-          <Text style={styles.courseDescription}>
-            {course.description || 'No description available'}
-          </Text>
-
-          <View style={styles.metadataContainer}>
-            <View style={styles.metadataItem}>
-              <Icon name="account" size={16} color="#666" />
-              <Text style={styles.metadataText}>{course.creator_name}</Text>
-            </View>
-
-            {course.category && (
-              <View style={styles.metadataItem}>
-                <Icon name="tag" size={16} color="#666" />
-                <Text style={styles.metadataText}>{course.category}</Text>
-              </View>
-            )}
-
-            <View style={styles.metadataItem}>
-              <Icon name="video" size={16} color="#666" />
-              <Text style={styles.metadataText}>
-                {course.videos?.length || 0} videos
-              </Text>
-            </View>
-          </View>
-        </View>
-
+            {/* Course Content Section - Show SECOND (after discussion) */}
         <View style={styles.courseContentSection}>
           <Text style={styles.sectionTitle}>Course Content</Text>
           {course.videos && course.videos.length > 0 ? (
             <FlatList
               data={course.videos}
               renderItem={renderVideoItem}
-              keyExtractor={item => item.id}
+              keyExtractor={item => item.id.toString()}
               scrollEnabled={false}
+              showsVerticalScrollIndicator={false}
+              ItemSeparatorComponent={() => <View style={styles.videoCardSeparator} />}
             />
           ) : (
             <View style={styles.noVideosContainer}>
@@ -267,15 +255,84 @@ const CourseDetailsScreen = ({route, navigation}) => {
           )}
         </View>
 
-        {/* Add Discussion Section */}
-        <View style={styles.discussionSection}>
-          <Text style={styles.sectionTitle}>Discussion</Text>
-          <CourseDiscussion
-            courseId={courseId}
-            user={user}
-            refreshDiscussions={refreshCourse}
-          />
-        </View>
+            {/* Video-specific Discussion Section */}
+            <View style={styles.videoDiscussionSection}>
+              <Text style={styles.sectionTitle}>
+                Discussion: {selectedVideo.title}
+              </Text>
+              <Text style={styles.sectionSubtitle}>
+                Comments for this video only
+              </Text>
+              <CourseDiscussion
+                key={`video-${selectedVideo.id}`}
+                courseId={courseId}
+                videoId={selectedVideo.id.toString()}
+                user={user}
+                refreshDiscussions={refreshCourse}
+                discussionType="video"
+              />
+            </View>
+          </View>
+        ) : (
+          <View>
+            <View style={styles.noVideoContainer}>
+              <Image
+                source={{
+                  uri:
+                    course.thumbnail_url ||
+                    'https://via.placeholder.com/400x225?text=Course+Thumbnail',
+                }}
+                style={styles.courseThumbnail}
+              />
+            </View>
+
+            <View style={styles.courseInfoSection}>
+              <Text style={styles.sectionTitle}>About This Course</Text>
+              <Text style={styles.courseDescription}>
+                {course.description || 'No description available'}
+              </Text>
+
+              <View style={styles.metadataContainer}>
+                <View style={styles.metadataItem}>
+                  <Icon name="account" size={16} color="#666" />
+                  <Text style={styles.metadataText}>{course.creator_name}</Text>
+                </View>
+
+                {course.category && (
+                  <View style={styles.metadataItem}>
+                    <Icon name="tag" size={16} color="#666" />
+                    <Text style={styles.metadataText}>{course.category}</Text>
+                  </View>
+                )}
+
+                <View style={styles.metadataItem}>
+                  <Icon name="video" size={16} color="#666" />
+                  <Text style={styles.metadataText}>
+                    {course.videos?.length || 0} videos
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Course Discussion Section - Show FIRST when no video is selected */}
+        {!selectedVideo && (
+          <View style={styles.discussionSection}>
+            <Text style={styles.sectionTitle}>Course Discussion</Text>
+            <Text style={styles.sectionSubtitle}>
+              General course discussion
+            </Text>
+            <CourseDiscussion
+              key="course-general"
+              courseId={courseId}
+              videoId={null}
+              user={user}
+              refreshDiscussions={refreshCourse}
+              discussionType="course"
+            />
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -284,7 +341,31 @@ const CourseDetailsScreen = ({route, navigation}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f7f9fc',
+    backgroundColor: '#f8f9fa',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 18,
+    color: '#333',
+    marginTop: 10,
+    textAlign: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -292,16 +373,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#2e7af5',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   backButton: {
     padding: 8,
+    marginRight: 8,
   },
   headerTitle: {
     flex: 1,
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#fff',
-    marginLeft: 8,
   },
   headerActions: {
     flexDirection: 'row',
@@ -314,81 +400,180 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   videoContainer: {
-    backgroundColor: '#000',
-    width: '100%',
-    aspectRatio: 16 / 9,
+    backgroundColor: '#fff',
+    marginBottom: 16,
   },
   videoPlayer: {
     width: '100%',
-    height: '100%',
-  },
-  noVideoContainer: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    backgroundColor: '#e1e1e1',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  courseThumbnail: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+    height: 200,
+    backgroundColor: '#000',
   },
   videoTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#333',
     padding: 16,
+    paddingBottom: 8,
   },
   videoDescription: {
     fontSize: 14,
     color: '#666',
     paddingHorizontal: 16,
     paddingBottom: 16,
+    lineHeight: 20,
+  },
+  noVideoContainer: {
+    backgroundColor: '#fff',
+    marginBottom: 16,
+  },
+  courseThumbnail: {
+    width: '100%',
+    height: 200,
+    resizeMode: 'cover',
   },
   courseInfoSection: {
-    padding: 16,
     backgroundColor: '#fff',
-    marginBottom: 8,
+    padding: 16,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  courseDescription: {
+  sectionSubtitle: {
     fontSize: 14,
     color: '#666',
-    lineHeight: 20,
     marginBottom: 16,
+  },
+  courseDescription: {
+    fontSize: 16,
+    color: '#555',
+    lineHeight: 24,
+    marginBottom: 20,
   },
   metadataContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 16,
   },
   metadataItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
-    marginBottom: 8,
+    gap: 6,
   },
   metadataText: {
-    marginLeft: 4,
     fontSize: 14,
     color: '#666',
   },
   courseContentSection: {
-    padding: 16,
     backgroundColor: '#fff',
+    padding: 16,
+    marginBottom: 16,
   },
+  
+  // Enhanced Video Card Styles
+  videoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 4,
+    borderWidth: 1,
+    borderColor: '#e0e6ed',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  activeVideoCard: {
+    borderColor: '#2e7af5',
+    borderWidth: 2,
+    backgroundColor: '#f8fbff',
+  },
+  videoCardContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  videoIconContainer: {
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f7ff',
+  },
+  videoInfo: {
+    flex: 1,
+  },
+  videoCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+    lineHeight: 22,
+  },
+  activeVideoTitle: {
+    color: '#2e7af5',
+  },
+  videoCardDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    lineHeight: 18,
+  },
+  videoMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  durationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  videoDuration: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  videoNumber: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: '#2e7af5',
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+  },
+  activeIndicatorBar: {
+    flex: 1,
+    backgroundColor: '#2e7af5',
+  },
+  videoCardSeparator: {
+    height: 8,
+  },
+  
+  // Old video item styles (kept for compatibility)
   videoItem: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 4,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   activeVideoItem: {
-    backgroundColor: '#f0f7ff',
+    backgroundColor: '#e3f2fd',
+    borderColor: '#2e7af5',
   },
   videoItemContent: {
     flexDirection: 'row',
@@ -398,69 +583,22 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
   },
-  videoTitle: {
-    fontSize: 14,
-    color: '#333',
-  },
-  activeVideoTitle: {
-    fontWeight: 'bold',
-    color: '#2e7af5',
-  },
-  videoDuration: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 4,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f7f9fc',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f7f9fc',
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 18,
-    color: '#666',
-    marginTop: 12,
-    marginBottom: 24,
-  },
-  backButton: {
-    backgroundColor: '#2e7af5',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 16,
-  },
+  
   noVideosContainer: {
-    padding: 24,
-    justifyContent: 'center',
     alignItems: 'center',
+    padding: 40,
   },
   noVideosText: {
     fontSize: 16,
-    color: '#888',
-    marginTop: 12,
-    marginBottom: 16,
+    color: '#999',
+    marginTop: 10,
+    marginBottom: 20,
   },
   addVideoButton: {
     backgroundColor: '#2e7af5',
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 8,
   },
   addVideoButtonText: {
     color: '#fff',
@@ -470,8 +608,19 @@ const styles = StyleSheet.create({
   discussionSection: {
     backgroundColor: '#fff',
     padding: 16,
-    marginTop: 8,
-    marginBottom: 20,
+    marginBottom: 16,
+  },
+  videoDiscussionSection: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+  },
+  backButtonText: {
+    color: '#2e7af5',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 10,
   },
 });
 
