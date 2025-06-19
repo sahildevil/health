@@ -28,8 +28,8 @@ import RNFS from 'react-native-fs';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {WebView} from 'react-native-webview';
 
-const SOCKET_URL = 'http://192.168.1.13:5000';
-const API_URL = 'http://192.168.1.13:5000';
+const SOCKET_URL = 'http://192.168.1.18:5000';
+const API_URL = 'http://192.168.1.18:5000';
 
 const ChatScreen = () => {
   // Auth context
@@ -1188,9 +1188,9 @@ const ChatScreen = () => {
 
   const renderSearchInterface = () => (
     <View style={styles.searchInterfaceContainer}>
-      <Text style={styles.searchTitle}>Find a Patient</Text>
+      <Text style={styles.searchTitle}>Chat</Text>
       <Text style={styles.searchSubtitle}>
-        Search for a patient by email or phone to start a conversation
+        Search for a doctor by email or phone to start a conversation
       </Text>
 
       <View style={styles.searchBarContainer}>

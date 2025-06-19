@@ -75,7 +75,7 @@ const ConferencesScreen = ({navigation}) => {
 
       // Sort events by created_at in descending order (newest first)
       const sortedEvents = eventsWithBrochures.sort((a, b) => {
-        return new Date(b.created_at) - new Date(a.created_at);
+        return new Date(a.start_date) - new Date(b.start_date); // Soonest first
       });
 
       setEvents(sortedEvents);
@@ -116,6 +116,16 @@ const ConferencesScreen = ({navigation}) => {
 
   // Update the filtering logic in the component
   const filteredEvents = events.filter(event => {
+    // Filter out past events - add this new code block first
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to beginning of day for proper comparison
+    const eventStartDate = new Date(event.start_date);
+
+    // Skip events that have already ended
+    if (eventStartDate < today) {
+      return false;
+    }
+
     // Filter based on active tab
     if (activeTab === 'Conferences' && event.type !== 'Conference') {
       return false;
@@ -264,7 +274,11 @@ const ConferencesScreen = ({navigation}) => {
           <View>
             <Text style={styles.headerTitle}>Events</Text>
             <Text style={styles.headerSubtitle}>
-              Browse and Register For Events.
+              Browse and Register For Upcoming Events.
+              <Text style={{fontStyle: 'italic', color: '#2e7af5'}}>
+                {' '}
+                Only showing events from today forward.
+              </Text>
             </Text>
           </View>
           <TouchableOpacity
@@ -385,6 +399,20 @@ const ConferencesScreen = ({navigation}) => {
           }>
           <View style={styles.eventsContainer}>
             {filteredEvents.map(event => renderEventCard(event))}
+
+            {filteredEvents.length === 0 && !loading && (
+              <View style={styles.emptyContainer}>
+                <Icon name="calendar-blank" size={64} color="#ccc" />
+                <Text style={styles.emptyTitle}>No Upcoming Events</Text>
+                <Text style={styles.emptySubtitle}>
+                  {searchQuery
+                    ? 'No upcoming events match your search criteria'
+                    : selectedDate
+                    ? 'No events scheduled for the selected date'
+                    : 'There are no upcoming events at this time'}
+                </Text>
+              </View>
+            )}
           </View>
         </ScrollView>
       )}
@@ -661,6 +689,26 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '500',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    marginTop: 40,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 16,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 8,
+    maxWidth: '80%',
   },
 });
 

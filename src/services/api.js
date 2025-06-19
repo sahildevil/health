@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Base URL for API calls
-const API_URL = 'http://192.168.1.13:5000/api';
+const API_URL = 'http://192.168.1.18:5000/api';
 
 // Create axios instance with better configuration
 const api = axios.create({
@@ -41,14 +41,14 @@ api.interceptors.response.use(
     return response;
   },
   error => {
-    console.error('API Error Details:', {
-      url: error.config?.url,
-      method: error.config?.method,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      message: error.message,
-      code: error.code,
-    });
+    // console.error('API Error Details:', {
+    //   url: error.config?.url,
+    //   method: error.config?.method,
+    //   status: error.response?.status,
+    //   statusText: error.response?.statusText,
+    //   message: error.message,
+    //   code: error.code,
+    // });
 
     // Provide more specific error messages
     if (error.code === 'ECONNABORTED') {
