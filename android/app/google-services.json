@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "12601306956",
+    "project_id": "medevent-23e8a",
+    "storage_bucket": "medevent-23e8a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:12601306956:android:27892233833adfb4e869e9",
+        "android_client_info": {
+          "package_name": "com.health"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfVyzwkk5vITdAbNDo82CLinEdsFlxjfY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

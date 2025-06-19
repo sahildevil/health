@@ -45,6 +45,8 @@ import CourseDetailsScreen from '../screens/CourseDetailsScreen';
 import CreateCourseScreen from '../screens/CreateCourseScreen';
 import AddCourseVideoScreen from '../screens/AddCourseVideoScreen';
 import AdminChatScreen from '../screens/admin/AdminChatScreen';
+import NotificationHandler from '../components/NotificationHandler';
+
 const Stack = createStackNavigator();
 const AdminStack = createStackNavigator();
 
@@ -96,11 +98,11 @@ const AdminNavigator = () => {
         name="AdminPrivateMeetings"
         component={AdminPrivateMeetingsScreen}
       />
-      <Stack.Screen 
-  name="AdminChat" 
-  component={AdminChatScreen} 
-  options={{headerShown: false}} 
-/>
+      <Stack.Screen
+        name="AdminChat"
+        component={AdminChatScreen}
+        options={{headerShown: false}}
+      />
     </AdminStack.Navigator>
   );
 };
@@ -120,7 +122,7 @@ const AppNavigator = () => {
   const isAdmin = user?.role === 'admin';
 
   return (
-   <Stack.Navigator
+    <Stack.Navigator
       initialRouteName={
         isAuthenticated ? (isAdmin ? 'AdminFlow' : 'MainApp') : 'Splash'
       }
@@ -180,16 +182,25 @@ const AppNavigator = () => {
               name="MeetingInvitations"
               component={MeetingInvitationsScreen}
             />
-            <Stack.Screen name="Courses" component={CoursesScreen} />
-            <Stack.Screen
-              name="CourseDetails"
-              component={CourseDetailsScreen}
-            />
-            <Stack.Screen name="CreateCourse" component={CreateCourseScreen} />
-            <Stack.Screen
-              name="AddCourseVideo"
-              component={AddCourseVideoScreen}
-            />
+
+            {/* Only show course screens for non-pharma users */}
+            {user?.role !== 'pharma' && (
+              <>
+                <Stack.Screen name="Courses" component={CoursesScreen} />
+                <Stack.Screen
+                  name="CourseDetails"
+                  component={CourseDetailsScreen}
+                />
+                <Stack.Screen
+                  name="CreateCourse"
+                  component={CreateCourseScreen}
+                />
+                <Stack.Screen
+                  name="AddCourseVideo"
+                  component={AddCourseVideoScreen}
+                />
+              </>
+            )}
           </>
         )
       ) : (

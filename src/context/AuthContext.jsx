@@ -1,6 +1,10 @@
 import React, {createContext, useState, useEffect} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {authService} from '../services/api';
+import {fcmService} from '../services/fcmService';
+
+// Add this line to define the API URL
+const API_URL = 'http://192.168.1.18:5000';
 
 export const AuthContext = createContext();
 
@@ -31,38 +35,43 @@ export const AuthProvider = ({children}) => {
   }, []);
 
   // Modified login function to handle role-specific login
-  const login = async (email, password, requiredRole = null) => {
+  const login = async (email, password) => {
     try {
-      setError(null);
+      console.log('🔐 Logging in user...');
       setLoading(true);
+      setError(null);
 
       const response = await authService.login(email, password);
+      console.log('✅ Login successful:', response);
 
-      // Check if user has required role if specified
-      if (requiredRole && response.user.role !== requiredRole) {
-        throw {
-          message: `Access denied. You don't have ${requiredRole} privileges.`,
-        };
+      if (response && response.token && response.user) {
+        const {token, user} = response;
+
+        // Store auth data
+        await AsyncStorage.setItem('@token', token);
+        await AsyncStorage.setItem('@user', JSON.stringify(user));
+
+        console.log('💾 Auth data stored, registering FCM token...');
+
+        // Register FCM token with server - add delay to ensure everything is ready
+        setTimeout(async () => {
+          try {
+            await fcmService.registerTokenAfterLogin(token);
+          } catch (fcmError) {
+            console.error('FCM registration error during login:', fcmError);
+          }
+        }, 1000);
+
+        setUser(user);
+        setIsAuthenticated(true);
+        return true;
+      } else {
+        throw new Error('Invalid response from server');
       }
-      // Check if email is verified
-      if (!response.user.email_verified && response.user.role !== 'admin') {
-        throw {
-          needsVerification: true,
-          message: 'Please verify your email before logging in.',
-          email: email,
-        };
-      }
-      // Set auth header for future API calls
-      authService.setAuthToken(response.token);
-      // Save token and user to AsyncStorage (just once)
-      await AsyncStorage.setItem('@token', response.token);
-      await AsyncStorage.setItem('@user', JSON.stringify(response.user));
-      // Set user in state
-      setUser(response.user);
-      return response;
     } catch (error) {
+      console.error('❌ Login error:', error);
       setError(error.message || 'Login failed');
-      throw error;
+      return false;
     } finally {
       setLoading(false);
     }
@@ -82,14 +91,42 @@ export const AuthProvider = ({children}) => {
     }
   };
 
+  // Fix the logout function
   const logout = async () => {
     try {
-      await AsyncStorage.removeItem('@user');
+      setLoading(true);
+
+      // Delete FCM token from server before logout
+      const token = await AsyncStorage.getItem('@token');
+      const fcmToken = await AsyncStorage.getItem('fcmToken');
+
+      if (token && fcmToken) {
+        try {
+          const response = await fetch(`${API_URL}/api/users/fcm-token`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({token: fcmToken}),
+          });
+
+          if (response.ok) {
+            console.log('FCM token removed from server');
+          }
+        } catch (error) {
+          console.error('Error removing FCM token:', error);
+        }
+      }
+
       await AsyncStorage.removeItem('@token');
-      authService.setAuthToken(null);
+      await AsyncStorage.removeItem('@user');
+      await AsyncStorage.removeItem('fcmToken');
       setUser(null);
     } catch (error) {
       console.error('Logout failed', error);
+    } finally {
+      setLoading(false);
     }
   };
 

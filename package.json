@@ -15,6 +15,8 @@
     "@react-native-community/datetimepicker": "^8.3.0",
     "@react-native-community/netinfo": "^6.0.6",
     "@react-native-documents/picker": "^10.1.2",
+    "@react-native-firebase/app": "^22.2.1",
+    "@react-native-firebase/messaging": "^22.2.1",
     "@react-native-masked-view/masked-view": "^0.3.2",
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/native": "^7.1.6",

@@ -3,6 +3,9 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+// Import useAuth to access user information
+import {useAuth} from '../context/AuthContext';
+
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
 import ConferencesScreen from '../screens/ConferencesScreen';
@@ -14,6 +17,11 @@ import ScheduleScreen from '../screens/ScheduleScreen';
 const Tab = createBottomTabNavigator();
 
 const BottomTabNavigator = () => {
+  // Get user information from auth context
+  const {user} = useAuth();
+  // Check if user is pharma
+  const isPharma = user?.role === 'pharma';
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -56,27 +64,24 @@ const BottomTabNavigator = () => {
         name="Chat"
         component={ChatScreen}
         options={{
-          tabBarIcon: ({color}) => <Ionicons name="chatbubbles-outline" size={24} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Courses"
-        component={CoursesScreen}
-        options={{
           tabBarIcon: ({color}) => (
-            <Ionicons name="book-outline" size={24} color={color} />
+            <Ionicons name="chatbubbles-outline" size={24} color={color} />
           ),
         }}
       />
-            {/* <Tab.Screen
-        name="Cou"
-        component={ScheduleScreen}
-        options={{
-          tabBarIcon: ({color}) => (
-            <Icon name="book-open-page-variant" size={24} color={color} />
-          ),
-        }}
-      /> */}
+
+      {/* Only show Courses tab for non-pharma users */}
+      {!isPharma && (
+        <Tab.Screen
+          name="Courses"
+          component={CoursesScreen}
+          options={{
+            tabBarIcon: ({color}) => (
+              <Ionicons name="book-outline" size={24} color={color} />
+            ),
+          }}
+        />
+      )}
     </Tab.Navigator>
   );
 };

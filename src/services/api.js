@@ -41,14 +41,14 @@ api.interceptors.response.use(
     return response;
   },
   error => {
-    console.error('API Error Details:', {
-      url: error.config?.url,
-      method: error.config?.method,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      message: error.message,
-      code: error.code,
-    });
+    // console.error('API Error Details:', {
+    //   url: error.config?.url,
+    //   method: error.config?.method,
+    //   status: error.response?.status,
+    //   statusText: error.response?.statusText,
+    //   message: error.message,
+    //   code: error.code,
+    // });
 
     // Provide more specific error messages
     if (error.code === 'ECONNABORTED') {

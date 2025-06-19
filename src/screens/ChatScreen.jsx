@@ -1269,7 +1269,7 @@ const renderChatHeader = () => {
     <View style={styles.searchInterfaceContainer}>
       <Text style={styles.searchTitle}>Connect Here!</Text>
       <Text style={styles.searchSubtitle}>
-        Search for a patient by email or phone to start a conversation
+        Search for a doctor by email or phone to start a conversation
       </Text>
 
       <View style={styles.searchBarContainer}>
