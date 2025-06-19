@@ -17,6 +17,7 @@ import * as ImagePicker from 'react-native-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import ProgressBar from '../components/ProgressBar';
 
 const AddCourseVideoScreen = ({route, navigation}) => {
   const {courseId} = route.params;
@@ -28,6 +29,10 @@ const AddCourseVideoScreen = ({route, navigation}) => {
   const [course, setCourse] = useState(null);
   const [sequenceOrder, setSequenceOrder] = useState(0);
   const insets = useSafeAreaInsets();
+  // Add these new states for progress tracking
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [processingVideo, setProcessingVideo] = useState(false);
 
   useEffect(() => {
     // Set the auth token for requests and debug token availability
@@ -211,6 +216,8 @@ const AddCourseVideoScreen = ({route, navigation}) => {
 
     try {
       setLoading(true);
+      setIsUploading(true);
+      setUploadProgress(0);
 
       // Debug token before upload attempts
       const asyncToken = await AsyncStorage.getItem('token');
@@ -238,10 +245,13 @@ const AddCourseVideoScreen = ({route, navigation}) => {
       }
 
       console.log('[VIDEO DEBUG] Starting video upload');
-      // Upload video file with improved error handling
+      // Upload video file with improved error handling and progress tracking
       let videoResult;
       try {
-        videoResult = await courseService.uploadCourseVideo(video);
+        setProcessingVideo(true);
+        videoResult = await courseService.uploadCourseVideo(video, (progress) => {
+          setUploadProgress(progress);
+        });
         console.log(
           '[VIDEO DEBUG] Video uploaded successfully:',
           videoResult.url?.substring(0, 50) + '...',
@@ -249,6 +259,8 @@ const AddCourseVideoScreen = ({route, navigation}) => {
       } catch (videoError) {
         console.error('[VIDEO DEBUG] Video upload failed:', videoError);
         throw new Error(`Video upload failed: ${videoError.message}`);
+      } finally {
+        setProcessingVideo(false);
       }
 
       // Upload thumbnail if available
@@ -305,6 +317,7 @@ const AddCourseVideoScreen = ({route, navigation}) => {
             setVideo(null);
             setThumbnail(null);
             setSequenceOrder(sequenceOrder + 1);
+            setUploadProgress(0);
           },
         },
         {
@@ -328,6 +341,7 @@ const AddCourseVideoScreen = ({route, navigation}) => {
       }
     } finally {
       setLoading(false);
+      setIsUploading(false);
     }
   };
 
@@ -400,6 +414,27 @@ const AddCourseVideoScreen = ({route, navigation}) => {
             </View>
           )}
         </TouchableOpacity>
+
+        {/* Progress Bar - Add this section */}
+        {isUploading && (
+          <View style={styles.progressContainer}>
+            <Text style={styles.progressTitle}>
+              {uploadProgress < 100 ? 'Uploading Video...' : 'Processing Video...'}
+            </Text>
+            <ProgressBar 
+              progress={uploadProgress} 
+              height={8}
+              fillColor={uploadProgress === 100 ? '#4CAF50' : '#2e7af5'}
+              isProcessing={uploadProgress === 100 && processingVideo}
+            />
+            {/* <View style={styles.progressInfo}>
+              <Text style={styles.progressPercentage}>{uploadProgress.toFixed(1)}%</Text>
+              {uploadProgress === 100 && processingVideo && (
+                <Text style={styles.processingText}>Processing video, please wait...</Text>
+              )}
+            </View> */}
+          </View>
+        )}
 
         <Text style={styles.label}>Video Thumbnail (Optional)</Text>
         <TouchableOpacity
@@ -591,6 +626,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  // Progress Bar Styles
+  progressContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  progressTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  progressInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  progressPercentage: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#2e7af5',
+  },
+  processingText: {
+    fontSize: 13,
+    color: '#4CAF50',
+    fontStyle: 'italic',
   },
 });
 
