@@ -15,6 +15,7 @@ import {
   Modal,
   Image,
   Linking,
+  ScrollView,
 } from 'react-native';
 import * as Assets from '../assets';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -45,6 +46,8 @@ const ChatScreen = () => {
   const [loading, setLoading] = useState(true);
   const [socketConnected, setSocketConnected] = useState(false);
   const [recentChats, setRecentChats] = useState([]);
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [contactDetails, setContactDetails] = useState(null);
 
   // Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,6 +71,7 @@ const ChatScreen = () => {
   const flatListRef = useRef(null);
   const searchInputRef = useRef(null);
 
+
   // Define debounce helper function
   const debounce = (func, delay) => {
     let timeoutId;
@@ -86,6 +90,13 @@ const ChatScreen = () => {
     }, 500),
     [],
   );
+
+  // Add this useEffect to fetch contact details when modal opens
+useEffect(() => {
+  if (profileModalVisible && selectedDoctor && !selectedDoctor.isAdminSupport) {
+    fetchContactDetails(selectedDoctor.id);
+  }
+}, [profileModalVisible, selectedDoctor]);
 
   // Debug output for current user
   useEffect(() => {
@@ -341,7 +352,24 @@ const ChatScreen = () => {
   }, [selectedDoctor, user]);
 
   // Rest of your component functionality...
-
+const fetchContactDetails = async (contactId) => {
+  try {
+    setContactDetails(null); // Reset previous details
+    
+    const token = await getAuthToken();
+    const response = await axios.get(`${API_URL}/api/user-profile/${contactId}`, {
+      headers: {
+        Authorization: token,
+      },
+    });
+    
+    console.log('Contact details received:', response.data);
+    setContactDetails(response.data);
+  } catch (error) {
+    console.error('Failed to fetch contact details:', error);
+    Alert.alert('Error', 'Could not load contact information');
+  }
+};
   // Move downloadAndCacheImage function inside component
   const downloadAndCacheImage = async imageUrl => {
     try {
@@ -1126,42 +1154,51 @@ const ChatScreen = () => {
       </>
     );
   };
+const renderChatHeader = () => {
+  if (!selectedDoctor) return null;
 
-  const renderChatHeader = () => {
-    if (!selectedDoctor) return null;
+  return (
+    <View style={styles.chatHeader}>
+      <TouchableOpacity
+        style={styles.headerBackButton}
+        onPress={() => setSelectedDoctor(null)}>
+        <Icon name="arrow-left" size={24} color="#333" />
+      </TouchableOpacity>
 
-    return (
-      <View style={styles.chatHeader}>
-        <TouchableOpacity
-          style={styles.headerBackButton}
-          onPress={() => setSelectedDoctor(null)}>
-          <Text style={styles.headerBackIcon}>←</Text>
-        </TouchableOpacity>
-
-        <View style={styles.avatarContainer}>
+      <View style={styles.avatarContainer}>
+        {selectedDoctor.avatar_url ? (
+          <Image 
+            source={{ uri: selectedDoctor.avatar_url }} 
+            style={styles.contactAvatarImage}
+          />
+        ) : (
           <Text style={styles.avatarText}>
             {selectedDoctor.name ? selectedDoctor.name.charAt(0) : '?'}
           </Text>
-        </View>
-
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>{selectedDoctor.name}</Text>
-          <Text style={styles.headerSubtitle}>
-            {socketConnected ? 'online' : 'offline'}
-          </Text>
-        </View>
-
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerButton} onPress={toggleSearch}>
-            <Text style={styles.headerIcon}>🔍</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton}>
-            <Text style={styles.headerIcon}>⋮</Text>
-          </TouchableOpacity>
-        </View>
+        )}
       </View>
-    );
-  };
+
+      {/* Make the title container clickable */}
+      <TouchableOpacity 
+        style={styles.headerTitleContainer}
+        onPress={() => setProfileModalVisible(true)}>
+        <Text style={styles.headerTitle}>{selectedDoctor.name}</Text>
+        <Text style={styles.headerSubtitle}>
+          {socketConnected ? 'online' : 'offline'}
+        </Text>
+      </TouchableOpacity>
+
+      <View style={styles.headerActions}>
+        <TouchableOpacity style={styles.headerButton} onPress={toggleSearch}>
+          <Icon name="magnify" size={22} color="#666" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.headerButton}>
+          <Icon name="dots-vertical" size={22} color="#666" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
 
   const renderUserSearchResult = ({item}) => (
     <TouchableOpacity
@@ -1489,6 +1526,318 @@ const ChatScreen = () => {
             onClose={() => setWebViewPickerVisible(false)}
             onFilesSelected={handleWebViewFilesSelected}
           />
+
+          {/* Enhanced Profile Modal */}
+          <Modal
+            visible={profileModalVisible}
+            transparent={false}
+            animationType="slide"
+            onRequestClose={() => setProfileModalVisible(false)}>
+            <SafeAreaView style={styles.profileModalContainer}>
+              {/* Profile Modal Header */}
+              <View style={styles.profileModalHeader}>
+                <TouchableOpacity
+                  style={styles.profileModalBackButton}
+                  onPress={() => setProfileModalVisible(false)}>
+                  <Icon name="arrow-left" size={24} color="#333" />
+                </TouchableOpacity>
+                <Text style={styles.profileModalTitle}>Doctor Profile</Text>
+              </View>
+
+              {/* Profile Content */}
+              <ScrollView style={styles.profileModalContent}>
+                {!contactDetails ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#2e7af5" />
+                    <Text style={styles.loadingText}>Loading profile...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.profileDetailsContainer}>
+                    {/* Profile Header with Avatar */}
+                    <View style={styles.profileHeaderSection}>
+                      <View style={styles.profileAvatarLarge}>
+                        {contactDetails.avatar_url ? (
+                          <Image
+                            source={{ uri: contactDetails.avatar_url }}
+                            style={styles.profileAvatarImage}
+                          />
+                        ) : (
+                          <Text style={styles.profileAvatarText}>
+                            {contactDetails.name ? contactDetails.name.charAt(0) : '?'}
+                          </Text>
+                        )}
+                      </View>
+                      
+                      <Text style={styles.profileName}>{contactDetails.name}</Text>
+                      
+                      <View style={styles.profileRoleBadge}>
+                        <Text style={styles.profileRoleText}>
+                          {contactDetails.role === 'doctor' ? 'Healthcare Professional' : 
+                           contactDetails.role === 'pharma' ? 'Pharmaceutical Rep' : 
+                           contactDetails.role}
+                        </Text>
+                      </View>
+
+                      {/* Verification Status */}
+                      <View style={styles.verificationContainer}>
+                        {contactDetails.verified ? (
+                          <View style={styles.verifiedBadge}>
+                            <Icon name="check-decagram" size={16} color="#4CAF50" />
+                            <Text style={styles.verifiedText}>Verified</Text>
+                          </View>
+                        ) : (
+                          <View style={styles.unverifiedBadge}>
+                            <Icon name="clock-outline" size={16} color="#FF9800" />
+                            <Text style={styles.unverifiedText}>Pending Verification</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+
+                    {/* Contact Information Section */}
+                    <View style={styles.profileSection}>
+                      <Text style={styles.profileSectionTitle}>Contact Information</Text>
+                      
+                      <View style={styles.profileInfoItem}>
+                        <Icon name="email-outline" size={20} color="#666" />
+                        <View style={styles.profileInfoContent}>
+                          <Text style={styles.profileInfoLabel}>Email</Text>
+                          <Text style={styles.profileInfoText}>{contactDetails.email}</Text>
+                        </View>
+                      </View>
+                      
+                      {contactDetails.phone && (
+                        <View style={styles.profileInfoItem}>
+                          <Icon name="phone-outline" size={20} color="#666" />
+                          <View style={styles.profileInfoContent}>
+                            <Text style={styles.profileInfoLabel}>Phone</Text>
+                            <Text style={styles.profileInfoText}>{contactDetails.phone}</Text>
+                          </View>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Professional Information Section - Enhanced for Doctors */}
+                    {contactDetails.role === 'doctor' && (
+                      <View style={styles.profileSection}>
+                        <Text style={styles.profileSectionTitle}>Professional Information</Text>
+                        
+                        {contactDetails.degree && (
+                          <View style={styles.profileInfoItem}>
+                            <Icon name="school-outline" size={20} color="#666" />
+                            <View style={styles.profileInfoContent}>
+                              <Text style={styles.profileInfoLabel}>Medical Specialty</Text>
+                              <Text style={styles.profileInfoText}>{contactDetails.degree}</Text>
+                            </View>
+                          </View>
+                        )}
+
+                        {/* Medical License/Registration Info */}
+                        <View style={styles.profileInfoItem}>
+                          <Icon name="card-account-details-outline" size={20} color="#666" />
+                          <View style={styles.profileInfoContent}>
+                            <Text style={styles.profileInfoLabel}>Documents Uploaded</Text>
+                            <Text style={styles.profileInfoText}>
+                              {contactDetails.totalDocuments || 0} documents
+                              {contactDetails.verifiedDocuments > 0 && 
+                                ` (${contactDetails.verifiedDocuments} verified)`}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Email Verification Status */}
+                        <View style={styles.profileInfoItem}>
+                          <Icon name="email-check-outline" size={20} color="#666" />
+                          <View style={styles.profileInfoContent}>
+                            <Text style={styles.profileInfoLabel}>Email Status</Text>
+                            <Text style={[
+                              styles.profileInfoText, 
+                              contactDetails.email_verified ? styles.verifiedTextGreen : styles.unverifiedTextOrange
+                            ]}>
+                              {contactDetails.email_verified ? 'Verified' : 'Unverified'}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Company Information Section - Enhanced for Pharma */}
+                    {contactDetails.role === 'pharma' && (
+                      <View style={styles.profileSection}>
+                        <Text style={styles.profileSectionTitle}>Company Information</Text>
+                        
+                        {contactDetails.company && (
+                          <View style={styles.profileInfoItem}>
+                            <Icon name="domain" size={20} color="#666" />
+                            <View style={styles.profileInfoContent}>
+                              <Text style={styles.profileInfoLabel}>Company</Text>
+                              <Text style={styles.profileInfoText}>{contactDetails.company}</Text>
+                            </View>
+                          </View>
+                        )}
+
+                        {contactDetails.role_in_company && (
+                          <View style={styles.profileInfoItem}>
+                            <Icon name="briefcase-outline" size={20} color="#666" />
+                            <View style={styles.profileInfoContent}>
+                              <Text style={styles.profileInfoLabel}>Position</Text>
+                              <Text style={styles.profileInfoText}>{contactDetails.role_in_company}</Text>
+                            </View>
+                          </View>
+                        )}
+
+                        {/* Company Documents Info */}
+                        <View style={styles.profileInfoItem}>
+                          <Icon name="file-document-multiple-outline" size={20} color="#666" />
+                          <View style={styles.profileInfoContent}>
+                            <Text style={styles.profileInfoLabel}>Company Documents</Text>
+                            <Text style={styles.profileInfoText}>
+                              {contactDetails.totalDocuments || 0} documents uploaded
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+                    
+                    {/* Achievements Section - Enhanced */}
+                    {contactDetails.achievements && contactDetails.achievements.length > 0 && (
+                      <View style={styles.profileSection}>
+                        <Text style={styles.profileSectionTitle}>Achievements & Certifications</Text>
+                        
+                        {contactDetails.achievements.map((achievement, index) => (
+                          <View key={index} style={styles.achievementItem}>
+                            <Icon name="trophy-outline" size={20} color="#E6A817" />
+                            <View style={styles.achievementContent}>
+                              {achievement.title && (
+                                <Text style={styles.achievementTitle}>{achievement.title}</Text>
+                              )}
+                              {achievement.description && (
+                                <Text style={styles.achievementDescription}>{achievement.description}</Text>
+                              )}
+                              {achievement.year && (
+                                <Text style={styles.achievementYear}>Year: {achievement.year}</Text>
+                              )}
+                              {achievement.institution && (
+                                <Text style={styles.achievementInstitution}>
+                                  Institution: {achievement.institution}
+                                </Text>
+                              )}
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
+                    {/* Account Information Section - Enhanced */}
+                    <View style={styles.profileSection}>
+                      <Text style={styles.profileSectionTitle}>Account Information</Text>
+                      
+                      <View style={styles.profileInfoItem}>
+                        <Icon name="calendar-outline" size={20} color="#666" />
+                        <View style={styles.profileInfoContent}>
+                          <Text style={styles.profileInfoLabel}>Member Since</Text>
+                          <Text style={styles.profileInfoText}>
+                            {new Date(contactDetails.created_at).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.profileInfoItem}>
+                        <Icon name="update" size={20} color="#666" />
+                        <View style={styles.profileInfoContent}>
+                          <Text style={styles.profileInfoLabel}>Last Updated</Text>
+                          <Text style={styles.profileInfoText}>
+                            {new Date(contactDetails.updated_at).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Overall Verification Status */}
+                      <View style={styles.profileInfoItem}>
+                        <Icon name="shield-check-outline" size={20} color="#666" />
+                        <View style={styles.profileInfoContent}>
+                          <Text style={styles.profileInfoLabel}>Verification Status</Text>
+                          <View style={styles.verificationStatusContainer}>
+                            {contactDetails.verified ? (
+                              <View style={styles.statusBadgeGreen}>
+                                <Icon name="check" size={14} color="#fff" />
+                                <Text style={styles.statusBadgeText}>Fully Verified</Text>
+                              </View>
+                            ) : (
+                              <View style={styles.statusBadgeOrange}>
+                                <Icon name="clock" size={14} color="#fff" />
+                                <Text style={styles.statusBadgeText}>Under Review</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Quick Stats Section */}
+                    <View style={styles.profileSection}>
+                      <Text style={styles.profileSectionTitle}>Quick Stats</Text>
+                      
+                      <View style={styles.statsContainer}>
+                        <View style={styles.statItem}>
+                          <Icon name="file-document-outline" size={24} color="#2e7af5" />
+                          <Text style={styles.statNumber}>{contactDetails.totalDocuments || 0}</Text>
+                          <Text style={styles.statLabel}>Documents</Text>
+                        </View>
+                        
+                        <View style={styles.statItem}>
+                          <Icon name="check-circle-outline" size={24} color="#4CAF50" />
+                          <Text style={styles.statNumber}>{contactDetails.verifiedDocuments || 0}</Text>
+                          <Text style={styles.statLabel}>Verified</Text>
+                        </View>
+                        
+                        <View style={styles.statItem}>
+                          <Icon name="trophy-outline" size={24} color="#E6A817" />
+                          <Text style={styles.statNumber}>
+                            {(contactDetails.achievements && contactDetails.achievements.length) || 0}
+                          </Text>
+                          <Text style={styles.statLabel}>Achievements</Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Action Buttons */}
+                    <View style={styles.profileActionsContainer}>
+                      <TouchableOpacity 
+                        style={styles.profileActionButton}
+                        onPress={() => {
+                          setProfileModalVisible(false);
+                          // Continue in the chat
+                        }}>
+                        <Icon name="chat" size={22} color="#fff" />
+                        <Text style={styles.profileActionButtonText}>Continue Chat</Text>
+                      </TouchableOpacity>
+                      
+                      {contactDetails.phone && (
+                        <TouchableOpacity 
+                          style={styles.profileActionButtonSecondary}
+                          onPress={() => {
+                            // You can add phone call functionality here
+                            Alert.alert('Contact', `Call ${contactDetails.phone}?`);
+                          }}>
+                          <Icon name="phone" size={22} color="#2e7af5" />
+                          <Text style={styles.profileActionButtonTextSecondary}>Call</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                )}
+              </ScrollView>
+            </SafeAreaView>
+          </Modal>
         </View>
       ) : (
         renderSearchInterface()
@@ -1506,47 +1855,33 @@ const ChatScreen = () => {
               onPress={() => setPreviewVisible(false)}>
               <Icon name="close" size={24} color="#333" />
             </TouchableOpacity>
-            <Text style={styles.previewTitle} numberOfLines={1}>
-              {previewItem?.fileName || 'Preview'}
-            </Text>
-            <TouchableOpacity
-              style={styles.previewShareButton}
-              onPress={() =>
-                previewItem?.fileUrl && Linking.openURL(previewItem.fileUrl)
-              }>
-              <Icon name="open-in-new" size={24} color="#2e7af5" />
-            </TouchableOpacity>
           </View>
+
           <View style={styles.previewContent}>
-            {previewItem &&
-            previewItem.fileType &&
-            previewItem.fileType.includes('image') ? (
+            {previewItem && previewItem.fileType && previewItem.fileType.includes('image') ? (
               <Image
-                source={{
-                  uri: cachedImages[previewItem.fileUrl] || previewItem.fileUrl,
-                }}
+                source={{ uri: previewItem.fileUrl }}
                 style={styles.previewImage}
                 resizeMode="contain"
               />
             ) : (
               <View style={styles.documentPreview}>
-                <Icon name="file-document-outline" size={80} color="#2e7af5" />
+                <Icon name="file-document-outline" size={64} color="#2e7af5" />
                 <Text style={styles.documentPreviewName}>
                   {previewItem?.fileName || 'Document'}
                 </Text>
                 <Text style={styles.documentPreviewSize}>
                   {previewItem?.fileSize
                     ? `${(previewItem.fileSize / 1024).toFixed(1)} KB`
-                    : ''}
+                    : 'Size: Unknown'}
                 </Text>
+
                 <TouchableOpacity
                   style={styles.openExternalButton}
-                  onPress={() =>
-                    previewItem?.fileUrl && Linking.openURL(previewItem.fileUrl)
-                  }>
-                  <Text style={styles.openExternalButtonText}>
-                    Open in Browser
-                  </Text>
+                  onPress={() => {
+                    Linking.openURL(previewItem.fileUrl);
+                  }}>
+                  <Text style={styles.openExternalButtonText}>Open in Browser</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -1557,92 +1892,20 @@ const ChatScreen = () => {
   );
 };
 
-// Styles remain the same...
-const documentStyles = {
-  documentMessageContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f7ff',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 5,
-    borderWidth: 1,
-    borderColor: '#d4e4fc',
-  },
-  documentIconContainer: {
-    width: 46,
-    height: 46,
-    borderRadius: 8,
-    backgroundColor: '#e3efff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-  },
-  documentInfo: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  documentName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  documentType: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 6,
-  },
-  viewDocButton: {
-    backgroundColor: '#2e7af5',
-    borderRadius: 14,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    alignSelf: 'flex-start',
-  },
-  viewDocText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-};
-
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#075E54',
-  },
   container: {
     flex: 1,
-    backgroundColor: '#f7f9fc',
+    backgroundColor: '#ffffff',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f7f9fc',
   },
-  whatsappHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  whatsappTitle: {
-    fontSize: 23,
-    fontWeight: 'bold',
-    color: 'black',
-  },
-  doctorsList: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
+  loadingText: {
+    marginTop: 8,
+    fontSize: 16,
+    color: '#666',
   },
   doctorsListContent: {
     paddingVertical: 8,
@@ -1769,14 +2032,18 @@ const styles = StyleSheet.create({
     color: 'black',
   },
   headerTitleContainer: {
-    flex: 1,
-    marginLeft: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000000',
-  },
+  flex: 1,
+  marginLeft: 8,
+  flexDirection: 'row',
+  alignItems: 'center',
+  paddingVertical: 8, // Add some padding for a better touch target
+},
+headerTitle: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  color: '#000000',
+  marginRight: 4, // Add a little space for the icon
+},
   headerSubtitle: {
     fontSize: 12,
     color: 'grey',
@@ -2171,6 +2438,7 @@ const styles = StyleSheet.create({
   },
   orDivider: {
     fontSize: 14,
+
     color: '#999',
     marginBottom: 8,
   },
@@ -2244,6 +2512,269 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+  // Add to your existing styles
+profileModalContainer: {
+  flex: 1,
+  backgroundColor: '#F8F9FA',
+},
+profileModalHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#fff',
+  paddingVertical: 16,
+  paddingHorizontal: 12,
+  borderBottomWidth: 1,
+  borderBottomColor: '#f0f0f0',
+},
+profileModalBackButton: {
+  padding: 8,
+},
+profileModalTitle: {
+  fontSize: 20,
+  fontWeight: 'bold',
+  marginLeft: 12,
+  color: '#333',
+},
+profileModalContent: {
+  flex: 1,
+},
+profileDetailsContainer: {
+  padding: 16,
+},
+profileHeaderSection: {
+  alignItems: 'center',
+  marginBottom: 24,
+},
+profileAvatarLarge: {
+  width: 100,
+  height: 100,
+  borderRadius: 50,
+  backgroundColor: '#2e7af5',
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginBottom: 16,
+},
+profileAvatarImage: {
+  width: '100%',
+  height: '100%',
+  borderRadius: 50,
+},
+profileAvatarText: {
+  fontSize: 40,
+  fontWeight: 'bold',
+  color: '#fff',
+},
+profileName: {
+  fontSize: 22,
+  fontWeight: 'bold',
+  color: '#333',
+  marginBottom: 8,
+},
+profileRoleBadge: {
+  backgroundColor: '#2e7af5',
+  paddingVertical: 4,
+  paddingHorizontal: 12,
+  borderRadius: 16,
+},
+profileRoleText: {
+  color: '#fff',
+  fontSize: 14,
+  fontWeight: '500',
+},
+profileSection: {
+  backgroundColor: '#fff',
+  borderRadius: 12,
+  padding: 16,
+  marginBottom: 16,
+  shadowColor: '#000',
+  shadowOffset: {width: 0, height: 1},
+  shadowOpacity: 0.05,
+  shadowRadius: 2,
+  elevation: 2,
+},
+profileSectionTitle: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  color: '#333',
+  marginBottom: 16,
+},
+profileInfoItem: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: 12,
+},
+profileInfoText: {
+  fontSize: 16,
+  color: '#444',
+  marginLeft: 12,
+  flex: 1,
+},
+achievementItem: {
+  flexDirection: 'row',
+  marginBottom: 16,
+},
+achievementContent: {
+  marginLeft: 12,
+  flex: 1,
+},
+achievementTitle: {
+  fontSize: 16,
+  fontWeight: '600',
+  color: '#333',
+  marginBottom: 4,
+},
+achievementDescription: {
+  fontSize: 14,
+  color: '#666',
+  marginBottom: 4,
+},
+achievementYear: {
+  fontSize: 14,
+  color: '#888',
+},
+profileActionsContainer: {
+  marginTop: 8,
+  marginBottom: 24,
+},
+profileActionButton: {
+  backgroundColor: '#2e7af5',
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 14,
+  borderRadius: 12,
+},
+profileActionButtonText: {
+  color: '#fff',
+  marginLeft: 8,
+  fontSize: 16,
+  fontWeight: '600',
+},
+contactAvatarImage: {
+  width: 50,
+  height: 50,
+  borderRadius: 20,
+  backgroundColor: '#e1e1e1',
+},
+// Add these enhanced styles to your existing styles object
+verificationContainer: {
+  marginTop: 12,
+},
+verifiedBadge: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#E8F5E8',
+  paddingHorizontal: 12,
+  paddingVertical: 6,
+  borderRadius: 20,
+},
+verifiedText: {
+  color: '#4CAF50',
+  fontSize: 14,
+  fontWeight: '500',
+  marginLeft: 4,
+},
+unverifiedBadge: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#FFF3E0',
+  paddingHorizontal: 12,
+  paddingVertical: 6,
+  borderRadius: 20,
+},
+unverifiedText: {
+  color: '#FF9800',
+  fontSize: 14,
+  fontWeight: '500',
+  marginLeft: 4,
+},
+profileInfoContent: {
+  marginLeft: 12,
+  flex: 1,
+},
+profileInfoLabel: {
+  fontSize: 12,
+  color: '#888',
+  marginBottom: 2,
+  fontWeight: '500',
+},
+verifiedTextGreen: {
+  color: '#4CAF50',
+  fontWeight: '500',
+},
+unverifiedTextOrange: {
+  color: '#FF9800',
+  fontWeight: '500',
+},
+verificationStatusContainer: {
+  marginTop: 4,
+},
+statusBadgeGreen: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#4CAF50',
+  paddingHorizontal: 8,
+  paddingVertical: 4,
+  borderRadius: 12,
+  alignSelf: 'flex-start',
+},
+statusBadgeOrange: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#FF9800',
+  paddingHorizontal: 8,
+  paddingVertical: 4,
+  borderRadius: 12,
+  alignSelf: 'flex-start',
+},
+statusBadgeText: {
+  color: '#fff',
+  fontSize: 12,
+  fontWeight: '500',
+  marginLeft: 4,
+},
+achievementInstitution: {
+  fontSize: 12,
+  color: '#666',
+  fontStyle: 'italic',
+},
+statsContainer: {
+  flexDirection: 'row',
+  justifyContent: 'space-around',
+  paddingVertical: 16,
+},
+statItem: {
+  alignItems: 'center',
+  flex: 1,
+},
+statNumber: {
+  fontSize: 24,
+  fontWeight: 'bold',
+  color: '#333',
+  marginTop: 8,
+},
+statLabel: {
+  fontSize: 12,
+  color: '#666',
+  marginTop: 4,
+},
+profileActionButtonSecondary: {
+  backgroundColor: '#fff',
+  borderWidth: 2,
+  borderColor: '#2e7af5',
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 14,
+  borderRadius: 12,
+  marginTop: 12,
+},
+profileActionButtonTextSecondary: {
+  color: '#2e7af5',
+  marginLeft: 8,
+  fontSize: 16,
+  fontWeight: '600',
+},
 });
 
 export default ChatScreen;
