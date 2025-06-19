@@ -3,6 +3,8 @@
 import React, {useEffect} from 'react';
 import {fcmService} from '../services/fcmService';
 import {useNavigation} from '@react-navigation/native';
+import {Alert, Platform} from 'react-native';
+import messaging from '@react-native-firebase/messaging';
 
 const NotificationHandler = () => {
   const navigation = useNavigation();
@@ -23,19 +25,13 @@ const NotificationHandler = () => {
 
       case 'event_approval':
         if (action === 'view' && id) {
-          // Navigate to My Events to see the approved event
           navigation.navigate('MyEvents');
-          // Or navigate directly to event details
-          // navigation.navigate('EventDetails', { eventId: id });
         }
         break;
 
       case 'event_rejection':
         if (action === 'view' && id) {
-          // Navigate to My Events to see the rejected event
           navigation.navigate('MyEvents');
-          // Or navigate to edit screen
-          // navigation.navigate('EditEvent', { eventId: id });
         }
         break;
 
@@ -77,11 +73,64 @@ const NotificationHandler = () => {
     }
   };
 
+  // Function to display foreground notifications
+  const showForegroundNotification = (title, body, data) => {
+    if (Platform.OS === 'ios') {
+      // For iOS, we'll use a simple Alert
+      Alert.alert(
+        title,
+        body,
+        [
+          {
+            text: 'Dismiss',
+            style: 'cancel',
+          },
+          {
+            text: 'View',
+            onPress: () => handleNotificationNavigation(data),
+          },
+        ],
+        {cancelable: true},
+      );
+    } else {
+      // For Android, we can use the messaging API directly
+      // Note: This will only work if you have set up the notification channel
+      messaging()
+        .getInitialNotification()
+        .then(remoteMessage => {
+          // Show a toast or custom notification UI
+          // For simplicity, we'll use Alert here too
+          Alert.alert(
+            title,
+            body,
+            [
+              {
+                text: 'Dismiss',
+                style: 'cancel',
+              },
+              {
+                text: 'View',
+                onPress: () => handleNotificationNavigation(data),
+              },
+            ],
+            {cancelable: true},
+          );
+        });
+    }
+  };
+
   useEffect(() => {
-    // Handle foreground notifications - Firebase displays them automatically
+    // Handle foreground notifications - We need to manually display them
     const onNotification = remoteMessage => {
       console.log('Notification received in foreground:', remoteMessage);
-      // Firebase handles the notification display automatically on both platforms
+
+      // Extract notification details
+      const title = remoteMessage.notification?.title || 'New Notification';
+      const body = remoteMessage.notification?.body || '';
+      const data = remoteMessage.data || {};
+
+      // Display the notification to the user
+      showForegroundNotification(title, body, data);
     };
 
     // Handle notifications that open the app
