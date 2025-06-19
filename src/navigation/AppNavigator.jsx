@@ -182,16 +182,25 @@ const AppNavigator = () => {
               name="MeetingInvitations"
               component={MeetingInvitationsScreen}
             />
-            <Stack.Screen name="Courses" component={CoursesScreen} />
-            <Stack.Screen
-              name="CourseDetails"
-              component={CourseDetailsScreen}
-            />
-            <Stack.Screen name="CreateCourse" component={CreateCourseScreen} />
-            <Stack.Screen
-              name="AddCourseVideo"
-              component={AddCourseVideoScreen}
-            />
+
+            {/* Only show course screens for non-pharma users */}
+            {user?.role !== 'pharma' && (
+              <>
+                <Stack.Screen name="Courses" component={CoursesScreen} />
+                <Stack.Screen
+                  name="CourseDetails"
+                  component={CourseDetailsScreen}
+                />
+                <Stack.Screen
+                  name="CreateCourse"
+                  component={CreateCourseScreen}
+                />
+                <Stack.Screen
+                  name="AddCourseVideo"
+                  component={AddCourseVideoScreen}
+                />
+              </>
+            )}
           </>
         )
       ) : (

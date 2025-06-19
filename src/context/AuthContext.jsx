@@ -3,6 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {authService} from '../services/api';
 import {fcmService} from '../services/fcmService';
 
+// Add this line to define the API URL
+const API_URL = 'http://192.168.1.18:5000';
+
 export const AuthContext = createContext();
 
 export const AuthProvider = ({children}) => {
@@ -99,7 +102,6 @@ export const AuthProvider = ({children}) => {
 
       if (token && fcmToken) {
         try {
-          // Fix the API endpoint
           const response = await fetch(`${API_URL}/api/users/fcm-token`, {
             method: 'DELETE',
             headers: {
