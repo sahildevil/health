@@ -968,42 +968,43 @@ const fetchContactDetails = async (contactId) => {
 
   // Fetch recent chats
   const fetchRecentChats = useCallback(async () => {
-    if (!user) return;
+  if (!user) return;
 
-    try {
-      console.log('Fetching recent chats for user:', user.id);
-      const response = await axios.get(`${API_URL}/api/chat-rooms/${user.id}`);
+  try {
+    console.log('Fetching recent chats for user:', user.id);
+    const response = await axios.get(`${API_URL}/api/chat-rooms/${user.id}`);
 
-      if (response.data && Array.isArray(response.data)) {
-        console.log(`Found ${response.data.length} recent chats`);
+    if (response.data && Array.isArray(response.data)) {
+      console.log(`Found ${response.data.length} recent chats`);
 
-        // Transform the chat rooms into a format suitable for display
-        const processedChats = response.data.map(room => {
-          // Determine the other user in the conversation
-          const otherUser = room.user1_id === user.id ? room.user2 : room.user1;
+      // Transform the chat rooms into a format suitable for display
+      const processedChats = response.data.map(room => {
+        // Determine the other user in the conversation
+        const otherUser = room.user1_id === user.id ? room.user2 : room.user1;
 
-          return {
-            id: otherUser?.id || 'unknown',
-            name: otherUser?.name || 'Unknown User',
-            role: otherUser?.role || 'user',
-            roomId: room.id,
-            lastMessage: room.last_message?.content || null,
-            lastMessageTime:
-              room.last_message?.created_at ||
-              room.updated_at ||
-              room.created_at,
-            unreadCount: room.unread_count || 0,
-            isAdminSupport:
-              otherUser?.role === 'admin' || room.room_id?.startsWith('admin-'),
-          };
-        });
+        return {
+          id: otherUser?.id || 'unknown',
+          name: otherUser?.name || 'Unknown User',
+          role: otherUser?.role || 'user',
+          avatar_url: otherUser?.avatar_url || null, // Include avatar_url
+          roomId: room.id,
+          lastMessage: room.last_message?.content || null,
+          lastMessageTime:
+            room.last_message?.created_at ||
+            room.updated_at ||
+            room.created_at,
+          unreadCount: room.unread_count || 0,
+          isAdminSupport:
+            otherUser?.role === 'admin' || room.room_id?.startsWith('admin-'),
+        };
+      });
 
-        setRecentChats(processedChats);
-      }
-    } catch (error) {
-      console.error('Error fetching recent chats:', error);
+      setRecentChats(processedChats);
     }
-  }, [user?.id]);
+  } catch (error) {
+    console.error('Error fetching recent chats:', error);
+  }
+}, [user?.id]);
 
   // Call fetchRecentChats on initial load and after sending a message
   useEffect(() => {
@@ -1012,44 +1013,53 @@ const fetchContactDetails = async (contactId) => {
 
   // UI Components
   const renderDoctor = ({item}) => (
-    <TouchableOpacity
+  <TouchableOpacity
+    style={[
+      styles.doctorItem,
+      selectedDoctor?.id === item.id && styles.selectedDoctor,
+      item.isAdminSupport && styles.adminSupportItem,
+    ]}
+    onPress={() => setSelectedDoctor({
+      ...item,
+      avatar_url: item.avatar_url, // Make sure to pass avatar_url
+    })}>
+    <View
       style={[
-        styles.doctorItem,
-        selectedDoctor?.id === item.id && styles.selectedDoctor,
-        item.isAdminSupport && styles.adminSupportItem,
-      ]}
-      onPress={() => setSelectedDoctor(item)}>
-      <View
+        styles.avatarContainer,
+        item.isAdminSupport && styles.adminAvatarContainer,
+      ]}>
+      {item.isAdminSupport ? (
+        <Icon name="headset" size={26} color="#fff" />
+      ) : item.avatar_url ? (
+        <Image 
+          source={{uri: item.avatar_url}} 
+          style={styles.doctorAvatarImage}
+          onError={() => console.log(`Failed to load avatar for doctor ${item.name}`)}
+        />
+      ) : (
+        <Text style={styles.avatarText}>
+          {item.name ? item.name.charAt(0).toUpperCase() : '?'}
+        </Text>
+      )}
+    </View>
+    <View style={styles.doctorInfo}>
+      <Text
         style={[
-          styles.avatarContainer,
-          item.isAdminSupport && styles.adminAvatarContainer,
+          styles.doctorName,
+          selectedDoctor?.id === item.id && styles.selectedDoctorText,
         ]}>
-        {item.isAdminSupport ? (
-          <Icon name="headset" size={26} color="#fff" />
-        ) : (
-          <Text style={styles.avatarText}>
-            {item.name ? item.name.charAt(0) : '?'}
-          </Text>
-        )}
-      </View>
-      <View style={styles.doctorInfo}>
-        <Text
-          style={[
-            styles.doctorName,
-            selectedDoctor?.id === item.id && styles.selectedDoctorText,
-          ]}>
-          {item.name || 'Unknown'}
-        </Text>
-        <Text
-          style={[
-            styles.doctorSpecialization,
-            selectedDoctor?.id === item.id && styles.selectedDoctorText,
-          ]}>
-          {item.isAdminSupport ? 'Technical Support' : item.degree || 'General'}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+        {item.name || 'Unknown'}
+      </Text>
+      <Text
+        style={[
+          styles.doctorSpecialization,
+          selectedDoctor?.id === item.id && styles.selectedDoctorText,
+        ]}>
+        {item.isAdminSupport ? 'Technical Support' : item.degree || 'General'}
+      </Text>
+    </View>
+  </TouchableOpacity>
+);
 
   const renderMessage = ({item, index}) => {
     const isOwnMessage = item.senderId === user?.id;
@@ -1165,15 +1175,24 @@ const renderChatHeader = () => {
         <Icon name="arrow-left" size={24} color="#333" />
       </TouchableOpacity>
 
+      {/* Updated Avatar Container */}
       <View style={styles.avatarContainer}>
-        {selectedDoctor.avatar_url ? (
+        {selectedDoctor.isAdminSupport ? (
+          // Admin support shows headset icon
+          <Icon name="headset" size={26} color="#fff" />
+        ) : selectedDoctor.avatar_url ? (
+          // Doctor with profile picture
           <Image 
             source={{ uri: selectedDoctor.avatar_url }} 
-            style={styles.contactAvatarImage}
+            style={styles.headerAvatarImage}
+            onError={(e) => {
+              console.log('Failed to load header avatar:', e.nativeEvent.error);
+            }}
           />
         ) : (
+          // Fallback to initials
           <Text style={styles.avatarText}>
-            {selectedDoctor.name ? selectedDoctor.name.charAt(0) : '?'}
+            {selectedDoctor.name ? selectedDoctor.name.charAt(0).toUpperCase() : '?'}
           </Text>
         )}
       </View>
@@ -1318,59 +1337,66 @@ const renderChatHeader = () => {
   );
 
   // Add a new render function for recent chats
-  const renderRecentChat = ({item}) => {
-    const isAdminChat = item.isAdminSupport;
+ const renderRecentChat = ({item}) => {
+  const isAdminChat = item.isAdminSupport;
 
-    return (
-      <TouchableOpacity
-        style={styles.recentChatItem}
-        onPress={() =>
-          setSelectedDoctor({
-            id: item.id,
-            name: item.name,
-            role: item.role,
-            isAdminSupport: isAdminChat,
-          })
-        }>
-        <View
-          style={[
-            styles.avatarContainer,
-            isAdminChat && styles.adminAvatarContainer,
-          ]}>
-          {isAdminChat ? (
-            <Icon name="headset" size={26} color="#fff" />
-          ) : (
-            <Text style={styles.avatarText}>
-              {item.name ? item.name.charAt(0).toUpperCase() : '?'}
-            </Text>
-          )}
-        </View>
-
-        <View style={styles.chatInfo}>
-          <View style={styles.chatTopRow}>
-            <Text style={styles.chatName}>{item.name}</Text>
-            {item.lastMessageTime && (
-              <Text style={styles.chatTime}>
-                {formatChatTime(new Date(item.lastMessageTime))}
-              </Text>
-            )}
-          </View>
-
-          {item.lastMessage && (
-            <Text style={styles.chatPreview} numberOfLines={1}>
-              {item.lastMessage}
-            </Text>
-          )}
-        </View>
-
-        {item.unreadCount > 0 && (
-          <View style={styles.unreadBadge}>
-            <Text style={styles.unreadCount}>{item.unreadCount}</Text>
-          </View>
+  return (
+    <TouchableOpacity
+      style={styles.recentChatItem}
+      onPress={() =>
+        setSelectedDoctor({
+          id: item.id,
+          name: item.name,
+          role: item.role,
+          isAdminSupport: isAdminChat,
+          avatar_url: item.avatar_url, // Include avatar_url
+        })
+      }>
+      <View
+        style={[
+          styles.avatarContainer,
+          isAdminChat && styles.adminAvatarContainer,
+        ]}>
+        {isAdminChat ? (
+          <Icon name="headset" size={26} color="#fff" />
+        ) : item.avatar_url ? (
+          <Image 
+            source={{uri: item.avatar_url}} 
+            style={styles.recentChatAvatarImage}
+            onError={() => console.log(`Failed to load avatar for ${item.name}`)}
+          />
+        ) : (
+          <Text style={styles.avatarText}>
+            {item.name ? item.name.charAt(0).toUpperCase() : '?'}
+          </Text>
         )}
-      </TouchableOpacity>
-    );
-  };
+      </View>
+
+      <View style={styles.chatInfo}>
+        <View style={styles.chatTopRow}>
+          <Text style={styles.chatName}>{item.name}</Text>
+          {item.lastMessageTime && (
+            <Text style={styles.chatTime}>
+              {formatChatTime(new Date(item.lastMessageTime))}
+            </Text>
+          )}
+        </View>
+
+        {item.lastMessage && (
+          <Text style={styles.chatPreview} numberOfLines={1}>
+            {item.lastMessage}
+          </Text>
+        )}
+      </View>
+
+      {item.unreadCount > 0 && (
+        <View style={styles.unreadBadge}>
+          <Text style={styles.unreadCount}>{item.unreadCount}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
 
   // Helper function to format chat times
   const formatChatTime = date => {
@@ -2774,6 +2800,25 @@ profileActionButtonTextSecondary: {
   marginLeft: 8,
   fontSize: 16,
   fontWeight: '600',
+},
+// Add these to your existing styles
+headerAvatarImage: {
+  width: '100%',
+  height: '100%',
+  borderRadius: 20,
+  backgroundColor: '#e1e1e1',
+},
+doctorAvatarImage: {
+  width: '100%',
+  height: '100%',
+  borderRadius: 20,
+  backgroundColor: '#e1e1e1',
+},
+recentChatAvatarImage: {
+  width: '100%',
+  height: '100%',
+  borderRadius: 20,
+  backgroundColor: '#e1e1e1',
 },
 });
 
