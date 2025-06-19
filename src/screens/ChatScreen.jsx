@@ -489,39 +489,44 @@ const fetchContactDetails = async (contactId) => {
 
   // Search functionality
   const searchUsers = async query => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      setNoResultsFound(false);
-      return;
-    }
+  if (!query.trim() || query.length < 3) {
+    setSearchResults([]);
+    setNoResultsFound(false);
+    return;
+  }
 
-    try {
-      setSearching(true);
-      setNoResultsFound(false);
+  try {
+    setSearching(true);
 
-      // Make API call to search users by email or phone
-      const response = await axios.get(`${API_URL}/api/users/search-users`, {
-        params: {
-          query: query.trim(),
-        },
+    const token = await getToken();
+    const response = await axios.get(
+      `${API_URL}/api/users/search-users?query=${encodeURIComponent(query.trim())}`,
+      {
         headers: {
-          Authorization: `Bearer ${await AsyncStorage.getItem('@token')}`,
+          Authorization: token ? `Bearer ${token}` : '',
         },
-      });
+      },
+    );
 
-      // Filter out the current user from search results
-      const filteredResults = response.data.filter(usr => usr.id !== user?.id);
+    // Filter out current user and include avatar_url in each result
+    const filteredResults = response.data
+      .filter(result => result.id !== user?.id)
+      .map(result => ({
+        ...result,
+        avatar_url: result.avatar_url || null, // Ensure avatar_url is included
+      }));
 
-      setSearchResults(filteredResults);
-      setNoResultsFound(filteredResults.length === 0);
-    } catch (error) {
-      console.error('Error searching users:', error);
-      Alert.alert('Error', 'Failed to search users. Please try again.');
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
-  };
+    console.log('Search results:', filteredResults.length);
+    setSearchResults(filteredResults);
+    setNoResultsFound(filteredResults.length === 0);
+  } catch (error) {
+    console.error('Error searching users:', error);
+    setSearchResults([]);
+    setNoResultsFound(true);
+  } finally {
+    setSearching(false);
+  }
+};
 
   // Handle search input changes
   const handleSearchChange = text => {
@@ -1220,31 +1225,49 @@ const renderChatHeader = () => {
 };
 
   const renderUserSearchResult = ({item}) => (
-    <TouchableOpacity
-      style={styles.searchResultItem}
-      onPress={() => setSelectedDoctor(item)}>
-      <View style={styles.avatarContainer}>
+  <TouchableOpacity
+    style={styles.searchResultItem}
+    onPress={() => {
+      setSelectedDoctor({
+        ...item,
+        avatar_url: item.avatar_url, // Make sure avatar_url is included
+      });
+      setSearchVisible(false);
+      setSearchQuery('');
+    }}>
+    
+    {/* Search Result Profile Picture */}
+    <View style={styles.avatarContainer}>
+      {item.avatar_url ? (
+        <Image 
+          source={{uri: item.avatar_url}} 
+          style={styles.searchResultAvatarImage}
+          onError={() => console.log(`Failed to load search result avatar for ${item.name}`)}
+        />
+      ) : (
         <Text style={styles.avatarText}>
-          {item.name ? item.name.charAt(0) : '?'}
+          {item.name ? item.name.charAt(0).toUpperCase() : '?'}
         </Text>
-      </View>
+      )}
+    </View>
 
-      <View style={styles.searchResultInfo}>
-        <Text style={styles.searchResultName}>
-          {item.name || 'Unnamed User'}
-        </Text>
-        <Text style={styles.searchResultDetail}>
-          {item.email || item.phone || 'No contact info'}
-        </Text>
-      </View>
+    <View style={styles.searchResultInfo}>
+      <Text style={styles.searchResultName}>
+        {item.name || 'Unnamed User'}
+      </Text>
+      <Text style={styles.searchResultDetail}>
+        {item.degree && <Text style={styles.degreeText}>{item.degree} • </Text>}
+        {item.email || item.phone || 'No contact info'}
+      </Text>
+    </View>
 
-      <Icon name="message-text-outline" size={20} color="#2e7af5" />
-    </TouchableOpacity>
-  );
+    <Icon name="message-text-outline" size={20} color="#2e7af5" />
+  </TouchableOpacity>
+);
 
   const renderSearchInterface = () => (
     <View style={styles.searchInterfaceContainer}>
-      <Text style={styles.searchTitle}>Find a Patient</Text>
+      <Text style={styles.searchTitle}>Connect Here!</Text>
       <Text style={styles.searchSubtitle}>
         Search for a patient by email or phone to start a conversation
       </Text>
@@ -2819,6 +2842,27 @@ recentChatAvatarImage: {
   height: '100%',
   borderRadius: 20,
   backgroundColor: '#e1e1e1',
+},
+searchResultAvatarImage: {
+  width: '100%',
+  height: '100%',
+  borderRadius: 20,
+  backgroundColor: '#e1e1e1',
+},
+degreeText: {
+  color: '#2e7af5',
+  fontWeight: '500',
+},
+searchBarContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#f0f0f0',
+  borderRadius: 20,
+  paddingHorizontal: 16,
+  paddingVertical: 12,
+  marginBottom: 16,
+  borderWidth: 1,
+  borderColor: '#e0e0e0',
 },
 });
 
