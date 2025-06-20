@@ -10,6 +10,7 @@ import {
   SafeAreaView,
   ScrollView,
   Image,
+  BackHandler, 
 } from 'react-native';
 import {courseService} from '../services/api';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -33,6 +34,23 @@ const AddCourseVideoScreen = ({route, navigation}) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [processingVideo, setProcessingVideo] = useState(false);
+  // Add this state for tracking upload success
+  const [uploadSuccessful, setUploadSuccessful] = useState(false);
+
+  // Add this effect to handle hardware back button
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // If upload was successful, navigate to course details
+      if (uploadSuccessful) {
+        navigation.navigate('CourseDetails', {courseId});
+        return true; // Prevent default back action
+      }
+      // Otherwise let the default back action happen
+      return false;
+    });
+
+    return () => backHandler.remove();
+  }, [uploadSuccessful, courseId, navigation]);
 
   useEffect(() => {
     // Set the auth token for requests and debug token availability
@@ -298,6 +316,29 @@ const AddCourseVideoScreen = ({route, navigation}) => {
         });
 
         console.log('[COURSE DEBUG] Video added to course successfully');
+        
+        // Set upload as successful to handle back presses
+        setUploadSuccessful(true);
+
+        Alert.alert('Success', 'Video added to the course', [
+          {
+            text: 'Add Another',
+            onPress: () => {
+              setTitle('');
+              setDescription('');
+              setVideo(null);
+              setThumbnail(null);
+              setSequenceOrder(sequenceOrder + 1);
+              setUploadProgress(0);
+              setUploadSuccessful(false); // Reset success state if adding another
+            },
+          },
+          {
+            text: 'Done',
+            onPress: () => navigation.navigate('CourseDetails', {courseId}),
+            style: 'cancel',
+          },
+        ]);
       } catch (courseError) {
         console.error(
           '[COURSE DEBUG] Failed to add video to course:',
@@ -308,24 +349,6 @@ const AddCourseVideoScreen = ({route, navigation}) => {
         );
       }
 
-      Alert.alert('Success', 'Video added to the course', [
-        {
-          text: 'Add Another',
-          onPress: () => {
-            setTitle('');
-            setDescription('');
-            setVideo(null);
-            setThumbnail(null);
-            setSequenceOrder(sequenceOrder + 1);
-            setUploadProgress(0);
-          },
-        },
-        {
-          text: 'Done',
-          onPress: () => navigation.navigate('CourseDetails', {courseId}),
-          style: 'cancel',
-        },
-      ]);
     } catch (error) {
       console.error('Error adding video:', error);
 
@@ -350,7 +373,14 @@ const AddCourseVideoScreen = ({route, navigation}) => {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}>
+          onPress={() => {
+            // If upload was successful, navigate to course details
+            if (uploadSuccessful) {
+              navigation.navigate('CourseDetails', {courseId});
+            } else {
+              navigation.goBack();
+            }
+          }}>
           <Icon name="arrow-left" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add Course Video</Text>

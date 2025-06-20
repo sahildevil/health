@@ -16,6 +16,7 @@ import {
   Image,
   Linking,
   ScrollView,
+  BackHandler,
 } from 'react-native';
 import * as Assets from '../assets';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -29,8 +30,8 @@ import RNFS from 'react-native-fs';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {WebView} from 'react-native-webview';
 
-const SOCKET_URL = 'http://192.168.1.18:5000';
-const API_URL = 'http://192.168.1.18:5000';
+const SOCKET_URL = 'http://192.168.1.4:5000';
+const API_URL = 'http://192.168.1.4:5000';
 
 const ChatScreen = () => {
   // Auth context
@@ -350,6 +351,19 @@ useEffect(() => {
       };
     }
   }, [selectedDoctor, user]);
+
+  // Add this after your other useEffect hooks
+useEffect(() => {
+  const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+    if (selectedDoctor) {
+      setSelectedDoctor(null);
+      return true;
+    }
+    return false;
+  });
+
+  return () => backHandler.remove();
+}, [selectedDoctor]);
 
   // Rest of your component functionality...
 const fetchContactDetails = async (contactId) => {
