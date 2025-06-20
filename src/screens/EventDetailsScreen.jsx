@@ -166,7 +166,12 @@ const EventDetailsScreen = ({route, navigation}) => {
   // Render sponsor item
   const renderSponsorItem = ({item}) => (
     <View style={styles.sponsorCard}>
-      <Text style={styles.sponsorName}>{item.name}</Text>
+      <Text style={styles.sponsorName}>
+        {/* Show name, company, or "Sponsor" if no name available */}
+        {item.name ||
+          item.company ||
+          (item.contactPerson ? `${item.contactPerson}'s Company` : 'Sponsor')}
+      </Text>
       {item.level && (
         <Text style={styles.sponsorLevel}>Level: {item.level}</Text>
       )}

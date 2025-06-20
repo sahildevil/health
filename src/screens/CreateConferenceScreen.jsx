@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -19,8 +19,11 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import {useAuth} from '../context/AuthContext';
 import {eventService} from '../services/api';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {Picker} from '@react-native-picker/picker';
+import CheckBox from '@react-native-community/checkbox';
+
 const CreateConferenceScreen = ({navigation}) => {
-    const insets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   const {user} = useAuth();
   const isAdmin = user && user.role === 'admin';
   const [title, setTitle] = useState('');
@@ -61,6 +64,11 @@ const CreateConferenceScreen = ({navigation}) => {
   const [newSpeakerName, setNewSpeakerName] = useState('');
   const [newSpeakerTitle, setNewSpeakerTitle] = useState('');
   const [newSpeakerBio, setNewSpeakerBio] = useState('');
+
+  // Pharma companies state
+  const [pharmaCompanies, setPharmaCompanies] = useState([]);
+  const [selectedPharmaIds, setSelectedPharmaIds] = useState([]);
+  const [loadingPharma, setLoadingPharma] = useState(false);
 
   const formatDate = date => {
     return `${date.getFullYear()}-${(date.getMonth() + 1)
@@ -160,6 +168,33 @@ const CreateConferenceScreen = ({navigation}) => {
     setSpeakers(speakers.filter(speaker => speaker.id !== speakerId));
   };
 
+  // Fetch pharmaceutical companies
+  useEffect(() => {
+    fetchPharmaCompanies();
+  }, []);
+
+  const fetchPharmaCompanies = async () => {
+    try {
+      setLoadingPharma(true);
+      const data = await eventService.getPharmaCompanies();
+      setPharmaCompanies(data);
+    } catch (error) {
+      console.error('Failed to fetch pharma companies:', error);
+      Alert.alert('Error', 'Failed to load pharmaceutical companies');
+    } finally {
+      setLoadingPharma(false);
+    }
+  };
+
+  // Toggle pharmaceutical company selection
+  const togglePharmaSelection = pharmaId => {
+    if (selectedPharmaIds.includes(pharmaId)) {
+      setSelectedPharmaIds(selectedPharmaIds.filter(id => id !== pharmaId));
+    } else {
+      setSelectedPharmaIds([...selectedPharmaIds, pharmaId]);
+    }
+  };
+
   const handleCreateConference = async () => {
     // Validate form
     if (!title) {
@@ -224,12 +259,24 @@ const CreateConferenceScreen = ({navigation}) => {
 
     console.log('Submitting event:', newEvent);
 
+    // Submit event
     try {
-      // Set loading state
       setIsSubmitting(true);
-
-      // Submit to API
       const result = await eventService.createEvent(newEvent);
+
+      // If there are selected pharma companies, send sponsorship requests
+      if (selectedPharmaIds.length > 0) {
+        try {
+          await eventService.sendSponsorshipRequests(
+            result.event.id,
+            selectedPharmaIds,
+          );
+          console.log('Sponsorship requests sent successfully');
+        } catch (sponsorError) {
+          console.error('Error sending sponsorship requests:', sponsorError);
+          // Continue with event creation even if sponsorship requests fail
+        }
+      }
 
       // Show success message
       Alert.alert(
@@ -583,7 +630,9 @@ const CreateConferenceScreen = ({navigation}) => {
 
           {/* Sponsors Section */}
           <Text style={styles.sectionTitle}>Sponsors</Text>
-          <View style={styles.inputGroup}>
+
+          {/* Manual Sponsor Addition */}
+          {/* <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Sponsor Name</Text>
             <TextInput
               style={styles.input}
@@ -594,30 +643,82 @@ const CreateConferenceScreen = ({navigation}) => {
             />
           </View>
 
-          {/* <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Sponsorship Level</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., Gold, Silver, Bronze, Platinum"
-              placeholderTextColor={'#999'}
-              value={newSponsorLevel}
-              onChangeText={setNewSponsorLevel}
-            />
-          </View> */}
-
           <TouchableOpacity style={styles.addButton} onPress={addSponsor}>
             <Icon name="plus" size={20} color="white" />
-            <Text style={styles.addButtonText}>Add Sponsor</Text>
-          </TouchableOpacity>
+            <Text style={styles.addButtonText}>Add Manual Sponsor</Text>
+          </TouchableOpacity> */}
 
+          {/* Pharma Companies as Sponsors */}
+          <View style={[styles.inputGroup, {marginTop: 20}]}>
+            <Text style={styles.inputLabel}>
+              Invite Pharmaceutical Companies as Sponsors
+            </Text>
+            <Text style={styles.inputDescription}>
+              Selected companies will receive a sponsorship request for this
+              event
+            </Text>
+
+            {loadingPharma ? (
+              <ActivityIndicator
+                size="small"
+                color="#2e7af5"
+                style={{marginVertical: 10}}
+              />
+            ) : pharmaCompanies.length === 0 ? (
+              <Text style={styles.noPharmaText}>
+                No pharmaceutical companies available
+              </Text>
+            ) : (
+              <View style={styles.pharmaList}>
+                {pharmaCompanies.map(pharma => (
+                  <View key={pharma.id} style={styles.pharmaItem}>
+                    <CheckBox
+                      value={selectedPharmaIds.includes(pharma.id)}
+                      onValueChange={() => togglePharmaSelection(pharma.id)}
+                      tintColors={{true: '#2e7af5', false: '#666'}}
+                    />
+                    <Text style={styles.pharmaName}>
+                      {pharma.company || pharma.name}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Current Sponsors List */}
           {sponsors.length > 0 && (
             <View style={styles.listContainer}>
+              <Text style={styles.sponsorListTitle}>
+                Added Manual Sponsors:
+              </Text>
               <FlatList
                 data={sponsors}
                 renderItem={renderSponsorItem}
                 keyExtractor={item => item.id}
                 scrollEnabled={false}
               />
+            </View>
+          )}
+
+          {selectedPharmaIds.length > 0 && (
+            <View style={styles.selectedPharmaContainer}>
+              <Text style={styles.sponsorListTitle}>
+                Selected Pharmaceutical Companies:
+              </Text>
+              {selectedPharmaIds.map(id => {
+                const pharma = pharmaCompanies.find(p => p.id === id);
+                return (
+                  <View key={id} style={styles.selectedPharmaItem}>
+                    <Icon name="check-circle" size={16} color="#4caf50" />
+                    <Text style={styles.selectedPharmaName}>
+                      {pharma
+                        ? pharma.company || pharma.name
+                        : 'Unknown Company'}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           )}
 
@@ -951,6 +1052,54 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  pharmaList: {
+    marginTop: 10,
+  },
+  pharmaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  pharmaName: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 12,
+  },
+  noPharmaText: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+    marginTop: 10,
+  },
+  inputDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  sponsorListTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  selectedPharmaContainer: {
+    marginTop: 16,
+    backgroundColor: '#f9f9f9',
+    padding: 12,
+    borderRadius: 8,
+  },
+  selectedPharmaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  selectedPharmaName: {
+    fontSize: 14,
+    color: '#333',
+    marginLeft: 8,
   },
 });
 

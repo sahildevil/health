@@ -17,6 +17,7 @@ import {
   Linking,
   ScrollView,
   BackHandler,
+  Clipboard, // <-- Add Clipboard to existing imports
 } from 'react-native';
 import * as Assets from '../assets';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -29,6 +30,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import RNFS from 'react-native-fs';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {WebView} from 'react-native-webview';
+import MessageItem from '../components/MessageItem';
 
 const SOCKET_URL = 'http://192.168.1.4:5000';
 const API_URL = 'http://192.168.1.4:5000';
@@ -721,9 +723,10 @@ const fetchContactDetails = async (contactId) => {
         fileType: file.type,
         fileName: file.name,
         fileUrl: result.url,
-        fileSize: file.size,
+        file_size: file.size,
+        is_attachment: true,
         isAttachment: true,
-        attachmentType: isImage ? 'image' : 'document',
+        attachment_type: isImage ? 'image' : 'document',
       };
 
       // Create temporary message
@@ -1081,13 +1084,7 @@ const fetchContactDetails = async (contactId) => {
 );
 
   const renderMessage = ({item, index}) => {
-    const isOwnMessage = item.senderId === user?.id;
-    const messageTime = new Date(item.timestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-    // Date separator logic
+    // Keep date separator logic
     const currentDate = new Date(item.timestamp);
     const currentDateStr = currentDate.toDateString();
     const messages = getFilteredMessages();
@@ -1104,82 +1101,45 @@ const fetchContactDetails = async (contactId) => {
       day: 'numeric',
       year: 'numeric',
     });
+    
+    // Helper function to handle attachment press
+    const handleAttachmentPress = (message) => {
+      // Reuse the existing openPreview function
+      openPreview(message);
+    };
 
-    // Check if this is an image attachment
-    const isAttachment =
-      item.isAttachment === true || item.is_attachment === true;
-
-    const isImage =
-      item.attachmentType === 'image' ||
-      item.attachment_type === 'image' ||
-      (item.fileType && item.fileType.includes('image')) ||
-      (item.file_type && item.file_type.includes('image'));
-
-    // Get image URL and check if it's cached
-    const imageUrl = item.fileUrl || item.file_url;
-    const cachedImageUri = imageUrl && cachedImages[imageUrl];
-
-    const handleImagePress = () => {
-      if (isImage && imageUrl) {
-        openPreview(item);
-      }
+    // Normalize message data structure to match what MessageItem expects
+    const normalizedMessage = {
+      id: item.id,
+      content: item.text || item.content,
+      sender_id: item.senderId || item.sender_id,
+      sender_name: item.senderName || item.sender_name,
+      receiver_id: item.receiverId || item.receiver_id,
+      created_at: item.timestamp || item.created_at,
+      is_attachment: item.isAttachment || item.is_attachment || false,
+      attachment_type: item.attachmentType || item.attachment_type,
+      file_url: item.fileUrl || item.file_url,
+      file_name: item.fileName || item.file_name,
+      file_type: item.fileType || item.file_type,
+      file_size: item.fileSize || item.file_size,
+      pending: item.pending || false
     };
 
     return (
       <>
-        <View
-          style={[
-            styles.messageContainer,
-            isOwnMessage ? styles.ownMessage : styles.otherMessage,
-            item.pending && styles.pendingMessage,
-          ]}>
-          {/* For image messages, display the actual image with improved error handling */}
-          {isAttachment && isImage && (imageUrl || cachedImageUri) ? (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={handleImagePress}
-              style={styles.imageContainer}>
-              <Image
-                source={{uri: cachedImageUri || imageUrl}}
-                style={styles.attachedImage}
-                resizeMode="cover"
-              />
-              <View style={styles.imagePressIndicator}>
-                <Icon name="eye" size={16} color="#fff" />
-                <Text style={styles.imagePressText}>View</Text>
-              </View>
-            </TouchableOpacity>
-          ) : !isAttachment || !isImage ? (
-            <Text style={styles.messageText}>{item.text || item.content}</Text>
-          ) : (
-            // Fallback for image attachments with missing URL
-            <View style={styles.fallbackImageContainer}>
-              <Icon name="image-off" size={32} color="#888" />
-              <Text style={styles.fallbackImageText}>Image unavailable</Text>
-            </View>
-          )}
-
-          <View style={styles.messageFooter}>
-            <Text style={styles.timestamp}>{messageTime}</Text>
-            {isOwnMessage && (
-              <Text
-                style={[
-                  styles.statusIcon,
-                  item.pending ? styles.pendingIcon : styles.deliveredIcon,
-                ]}>
-                {item.pending ? '⌛' : '✓✓'}
-              </Text>
-            )}
-          </View>
+      <MessageItem 
+        message={normalizedMessage}
+        currentUserId={user?.id}
+        onAttachmentPress={handleAttachmentPress}
+      />
+      
+      {showDateSeparator && (
+        <View style={styles.dateSeparator}>
+          <View style={styles.line} />
+          <Text style={styles.dateSeparatorText}>{formattedDate}</Text>
+          <View style={styles.line} />
         </View>
-
-        {showDateSeparator && (
-          <View style={styles.dateSeparator}>
-            <View style={styles.line} />
-            <Text style={styles.dateSeparatorText}>{formattedDate}</Text>
-            <View style={styles.line} />
-          </View>
-        )}
+      )}
       </>
     );
   };
@@ -2279,7 +2239,6 @@ headerTitle: {
     fontSize: 14,
   },
   // imageContainer: {
-  //   width: '100%',
   //   borderRadius: 8,
   //   overflow: 'hidden',
   // },
@@ -2336,7 +2295,7 @@ headerTitle: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f0f0f0',
-    borderRadius: 8,
+    borderRadius:  8,
     padding: 12,
     marginBottom: 8,
   },

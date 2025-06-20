@@ -619,6 +619,58 @@ export const eventService = {
       throw error;
     }
   },
+
+  // Add these methods to your eventService object
+
+  // Get all pharma companies (for sponsor dropdown)
+  getPharmaCompanies: async () => {
+    try {
+      const response = await api.get('/events/pharma-companies');
+      return response.data;
+    } catch (error) {
+      console.error('Get pharma companies error:', error);
+      throw error;
+    }
+  },
+
+  // Send sponsorship requests for an event
+  sendSponsorshipRequests: async (eventId, pharmaIds) => {
+    try {
+      const response = await api.post(
+        `/events/${eventId}/sponsorship-requests`,
+        {pharmaIds},
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Send sponsorship requests error:', error);
+      throw error;
+    }
+  },
+
+  // Get all sponsorship requests (for pharma or doctor)
+  getSponsorshipRequests: async () => {
+    try {
+      const response = await api.get('/events/sponsorship-requests');
+      return response.data;
+    } catch (error) {
+      console.error('Get sponsorship requests error:', error);
+      throw error;
+    }
+  },
+
+  // Respond to a sponsorship request (for pharma)
+  respondToSponsorshipRequest: async (requestId, status) => {
+    try {
+      const response = await api.put(
+        `/events/sponsorship-requests/${requestId}`,
+        {status},
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Respond to sponsorship request error:', error);
+      throw error;
+    }
+  },
 };
 
 // User services
@@ -805,7 +857,9 @@ export const courseService = {
         (await AsyncStorage.getItem('@token'));
 
       if (!token) {
-        throw new Error('Authentication token is missing. Please log in again.');
+        throw new Error(
+          'Authentication token is missing. Please log in again.',
+        );
       }
 
       // Prepare properly formatted token
@@ -840,8 +894,10 @@ export const courseService = {
         xhr.upload.onprogress = event => {
           if (event.lengthComputable) {
             const percentComplete = (event.loaded / event.total) * 100;
-            console.log(`[VIDEO DEBUG] Upload progress: ${percentComplete.toFixed(2)}%`);
-            
+            console.log(
+              `[VIDEO DEBUG] Upload progress: ${percentComplete.toFixed(2)}%`,
+            );
+
             // Call the progress callback if provided
             if (onProgress && typeof onProgress === 'function') {
               onProgress(percentComplete);
@@ -865,7 +921,9 @@ export const courseService = {
               reject(new Error(`Invalid server response: ${xhr.responseText}`));
             }
           } else {
-            reject(new Error(`Upload failed: ${xhr.status} ${xhr.responseText}`));
+            reject(
+              new Error(`Upload failed: ${xhr.status} ${xhr.responseText}`),
+            );
           }
         };
 
@@ -878,7 +936,7 @@ export const courseService = {
         };
 
         xhr.send(formData);
-    });
+      });
     } catch (error) {
       console.error('Upload course video error:', error);
       throw error;
@@ -1021,12 +1079,12 @@ export const courseService = {
   addCourseDiscussion: async (courseId, discussionData) => {
     try {
       console.log('Adding discussion with data:', discussionData);
-      
+
       const response = await api.post(
         `/courses/${courseId}/discussions`,
         discussionData,
       );
-      
+
       console.log('Add discussion response:', response.data);
       return response.data;
     } catch (error) {

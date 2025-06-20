@@ -46,6 +46,7 @@ import CreateCourseScreen from '../screens/CreateCourseScreen';
 import AddCourseVideoScreen from '../screens/AddCourseVideoScreen';
 import AdminChatScreen from '../screens/admin/AdminChatScreen';
 import NotificationHandler from '../components/NotificationHandler';
+import SponsorshipRequestsScreen from '../screens/SponsorshipRequestsScreen';
 
 const Stack = createStackNavigator();
 const AdminStack = createStackNavigator();
@@ -201,6 +202,11 @@ const AppNavigator = () => {
                 />
               </>
             )}
+            <Stack.Screen
+              name="SponsorshipRequests"
+              component={SponsorshipRequestsScreen}
+              options={{headerShown: false}}
+            />
           </>
         )
       ) : (

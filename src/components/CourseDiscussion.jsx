@@ -6,11 +6,12 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  FlatList,
+  ScrollView,
   Image,
   Alert,
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {courseService} from '../services/api';
@@ -27,10 +28,11 @@ const CourseDiscussion = ({
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date());
-  const flatListRef = useRef(null);
+  const scrollViewRef = useRef(null);
   const pollingIntervalRef = useRef(null);
   const [error, setError] = useState(null);
   const [isPolling, setIsPolling] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   
   // New state for reply functionality
   const [replyingTo, setReplyingTo] = useState(null);
@@ -159,8 +161,9 @@ const CourseDiscussion = ({
         setIsPolling(true);
       }, 2000);
       
-      if (flatListRef.current) {
-        flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+      // Scroll to top
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: 0, animated: true });
       }
     } catch (error) {
       console.error('Error adding comment:', error);
@@ -223,8 +226,8 @@ const CourseDiscussion = ({
     
     // Scroll to bottom where the reply input will be
     setTimeout(() => {
-      if (flatListRef.current) {
-        flatListRef.current.scrollToEnd({ animated: true });
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollToEnd({ animated: true });
       }
     }, 100);
   };
@@ -273,14 +276,14 @@ const CourseDiscussion = ({
     );
   };
 
-  const renderCommentItem = ({item}) => {
+  const renderCommentItem = (item) => {
     if (!item || !item.id) {
       console.warn('Invalid comment item:', item);
       return null;
     }
 
     return (
-      <View style={styles.commentContainer}>
+      <View key={item.id} style={styles.commentContainer}>
         <View style={styles.commentAvatar}>
           {item.user_avatar ? (
             <Image 
@@ -326,8 +329,10 @@ const CourseDiscussion = ({
     );
   };
 
-  const handleRefresh = () => {
-    fetchComments(true);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchComments(false);
+    setRefreshing(false);
   };
 
   // Calculate if send button should be disabled
@@ -339,47 +344,63 @@ const CourseDiscussion = ({
     return !message.trim();
   };
 
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <Icon name="chat-outline" size={40} color="#ccc" />
+      <Text style={styles.emptyText}>No comments yet</Text>
+      <Text style={styles.emptySubtext}>Be the first to start the discussion</Text>
+    </View>
+  );
+
+  const renderErrorState = () => (
+    <View style={styles.errorContainer}>
+      <Icon name="alert-circle-outline" size={32} color="#e74c3c" />
+      <Text style={styles.errorText}>Failed to load comments</Text>
+      <Text style={styles.errorSubtext}>{error}</Text>
+      <TouchableOpacity 
+        style={styles.retryButton} 
+        onPress={handleRefresh}
+        disabled={false}
+      >
+        <Text style={styles.retryButtonText}>Try Again</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderLoadingState = () => (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="small" color="#2e7af5" />
+      <Text style={styles.loadingText}>Loading comments...</Text>
+    </View>
+  );
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={80}
       style={styles.container}>
       
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#2e7af5" />
-          <Text style={styles.loadingText}>Loading comments...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.errorContainer}>
-          <Icon name="alert-circle-outline" size={32} color="#e74c3c" />
-          <Text style={styles.errorText}>Failed to load comments</Text>
-          <Text style={styles.errorSubtext}>{error}</Text>
-          <TouchableOpacity 
-            style={styles.retryButton} 
-            onPress={handleRefresh}
-            disabled={false}
-          >
-            <Text style={styles.retryButtonText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          ref={flatListRef}
-          data={comments}
-          renderItem={renderCommentItem}
-          keyExtractor={item => (item && item.id) ? item.id.toString() : Math.random().toString()}
-          contentContainerStyle={styles.commentsContainer}
-          refreshing={Boolean(loading)}
-          onRefresh={handleRefresh}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Icon name="chat-outline" size={40} color="#ccc" />
-              <Text style={styles.emptyText}>No comments yet</Text>
-              <Text style={styles.emptySubtext}>Be the first to start the discussion</Text>
-            </View>
+      {loading ? renderLoadingState() : error ? renderErrorState() : (
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollViewContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={['#2e7af5']}
+              tintColor="#2e7af5"
+            />
           }
-        />
+          showsVerticalScrollIndicator={true}
+        >
+          {comments.length === 0 ? renderEmptyState() : (
+            <View style={styles.commentsContainer}>
+              {comments.map(comment => renderCommentItem(comment))}
+            </View>
+          )}
+        </ScrollView>
       )}
 
       {/* Reply indicator */}
@@ -434,6 +455,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -474,7 +501,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   commentsContainer: {
-    flexGrow: 1,
     paddingBottom: 16,
   },
   commentContainer: {
@@ -595,6 +621,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
+    minHeight: 200,
   },
   emptyText: {
     fontSize: 16,

@@ -37,16 +37,16 @@ const Profile = ({navigation}) => {
         console.log('User data not available yet');
         return; // Exit early if user is null
       }
-      
+
       setLoading(true);
-      
+
       // Fetch updated user profile - USE CORRECT ENDPOINT
       const userResponse = await api.get(`/user-profile/${user.id}`);
-      
+
       if (userResponse.data && userResponse.data.avatar_url) {
         setProfileImage(userResponse.data.avatar_url);
       }
-      
+
       // Fetch documents if user is a doctor
       if (user?.role === 'doctor') {
         const docResponse = await api.get(`/users/my-documents`);
@@ -92,7 +92,7 @@ const Profile = ({navigation}) => {
   };
 
   // Function to upload the selected profile image
-  const uploadProfileImage = async (imageFile) => {
+  const uploadProfileImage = async imageFile => {
     if (!imageFile) return;
 
     try {
@@ -101,26 +101,35 @@ const Profile = ({navigation}) => {
       // Get auth token
       const token = await AsyncStorage.getItem('@token');
       if (!token) {
-        Alert.alert('Error', 'You need to be logged in to upload a profile picture');
+        Alert.alert(
+          'Error',
+          'You need to be logged in to upload a profile picture',
+        );
         return;
       }
 
       // Create form data
       const formData = new FormData();
       formData.append('profile_image', {
-        uri: Platform.OS === 'ios' ? imageFile.uri.replace('file://', '') : imageFile.uri,
+        uri:
+          Platform.OS === 'ios'
+            ? imageFile.uri.replace('file://', '')
+            : imageFile.uri,
         type: imageFile.type,
         name: imageFile.name,
       });
 
       // Upload to server - FIX THE URL HERE
-      const response = await fetch(`${api.defaults.baseURL}/uploads/profile-image`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const response = await fetch(
+        `${api.defaults.baseURL}/uploads/profile-image`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
         },
-        body: formData,
-      });
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -128,16 +137,18 @@ const Profile = ({navigation}) => {
       }
 
       const result = await response.json();
-      
+
       // Update profile image state
       setProfileImage(result.avatar_url);
-      
+
       // Show success message
       Alert.alert('Success', 'Profile picture updated successfully');
-      
     } catch (error) {
       console.error('Error uploading profile image:', error);
-      Alert.alert('Upload Failed', error.message || 'Failed to upload profile picture');
+      Alert.alert(
+        'Upload Failed',
+        error.message || 'Failed to upload profile picture',
+      );
     } finally {
       setUploadingProfileImage(false);
     }
@@ -292,7 +303,7 @@ const Profile = ({navigation}) => {
       <ScrollView style={styles.content}>
         <View style={styles.profileSection}>
           {/* Profile Image Section */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.profileImageContainer}
             onPress={pickProfileImage}
             disabled={uploadingProfileImage}>
@@ -302,9 +313,9 @@ const Profile = ({navigation}) => {
               </View>
             ) : profileImage ? (
               <View style={styles.profileImageWrapper}>
-                <Image 
-                  source={{uri: profileImage}} 
-                  style={styles.profileImage} 
+                <Image
+                  source={{uri: profileImage}}
+                  style={styles.profileImage}
                 />
                 <View style={styles.editIconContainer}>
                   <Icon name="pencil" size={16} color="#fff" />
@@ -321,7 +332,7 @@ const Profile = ({navigation}) => {
               </View>
             )}
           </TouchableOpacity>
-          
+
           <Text style={styles.profileName}>{user?.name || 'User'}</Text>
           <Text style={styles.profileRole}>
             {user?.role === 'doctor'
@@ -502,6 +513,14 @@ const Profile = ({navigation}) => {
               <Text style={styles.menuText}>Schedule Private Meeting</Text>
               <Icon name="chevron-right" size={24} color="#ccc" />
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('SponsorshipRequests')}>
+              <Icon name="handshake" size={24} color="#2e7af5" />
+              <Text style={styles.menuText}>Sponsorship Requests</Text>
+              <Icon name="chevron-right" size={24} color="#ccc" />
+            </TouchableOpacity>
           </View>
         )}
 
@@ -586,15 +605,15 @@ const styles = StyleSheet.create({
   profileImageContainer: {
     marginBottom: 16,
   },
-profileImageWrapper: {
-  width: 100,
-  height: 100,
-  borderRadius: 50,
-  position: 'relative',
-  justifyContent: 'center',
-  alignItems: 'center',
-  backgroundColor: '#e1e1e1',
-},
+  profileImageWrapper: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#e1e1e1',
+  },
   profileImage: {
     width: '100%',
     height: '100%',
