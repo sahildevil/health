@@ -20,7 +20,7 @@ const CourseDiscussion = ({
   courseId,
   videoId,
   user,
-  discussionType = 'course', // 'course' or 'video'
+  discussionType = 'course',
 }) => {
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,20 +31,21 @@ const CourseDiscussion = ({
   const pollingIntervalRef = useRef(null);
   const [error, setError] = useState(null);
   const [isPolling, setIsPolling] = useState(true);
+  
+  // New state for reply functionality
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyMessage, setReplyMessage] = useState('');
 
   // Fetch comments initially and set up polling
   useEffect(() => {
-    // Initial fetch
     fetchComments(true);
     
-    // Set up polling every 3 seconds
     pollingIntervalRef.current = setInterval(() => {
       if (isPolling) {
-        fetchComments(false); // false means don't show loading indicator
+        fetchComments(false);
       }
     }, 3000);
     
-    // Clean up interval on unmount
     return () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
@@ -62,27 +63,22 @@ const CourseDiscussion = ({
       
       console.log(`Fetching discussions for course ${courseId}${videoId ? ` video ${videoId}` : ''}`);
       
-      // Use the discussions endpoint (not comments)
       const data = await courseService.getCourseDiscussions(courseId, videoId);
       
-      // Sort comments by created_at (newest first)
-      const sortedComments = data.sort(
-        (a, b) => new Date(b.created_at) - new Date(a.created_at),
-      );
+      // Organize comments with replies
+      const organizedComments = organizeCommentsWithReplies(data);
       
-      setComments(sortedComments);
+      setComments(organizedComments);
       setLastUpdate(new Date());
       setError(null);
     } catch (error) {
       console.error('Error fetching comments:', error);
       setError(error.message || 'Failed to load comments');
       
-      // Only show alert on initial load
       if (showLoading) {
         Alert.alert('Error', 'Failed to load comments. Please try again later.');
       }
       
-      // Don't clear existing comments on polling errors
       if (showLoading) {
         setComments([]);
       }
@@ -93,8 +89,53 @@ const CourseDiscussion = ({
     }
   };
 
+  // Organize comments into parent-child structure
+  const organizeCommentsWithReplies = (allComments) => {
+    if (!Array.isArray(allComments)) {
+      console.warn('organizeCommentsWithReplies: expected array, got:', typeof allComments);
+      return [];
+    }
+
+    const sortedComments = allComments.sort(
+      (a, b) => new Date(a.created_at) - new Date(b.created_at),
+    );
+    
+    const parentComments = [];
+    const repliesMap = {};
+    
+    // First pass: separate parent comments and replies
+    sortedComments.forEach(comment => {
+      if (comment.parent_id) {
+        // This is a reply
+        if (!repliesMap[comment.parent_id]) {
+          repliesMap[comment.parent_id] = [];
+        }
+        repliesMap[comment.parent_id].push(comment);
+      } else {
+        // This is a parent comment
+        parentComments.push({
+          ...comment,
+          replies: []
+        });
+      }
+    });
+    
+    // Second pass: attach replies to their parent comments
+    parentComments.forEach(parent => {
+      if (repliesMap[parent.id]) {
+        parent.replies = repliesMap[parent.id];
+      }
+    });
+    
+    // Sort parent comments by newest first
+    return parentComments.sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at),
+    );
+  };
+
   const handleSendComment = async () => {
-    if (!message.trim()) return;
+    const messageContent = message.trim();
+    if (!messageContent) return;
     if (!user) {
       Alert.alert('Login Required', 'Please login to post a comment');
       return;
@@ -102,79 +143,200 @@ const CourseDiscussion = ({
 
     try {
       setSending(true);
-      
-      // Store current message and clear input for better UX
-      const commentContent = message.trim();
       setMessage('');
-      
-      // Temporarily stop polling to avoid conflicts
       setIsPolling(false);
       
-      // Add discussion to the course
       const discussionData = {
-        content: commentContent,
+        content: messageContent,
         video_id: videoId || null,
         parent_id: null
       };
       
       await courseService.addCourseDiscussion(courseId, discussionData);
-      
-      // Fetch updated comments immediately
       await fetchComments(false);
       
-      // Resume polling after a short delay
       setTimeout(() => {
         setIsPolling(true);
       }, 2000);
       
-      // Scroll to the top of the list to show the new comment
       if (flatListRef.current) {
         flatListRef.current.scrollToOffset({ offset: 0, animated: true });
       }
     } catch (error) {
       console.error('Error adding comment:', error);
       Alert.alert('Error', 'Failed to post comment');
-      // Restore the message if sending failed
-      setMessage(commentContent);
-      // Resume polling even if sending failed
+      setMessage(messageContent);
       setIsPolling(true);
     } finally {
       setSending(false);
     }
   };
 
-  const renderCommentItem = ({item}) => (
-    <View style={styles.commentContainer}>
-      <View style={styles.commentAvatar}>
-        {item.user_avatar ? (
-          <Image 
-            source={{uri: item.user_avatar}} 
-            style={styles.avatarImage}
-            onError={() => console.log(`Failed to load avatar for ${item.user_name}`)}
-          />
-        ) : (
-          <View style={styles.avatarFallback}>
-            <Text style={styles.avatarText}>
-              {item.user_name ? item.user_name.charAt(0).toUpperCase() : '?'}
+  const handleSendReply = async () => {
+    const replyContent = replyMessage.trim();
+    if (!replyContent || !replyingTo) return;
+    if (!user) {
+      Alert.alert('Login Required', 'Please login to post a reply');
+      return;
+    }
+
+    try {
+      setSending(true);
+      setReplyMessage('');
+      const currentReplyingTo = replyingTo;
+      setReplyingTo(null);
+      setIsPolling(false);
+      
+      const replyData = {
+        content: replyContent,
+        video_id: videoId || null,
+        parent_id: currentReplyingTo.id
+      };
+      
+      await courseService.addCourseDiscussion(courseId, replyData);
+      await fetchComments(false);
+      
+      setTimeout(() => {
+        setIsPolling(true);
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error adding reply:', error);
+      Alert.alert('Error', 'Failed to post reply');
+      setReplyMessage(replyContent);
+      setReplyingTo(currentReplyingTo);
+      setIsPolling(true);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleReply = (comment) => {
+    console.log('Reply to comment:', comment);
+    if (!comment || !comment.id) {
+      console.error('Invalid comment for reply:', comment);
+      return;
+    }
+    
+    setReplyingTo(comment);
+    setReplyMessage('');
+    
+    // Scroll to bottom where the reply input will be
+    setTimeout(() => {
+      if (flatListRef.current) {
+        flatListRef.current.scrollToEnd({ animated: true });
+      }
+    }, 100);
+  };
+
+  const cancelReply = () => {
+    setReplyingTo(null);
+    setReplyMessage('');
+  };
+
+  const renderReplyItem = (reply) => {
+    if (!reply || !reply.id) {
+      console.warn('Invalid reply item:', reply);
+      return null;
+    }
+
+    return (
+      <View key={reply.id} style={styles.replyContainer}>
+        <View style={styles.replyLine} />
+        <View style={styles.replyContent}>
+          <View style={styles.commentAvatar}>
+            {reply.user_avatar ? (
+              <Image 
+                source={{uri: reply.user_avatar}} 
+                style={styles.avatarImage}
+                onError={() => console.log(`Failed to load avatar for ${reply.user_name}`)}
+              />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarText}>
+                  {reply.user_name ? reply.user_name.charAt(0).toUpperCase() : '?'}
+                </Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.replyTextContent}>
+            <View style={styles.commentHeader}>
+              <Text style={styles.userName}>{reply.user_name || "Unknown User"}</Text>
+              <Text style={styles.commentTime}>
+                {formatDistanceToNow(new Date(reply.created_at), {addSuffix: true})}
+              </Text>
+            </View>
+            <Text style={styles.commentText}>{reply.content}</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderCommentItem = ({item}) => {
+    if (!item || !item.id) {
+      console.warn('Invalid comment item:', item);
+      return null;
+    }
+
+    return (
+      <View style={styles.commentContainer}>
+        <View style={styles.commentAvatar}>
+          {item.user_avatar ? (
+            <Image 
+              source={{uri: item.user_avatar}} 
+              style={styles.avatarImage}
+              onError={() => console.log(`Failed to load avatar for ${item.user_name}`)}
+            />
+          ) : (
+            <View style={styles.avatarFallback}>
+              <Text style={styles.avatarText}>
+                {item.user_name ? item.user_name.charAt(0).toUpperCase() : '?'}
+              </Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.commentContent}>
+          <View style={styles.commentHeader}>
+            <Text style={styles.userName}>{item.user_name || "Unknown User"}</Text>
+            <Text style={styles.commentTime}>
+              {formatDistanceToNow(new Date(item.created_at), {addSuffix: true})}
             </Text>
           </View>
-        )}
-      </View>
-      <View style={styles.commentContent}>
-        <View style={styles.commentHeader}>
-          <Text style={styles.userName}>{item.user_name || "Unknown User"}</Text>
-          <Text style={styles.commentTime}>
-            {formatDistanceToNow(new Date(item.created_at), {addSuffix: true})}
-          </Text>
+          <Text style={styles.commentText}>{item.content}</Text>
+          
+          {/* Reply button */}
+          <TouchableOpacity 
+            style={styles.replyButton}
+            onPress={() => handleReply(item)}
+            disabled={false}
+          >
+            <Icon name="reply" size={14} color="#666" />
+            <Text style={styles.replyButtonText}>Reply</Text>
+          </TouchableOpacity>
+          
+          {/* Render replies */}
+          {item.replies && Array.isArray(item.replies) && item.replies.length > 0 && (
+            <View style={styles.repliesContainer}>
+              {item.replies.map(reply => renderReplyItem(reply))}
+            </View>
+          )}
         </View>
-        <Text style={styles.commentText}>{item.content}</Text>
       </View>
-    </View>
-  );
+    );
+  };
 
-  // Manual refresh function
   const handleRefresh = () => {
     fetchComments(true);
+  };
+
+  // Calculate if send button should be disabled
+  const isSendDisabled = () => {
+    if (sending) return true;
+    if (replyingTo) {
+      return !replyMessage.trim();
+    }
+    return !message.trim();
   };
 
   return (
@@ -193,7 +355,11 @@ const CourseDiscussion = ({
           <Icon name="alert-circle-outline" size={32} color="#e74c3c" />
           <Text style={styles.errorText}>Failed to load comments</Text>
           <Text style={styles.errorSubtext}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
+          <TouchableOpacity 
+            style={styles.retryButton} 
+            onPress={handleRefresh}
+            disabled={false}
+          >
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>
@@ -202,9 +368,9 @@ const CourseDiscussion = ({
           ref={flatListRef}
           data={comments}
           renderItem={renderCommentItem}
-          keyExtractor={item => item.id.toString()}
+          keyExtractor={item => (item && item.id) ? item.id.toString() : Math.random().toString()}
           contentContainerStyle={styles.commentsContainer}
-          refreshing={loading}
+          refreshing={Boolean(loading)}
           onRefresh={handleRefresh}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
@@ -216,23 +382,43 @@ const CourseDiscussion = ({
         />
       )}
 
+      {/* Reply indicator */}
+      {replyingTo && (
+        <View style={styles.replyIndicator}>
+          <View style={styles.replyIndicatorContent}>
+            <Icon name="reply" size={16} color="#2e7af5" />
+            <Text style={styles.replyIndicatorText}>
+              Replying to {replyingTo.user_name || 'User'}
+            </Text>
+          </View>
+          <TouchableOpacity 
+            onPress={cancelReply} 
+            style={styles.cancelReplyButton}
+            disabled={false}
+          >
+            <Icon name="close" size={16} color="#666" />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Input container */}
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
-          placeholder="Add a comment..."
-          value={message}
-          onChangeText={setMessage}
-          multiline
+          placeholder={replyingTo ? `Reply to ${replyingTo.user_name || 'User'}...` : "Add a comment..."}
+          value={replyingTo ? replyMessage : message}
+          onChangeText={replyingTo ? setReplyMessage : setMessage}
+          multiline={true}
           maxLength={500}
           editable={!sending}
         />
         <TouchableOpacity
           style={[
             styles.sendButton,
-            (!message.trim() || sending) && styles.disabledButton,
+            isSendDisabled() && styles.disabledButton,
           ]}
-          onPress={handleSendComment}
-          disabled={!message.trim() || sending}>
+          onPress={replyingTo ? handleSendReply : handleSendComment}
+          disabled={isSendDisabled()}>
           {sending ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
@@ -247,34 +433,6 @@ const CourseDiscussion = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  refreshInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 8,
-    backgroundColor: '#f0f7ff',
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  refreshInfoContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  lastUpdateText: {
-    fontSize: 12,
-    color: '#2e7af5',
-    fontStyle: 'italic',
-    marginLeft: 4,
-  },
-  lastUpdateTime: {
-    fontSize: 11,
-    color: '#999',
-    marginLeft: 8,
-  },
-  refreshButton: {
-    padding: 4,
   },
   loadingContainer: {
     flex: 1,
@@ -371,6 +529,66 @@ const styles = StyleSheet.create({
     color: '#333',
     fontSize: 14,
     lineHeight: 20,
+    marginBottom: 8,
+  },
+  replyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  replyButtonText: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  repliesContainer: {
+    marginTop: 8,
+  },
+  replyContainer: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  replyLine: {
+    width: 2,
+    backgroundColor: '#e0e0e0',
+    marginRight: 12,
+    marginLeft: 20,
+  },
+  replyContent: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  replyTextContent: {
+    flex: 1,
+  },
+  replyIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 8,
+    backgroundColor: '#f0f7ff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  replyIndicatorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  replyIndicatorText: {
+    fontSize: 14,
+    color: '#2e7af5',
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+  cancelReplyButton: {
+    padding: 4,
   },
   emptyContainer: {
     flex: 1,
