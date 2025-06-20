@@ -12,7 +12,7 @@ const NotificationHandler = () => {
   const handleNotificationNavigation = data => {
     if (!data) return;
 
-    const {type, id, action} = data;
+    const {type, id, action, status} = data;
 
     console.log('Handling notification navigation:', {type, id, action});
 
@@ -68,6 +68,22 @@ const NotificationHandler = () => {
       case 'account_rejection':
         if (action === 'verification') {
           navigation.navigate('UserVerification');
+        }
+        break;
+
+      case 'sponsorship_request':
+        if (action === 'respond') {
+          navigation.navigate('SponsorshipRequests');
+        }
+        break;
+
+      case 'sponsorship_response':
+        if (action === 'view' && id) {
+          if (status === 'accepted') {
+            navigation.navigate('EventDetails', {eventId: id});
+          } else {
+            navigation.navigate('SponsorshipRequests');
+          }
         }
         break;
     }

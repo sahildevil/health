@@ -619,6 +619,58 @@ export const eventService = {
       throw error;
     }
   },
+
+  // Add these methods to your eventService object
+
+  // Get all pharma companies (for sponsor dropdown)
+  getPharmaCompanies: async () => {
+    try {
+      const response = await api.get('/events/pharma-companies');
+      return response.data;
+    } catch (error) {
+      console.error('Get pharma companies error:', error);
+      throw error;
+    }
+  },
+
+  // Send sponsorship requests for an event
+  sendSponsorshipRequests: async (eventId, pharmaIds) => {
+    try {
+      const response = await api.post(
+        `/events/${eventId}/sponsorship-requests`,
+        {pharmaIds},
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Send sponsorship requests error:', error);
+      throw error;
+    }
+  },
+
+  // Get all sponsorship requests (for pharma or doctor)
+  getSponsorshipRequests: async () => {
+    try {
+      const response = await api.get('/events/sponsorship-requests');
+      return response.data;
+    } catch (error) {
+      console.error('Get sponsorship requests error:', error);
+      throw error;
+    }
+  },
+
+  // Respond to a sponsorship request (for pharma)
+  respondToSponsorshipRequest: async (requestId, status) => {
+    try {
+      const response = await api.put(
+        `/events/sponsorship-requests/${requestId}`,
+        {status},
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Respond to sponsorship request error:', error);
+      throw error;
+    }
+  },
 };
 
 // User services
@@ -797,93 +849,99 @@ export const courseService = {
 
   // Upload course video - Fixed express-fileupload eligibility issue
   // Update the uploadCourseVideo function
-uploadCourseVideo: async (videoFile, onProgress) => {
-  try {
-    // Get token
-    const token =
-      (await AsyncStorage.getItem('token')) ||
-      (await AsyncStorage.getItem('@token'));
+  uploadCourseVideo: async (videoFile, onProgress) => {
+    try {
+      // Get token
+      const token =
+        (await AsyncStorage.getItem('token')) ||
+        (await AsyncStorage.getItem('@token'));
 
-    if (!token) {
-      throw new Error('Authentication token is missing. Please log in again.');
+      if (!token) {
+        throw new Error(
+          'Authentication token is missing. Please log in again.',
+        );
+      }
+
+      // Prepare properly formatted token
+      const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+
+      console.log('[VIDEO DEBUG] Starting upload with file:', {
+        name: videoFile.name,
+        type: videoFile.type,
+        size: videoFile.size
+          ? `${(videoFile.size / 1024 / 1024).toFixed(2)}MB`
+          : 'unknown',
+      });
+
+      // Create form data with the video file
+      const formData = new FormData();
+
+      // IMPORTANT: Key must be 'file' to match what express-fileupload looks for
+      formData.append('file', {
+        uri:
+          Platform.OS === 'ios'
+            ? videoFile.uri.replace('file://', '')
+            : videoFile.uri,
+        type: videoFile.type || 'video/mp4',
+        name: videoFile.name || `video-${Date.now()}.mp4`,
+      });
+
+      // Use XMLHttpRequest for better multipart handling and progress tracking
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        // Track upload progress
+        xhr.upload.onprogress = event => {
+          if (event.lengthComputable) {
+            const percentComplete = (event.loaded / event.total) * 100;
+            console.log(
+              `[VIDEO DEBUG] Upload progress: ${percentComplete.toFixed(2)}%`,
+            );
+
+            // Call the progress callback if provided
+            if (onProgress && typeof onProgress === 'function') {
+              onProgress(percentComplete);
+            }
+          }
+        };
+
+        xhr.open('POST', `${API_URL}/uploads/course-video`);
+        xhr.setRequestHeader('Authorization', authToken);
+        // DO NOT set Content-Type header - let XMLHttpRequest set it properly with boundary
+
+        // Set timeout for larger files
+        xhr.timeout = 300000; // 5 minutes
+
+        xhr.onload = function () {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              resolve(data);
+            } catch (e) {
+              reject(new Error(`Invalid server response: ${xhr.responseText}`));
+            }
+          } else {
+            reject(
+              new Error(`Upload failed: ${xhr.status} ${xhr.responseText}`),
+            );
+          }
+        };
+
+        xhr.onerror = function () {
+          reject(new Error('Network error occurred during upload'));
+        };
+
+        xhr.ontimeout = function () {
+          reject(new Error('Upload timed out'));
+        };
+
+        xhr.send(formData);
+      });
+    } catch (error) {
+      console.error('Upload course video error:', error);
+      throw error;
     }
-
-    // Prepare properly formatted token
-    const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-
-    console.log('[VIDEO DEBUG] Starting upload with file:', {
-      name: videoFile.name,
-      type: videoFile.type,
-      size: videoFile.size
-        ? `${(videoFile.size / 1024 / 1024).toFixed(2)}MB`
-        : 'unknown',
-    });
-
-    // Create form data with the video file
-    const formData = new FormData();
-
-    // IMPORTANT: Key must be 'file' to match what express-fileupload looks for
-    formData.append('file', {
-      uri:
-        Platform.OS === 'ios'
-          ? videoFile.uri.replace('file://', '')
-          : videoFile.uri,
-      type: videoFile.type || 'video/mp4',
-      name: videoFile.name || `video-${Date.now()}.mp4`,
-    });
-
-    // Use XMLHttpRequest for better multipart handling and progress tracking
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-
-      // Track upload progress
-      xhr.upload.onprogress = event => {
-        if (event.lengthComputable) {
-          const percentComplete = (event.loaded / event.total) * 100;
-          console.log(`[VIDEO DEBUG] Upload progress: ${percentComplete.toFixed(2)}%`);
-          
-          // Call the progress callback if provided
-          if (onProgress && typeof onProgress === 'function') {
-            onProgress(percentComplete);
-          }
-        }
-      };
-
-      xhr.open('POST', `${API_URL}/uploads/course-video`);
-      xhr.setRequestHeader('Authorization', authToken);
-      // DO NOT set Content-Type header - let XMLHttpRequest set it properly with boundary
-
-      // Set timeout for larger files
-      xhr.timeout = 300000; // 5 minutes
-
-      xhr.onload = function () {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const data = JSON.parse(xhr.responseText);
-            resolve(data);
-          } catch (e) {
-            reject(new Error(`Invalid server response: ${xhr.responseText}`));
-          }
-        } else {
-          reject(new Error(`Upload failed: ${xhr.status} ${xhr.responseText}`));
-        }
-      };
-
-      xhr.onerror = function () {
-        reject(new Error('Network error occurred during upload'));
-      };
-
-      xhr.ontimeout = function () {
-        reject(new Error('Upload timed out'));
-      };
-
-      xhr.send(formData);
-    });
-  } catch (error) {
-    console.error('Upload course video error:', error);
-    throw error;
-  }
-},
+  },
 
   // Upload course thumbnail - Fixed express-fileupload eligibility issue
   uploadCourseThumbnail: async imageFile => {
@@ -999,16 +1057,16 @@ uploadCourseVideo: async (videoFile, onProgress) => {
   getCourseDiscussions: async (courseId, videoId = null) => {
     try {
       let url = `/courses/${courseId}/discussions`;
-      
+
       if (videoId && videoId !== 'null' && videoId !== 'undefined') {
         url += `?video_id=${videoId}`;
       }
-      
+
       console.log('Making request to:', url);
-      
+
       const response = await api.get(url);
       console.log('API response:', response.data?.length || 0, 'discussions');
-      
+
       return response.data;
     } catch (error) {
       console.error('Get course discussions error:', error);
@@ -1017,15 +1075,15 @@ uploadCourseVideo: async (videoFile, onProgress) => {
   },
 
   // Add a discussion to a course
-    addCourseDiscussion: async (courseId, discussionData) => {
+  addCourseDiscussion: async (courseId, discussionData) => {
     try {
       console.log('Adding discussion with data:', discussionData);
-      
+
       const response = await api.post(
         `/courses/${courseId}/discussions`,
         discussionData,
       );
-      
+
       console.log('Add discussion response:', response.data);
       return response.data;
     } catch (error) {
