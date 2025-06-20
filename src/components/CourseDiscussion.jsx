@@ -22,6 +22,7 @@ const CourseDiscussion = ({
   videoId,
   user,
   discussionType = 'course',
+  focusComment = null,
 }) => {
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +38,10 @@ const CourseDiscussion = ({
   // New state for reply functionality
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyMessage, setReplyMessage] = useState('');
+
+  // Add new state for highlighting
+  const [highlightedCommentId, setHighlightedCommentId] = useState(null);
+  const [highlightedParentId, setHighlightedParentId] = useState(null);
 
   // Fetch comments initially and set up polling
   useEffect(() => {
@@ -242,9 +247,17 @@ const CourseDiscussion = ({
       console.warn('Invalid reply item:', reply);
       return null;
     }
+    
+    const isHighlighted = reply.id === highlightedCommentId;
 
     return (
-      <View key={reply.id} style={styles.replyContainer}>
+      <View 
+        key={reply.id} 
+        style={[
+          styles.replyContainer, 
+          isHighlighted && styles.highlightedReply
+        ]}
+      >
         <View style={styles.replyLine} />
         <View style={styles.replyContent}>
           <View style={styles.commentAvatar}>
@@ -281,9 +294,17 @@ const CourseDiscussion = ({
       console.warn('Invalid comment item:', item);
       return null;
     }
+    
+    const isHighlighted = item.id === highlightedCommentId || item.id === highlightedParentId;
 
     return (
-      <View key={item.id} style={styles.commentContainer}>
+      <View 
+        key={item.id} 
+        style={[
+          styles.commentContainer, 
+          isHighlighted && styles.highlightedComment
+        ]}
+      >
         <View style={styles.commentAvatar}>
           {item.user_avatar ? (
             <Image 
@@ -374,6 +395,50 @@ const CourseDiscussion = ({
     </View>
   );
 
+  // Add focusComment to props
+  useEffect(() => {
+    if (focusComment && !loading && comments.length > 0) {
+      // Find the comment to focus on (could be a parent or a reply)
+      let foundComment = false;
+      
+      // First check parent comments
+      for (const comment of comments) {
+        if (comment.id.toString() === focusComment) {
+          // Highlight this comment
+          setHighlightedCommentId(comment.id);
+          foundComment = true;
+          break;
+        }
+        
+        // Check replies
+        if (comment.replies && comment.replies.length > 0) {
+          for (const reply of comment.replies) {
+            if (reply.id.toString() === focusComment) {
+              // Highlight this reply and its parent
+              setHighlightedCommentId(reply.id);
+              setHighlightedParentId(comment.id);
+              foundComment = true;
+              break;
+            }
+          }
+          if (foundComment) break;
+        }
+      }
+      
+      // Scroll to the highlighted comment after a short delay to ensure rendering
+      if (foundComment) {
+        setTimeout(() => {
+          if (scrollViewRef.current) {
+            // The scrolling logic would depend on your implementation
+            // For a ScrollView, you might use scrollTo with a measured position
+            // This is a placeholder for the actual implementation
+            scrollViewRef.current.scrollTo({ y: 0, animated: true });
+          }
+        }, 500);
+      }
+    }
+  }, [focusComment, loading, comments]);
+  
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -664,6 +729,15 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     backgroundColor: '#ccc',
+  },
+  // Add to styles:
+  highlightedComment: {
+    backgroundColor: '#f0f7ff',
+    borderLeftWidth: 3,
+    borderLeftColor: '#2e7af5',
+  },
+  highlightedReply: {
+    backgroundColor: '#f0f7ff',
   },
 });
 

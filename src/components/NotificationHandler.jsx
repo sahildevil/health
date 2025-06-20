@@ -12,7 +12,7 @@ const NotificationHandler = () => {
   const handleNotificationNavigation = data => {
     if (!data) return;
 
-    const {type, id, action, status} = data;
+    const {type, id, action, status, video_id, comment_id} = data;
 
     console.log('Handling notification navigation:', {type, id, action});
 
@@ -83,6 +83,44 @@ const NotificationHandler = () => {
             navigation.navigate('EventDetails', {eventId: id});
           } else {
             navigation.navigate('SponsorshipRequests');
+          }
+        }
+        break;
+
+      case 'course_new_comment':
+        if (action === 'view_discussion' && id) {
+          if (video_id) {
+            // Navigate to the specific video discussion
+            navigation.navigate('CourseDetails', {
+              courseId: id,
+              initialVideoId: video_id,
+              focusComment: comment_id,
+            });
+          } else {
+            // Navigate to the general course discussion
+            navigation.navigate('CourseDetails', {
+              courseId: id,
+              focusComment: comment_id,
+            });
+          }
+        }
+        break;
+
+      case 'course_comment_reply':
+        if (action === 'view_discussion' && id) {
+          if (video_id) {
+            // Navigate to the specific video discussion
+            navigation.navigate('CourseDetails', {
+              courseId: id,
+              initialVideoId: video_id,
+              focusComment: comment_id,
+            });
+          } else {
+            // Navigate to the general course discussion
+            navigation.navigate('CourseDetails', {
+              courseId: id,
+              focusComment: comment_id,
+            });
           }
         }
         break;

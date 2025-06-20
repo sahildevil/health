@@ -31,8 +31,25 @@ const CourseDetailsScreen = ({route, navigation}) => {
   const videoRef = useRef(null);
   const insets = useSafeAreaInsets();
 
+  // Add new state variables
+  const [initialVideoId, setInitialVideoId] = useState(null);
+  const [focusComment, setFocusComment] = useState(null);
+
   useEffect(() => {
     fetchCourseDetails();
+
+    // Check if we need to focus on a specific video/comment
+    const initialVideoId = route.params?.initialVideoId;
+    const focusComment = route.params?.focusComment;
+
+    if (initialVideoId) {
+      // Store this to focus after loading
+      setInitialVideoId(initialVideoId);
+      setFocusComment(focusComment);
+    } else if (focusComment) {
+      // Just focus on a comment in the general discussion
+      setFocusComment(focusComment);
+    }
   }, [courseId]);
 
   const fetchCourseDetails = async () => {
@@ -41,8 +58,21 @@ const CourseDetailsScreen = ({route, navigation}) => {
       const data = await courseService.getCourseById(courseId);
       setCourse(data);
 
-      // Select the first video by default if available
-      if (data.videos && data.videos.length > 0) {
+      // Select the specific video if initialVideoId is provided
+      if (initialVideoId && data.videos) {
+        const videoToSelect = data.videos.find(
+          v => v.id.toString() === initialVideoId,
+        );
+        if (videoToSelect) {
+          setSelectedVideo(videoToSelect);
+        } else {
+          // Fallback to first video
+          if (data.videos.length > 0) {
+            setSelectedVideo(data.videos[0]);
+          }
+        }
+      } else if (data.videos && data.videos.length > 0) {
+        // Default behavior - select first video
         setSelectedVideo(data.videos[0]);
       }
     } catch (error) {
@@ -139,7 +169,7 @@ const CourseDetailsScreen = ({route, navigation}) => {
             </View>
           </View>
         </View>
-        
+
         {/* Progress indicator if needed */}
         {isActive && (
           <View style={styles.activeIndicator}>
@@ -227,33 +257,35 @@ const CourseDetailsScreen = ({route, navigation}) => {
             )}
 
             {/* Course Content Section - Show SECOND (after discussion) */}
-        <View style={styles.courseContentSection}>
-          <Text style={styles.sectionTitle}>Course Content</Text>
-          {course.videos && course.videos.length > 0 ? (
-            <FlatList
-              data={course.videos}
-              renderItem={renderVideoItem}
-              keyExtractor={item => item.id.toString()}
-              scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
-              ItemSeparatorComponent={() => <View style={styles.videoCardSeparator} />}
-            />
-          ) : (
-            <View style={styles.noVideosContainer}>
-              <Icon name="video-off" size={40} color="#ccc" />
-              <Text style={styles.noVideosText}>No videos available</Text>
-              {canManageCourse && (
-                <TouchableOpacity
-                  style={styles.addVideoButton}
-                  onPress={() =>
-                    navigation.navigate('AddCourseVideo', {courseId})
-                  }>
-                  <Text style={styles.addVideoButtonText}>Add a Video</Text>
-                </TouchableOpacity>
+            <View style={styles.courseContentSection}>
+              <Text style={styles.sectionTitle}>Course Content</Text>
+              {course.videos && course.videos.length > 0 ? (
+                <FlatList
+                  data={course.videos}
+                  renderItem={renderVideoItem}
+                  keyExtractor={item => item.id.toString()}
+                  scrollEnabled={false}
+                  showsVerticalScrollIndicator={false}
+                  ItemSeparatorComponent={() => (
+                    <View style={styles.videoCardSeparator} />
+                  )}
+                />
+              ) : (
+                <View style={styles.noVideosContainer}>
+                  <Icon name="video-off" size={40} color="#ccc" />
+                  <Text style={styles.noVideosText}>No videos available</Text>
+                  {canManageCourse && (
+                    <TouchableOpacity
+                      style={styles.addVideoButton}
+                      onPress={() =>
+                        navigation.navigate('AddCourseVideo', {courseId})
+                      }>
+                      <Text style={styles.addVideoButtonText}>Add a Video</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               )}
             </View>
-          )}
-        </View>
 
             {/* Video-specific Discussion Section */}
             <View style={styles.videoDiscussionSection}>
@@ -270,6 +302,11 @@ const CourseDetailsScreen = ({route, navigation}) => {
                 user={user}
                 refreshDiscussions={refreshCourse}
                 discussionType="video"
+                focusComment={
+                  selectedVideo.id.toString() === initialVideoId
+                    ? focusComment
+                    : null
+                }
               />
             </View>
           </View>
@@ -330,6 +367,7 @@ const CourseDetailsScreen = ({route, navigation}) => {
               user={user}
               refreshDiscussions={refreshCourse}
               discussionType="course"
+              focusComment={!initialVideoId ? focusComment : null}
             />
           </View>
         )}
@@ -472,7 +510,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
-  
+
   // Enhanced Video Card Styles
   videoCard: {
     backgroundColor: '#fff',
@@ -561,7 +599,7 @@ const styles = StyleSheet.create({
   videoCardSeparator: {
     height: 8,
   },
-  
+
   // Old video item styles (kept for compatibility)
   videoItem: {
     padding: 12,
@@ -583,7 +621,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
   },
-  
+
   noVideosContainer: {
     alignItems: 'center',
     padding: 40,
