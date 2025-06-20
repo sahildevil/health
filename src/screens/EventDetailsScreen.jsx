@@ -12,6 +12,7 @@ import {
   Alert,
   FlatList,
   Linking,
+  Clipboard,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -171,6 +172,54 @@ const EventDetailsScreen = ({route, navigation}) => {
       )}
     </View>
   );
+
+  // Add this helper function inside your component, before the return statement
+  const handleOpenLink = url => {
+    // Log the original URL
+    console.log('Original URL:', url);
+
+    // Better URL validation and formatting
+    let validUrl = url.trim();
+
+    // Add proper protocol if missing
+    if (!validUrl.match(/^https?:\/\//i)) {
+      validUrl = `https://${validUrl}`;
+      console.log('Added https:// protocol:', validUrl);
+    }
+
+    console.log('Attempting to open:', validUrl);
+
+    // Skip canOpenURL check and directly try to open the URL
+    Linking.openURL(validUrl)
+      .then(() => {
+        console.log('URL opened successfully');
+      })
+      .catch(err => {
+        console.error('Error opening URL:', err);
+
+        // Show error message with the actual URL for debugging
+        Alert.alert(
+          'Error Opening Link',
+          `Could not open ${validUrl}. Please try copying the link manually.`,
+          [
+            {
+              text: 'Copy URL',
+              onPress: () => {
+                Clipboard.setString(validUrl);
+                Alert.alert(
+                  'URL Copied',
+                  'The URL has been copied to clipboard',
+                );
+              },
+            },
+            {
+              text: 'OK',
+              style: 'cancel',
+            },
+          ],
+        );
+      });
+  };
 
   if (loading) {
     return (
@@ -341,7 +390,29 @@ const EventDetailsScreen = ({route, navigation}) => {
               <Text style={styles.detailLabel}>
                 {event.mode === 'Virtual' ? 'Platform' : 'Venue'}
               </Text>
-              <Text style={styles.detailText}>{event.venue}</Text>
+
+              {/* Virtual event handling */}
+              {event.mode === 'Virtual' ? (
+                <>
+                  <Text style={styles.detailText}>Virtual Event</Text>
+
+                  {/* Only show join link if user created event or has registered */}
+                  {(event.organizer_id === user?.id ||
+                    registeredEvents.includes(event.id)) && (
+                    <TouchableOpacity
+                      style={styles.joinLinkContainer}
+                      onPress={() => handleOpenLink(event.venue)}>
+                      <Icon name="link" size={16} color="#2e7af5" />
+                      <Text style={styles.joinLinkText}>
+                        Join Virtual Event
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              ) : (
+                // For in-person events, show venue as before
+                <Text style={styles.detailText}>{event.venue}</Text>
+              )}
             </View>
           </View>
 
@@ -812,6 +883,17 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+  },
+  joinLinkContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  joinLinkText: {
+    color: '#2e7af5',
+    fontSize: 16,
+    textDecorationLine: 'underline',
+    marginLeft: 4,
   },
 });
 

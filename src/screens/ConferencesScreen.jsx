@@ -220,8 +220,14 @@ const ConferencesScreen = ({navigation}) => {
         </View>
 
         <View style={styles.eventDetailItem}>
-          <Icon name="map-marker" size={16} color="#666" />
-          <Text style={styles.eventDetailText}>{event.venue}</Text>
+          <Icon
+            name={event.mode === 'Virtual' ? 'video' : 'map-marker'}
+            size={16}
+            color="#666"
+          />
+          <Text style={styles.eventDetailText}>
+            {event.mode === 'Virtual' ? 'Virtual Event' : event.venue}
+          </Text>
         </View>
         <View style={styles.eventDetailItem}>
           <Icon name="account-group" size={16} color="#666" />
@@ -275,10 +281,6 @@ const ConferencesScreen = ({navigation}) => {
             <Text style={styles.headerTitle}>Events</Text>
             <Text style={styles.headerSubtitle}>
               Browse and Register For Upcoming Events.
-              <Text style={{fontStyle: 'italic', color: '#2e7af5'}}>
-                {' '}
-                Only showing events from today forward.
-              </Text>
             </Text>
           </View>
           <TouchableOpacity
