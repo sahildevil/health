@@ -17,7 +17,8 @@ import {
   Linking,
   ScrollView,
   BackHandler,
-  Clipboard, // <-- Add Clipboard to existing imports
+  Clipboard,
+  RefreshControl,
 } from 'react-native';
 import * as Assets from '../assets';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -32,8 +33,8 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {WebView} from 'react-native-webview';
 import MessageItem from '../components/MessageItem';
 
-const SOCKET_URL = 'http://192.168.1.4:5000';
-const API_URL = 'http://192.168.1.4:5000';
+const SOCKET_URL = 'http://192.168.1.18:5000';
+const API_URL = 'http://192.168.1.18:5000';
 
 const ChatScreen = () => {
   // Auth context
@@ -73,7 +74,11 @@ const ChatScreen = () => {
   const currentRoomIdRef = useRef(null);
   const flatListRef = useRef(null);
   const searchInputRef = useRef(null);
+  const pollIntervalRef = useRef(null);
 
+  // Add this near the top of your component with other state variables
+  const [lastMessageTimestamp, setLastMessageTimestamp] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Define debounce helper function
   const debounce = (func, delay) => {
@@ -95,16 +100,39 @@ const ChatScreen = () => {
   );
 
   // Add this useEffect to fetch contact details when modal opens
-useEffect(() => {
-  if (profileModalVisible && selectedDoctor && !selectedDoctor.isAdminSupport) {
-    fetchContactDetails(selectedDoctor.id);
-  }
-}, [profileModalVisible, selectedDoctor]);
+  useEffect(() => {
+    if (profileModalVisible && selectedDoctor && !selectedDoctor.isAdminSupport) {
+      fetchContactDetails(selectedDoctor.id);
+    }
+  }, [profileModalVisible, selectedDoctor]);
 
   // Debug output for current user
   useEffect(() => {
     console.log('Current user:', user);
   }, [user]);
+
+  // Add this useEffect to periodically check for new messages
+  useEffect(() => {
+    if (!selectedDoctor || !socketConnected) return;
+    
+    // Clean up any existing interval
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
+    
+    // Create polling interval for message updates
+    pollIntervalRef.current = setInterval(() => {
+      console.log('Polling for new messages...');
+      fetchLatestMessages();
+    }, 15000); // Poll every 15 seconds
+    
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, [selectedDoctor, socketConnected]);
 
   // Fetch all doctors
   useEffect(() => {
@@ -254,6 +282,12 @@ useEffect(() => {
           fileSize: message.fileSize || message.file_size,
         };
 
+        // Update the last message timestamp
+        const messageTime = new Date(newMessage.timestamp);
+        if (!lastMessageTimestamp || messageTime > new Date(lastMessageTimestamp)) {
+          setLastMessageTimestamp(newMessage.timestamp);
+        }
+
         // Check if this is our own message coming back from the server
         const isOwnMessage = newMessage.senderId === user?.id;
 
@@ -337,9 +371,15 @@ useEffect(() => {
         console.log('Socket disconnected:', reason);
         setSocketConnected(false);
 
-        // If the server closed the connection, don't try to reconnect automatically
-        if (reason === 'io server disconnect') {
-          socketRef.current.connect();
+        // Always try to reconnect automatically after a short delay
+        if (!reconnectTimeoutRef.current) {
+          reconnectTimeoutRef.current = setTimeout(() => {
+            console.log('Attempting to reconnect socket...');
+            if (socketRef.current) {
+              socketRef.current.connect();
+            }
+            reconnectTimeoutRef.current = null;
+          }, 3000);
         }
       });
 
@@ -352,40 +392,111 @@ useEffect(() => {
         setSocketConnected(false);
       };
     }
-  }, [selectedDoctor, user]);
+  }, [selectedDoctor, user, lastMessageTimestamp]);
 
   // Add this after your other useEffect hooks
-useEffect(() => {
-  const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-    if (selectedDoctor) {
-      setSelectedDoctor(null);
-      return true;
-    }
-    return false;
-  });
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (selectedDoctor) {
+        setSelectedDoctor(null);
+        return true;
+      }
+      return false;
+    });
 
-  return () => backHandler.remove();
-}, [selectedDoctor]);
+    return () => backHandler.remove();
+  }, [selectedDoctor]);
+
+  // Function to fetch latest messages
+  const fetchLatestMessages = async () => {
+    if (!selectedDoctor || !user || !currentRoomIdRef.current) return;
+    
+    try {
+      const roomId = currentRoomIdRef.current;
+      let url = `${API_URL}/api/messages/${roomId}`;
+      
+      // Only fetch messages newer than our last message
+      if (messages.length > 0 && lastMessageTimestamp) {
+        url += `?since=${encodeURIComponent(lastMessageTimestamp)}`;
+      }
+      
+      console.log('Fetching latest messages from:', url);
+      const response = await axios.get(url);
+      
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        console.log(`Received ${response.data.length} new messages`);
+        
+        // Transform data to match UI expectations
+        const formattedMessages = response.data.map(msg => ({
+          id: msg.id,
+          text: msg.content || msg.text,
+          senderId: msg.sender_id || msg.senderId,
+          senderName: msg.sender_name || msg.senderName,
+          receiverId: msg.receiver_id || msg.receiverId,
+          timestamp: msg.created_at || msg.timestamp,
+          roomId: msg.room_id || msg.roomId,
+          isAttachment: msg.is_attachment === true || msg.isAttachment === true,
+          attachmentType: msg.attachment_type || msg.attachmentType,
+          fileUrl: msg.file_url || msg.fileUrl,
+          fileName: msg.file_name || msg.fileName,
+          fileType: msg.file_type || msg.fileType,
+          fileSize: msg.file_size || msg.fileSize,
+        }));
+        
+        // Update messages state with new messages
+        setMessages(prevMessages => {
+          // Filter out duplicates
+          const existingIds = prevMessages.map(m => m.id);
+          const newMessages = formattedMessages.filter(m => !existingIds.includes(m.id));
+          
+          if (newMessages.length > 0) {
+            console.log(`Adding ${newMessages.length} new messages`);
+            
+            // Update last message timestamp
+            if (newMessages.length > 0) {
+              const latestMsg = newMessages.reduce((latest, msg) => {
+                const msgTime = new Date(msg.timestamp);
+                const latestTime = new Date(latest.timestamp);
+                return msgTime > latestTime ? msg : latest;
+              }, newMessages[0]);
+              
+              setLastMessageTimestamp(latestMsg.timestamp);
+            }
+            
+            // Merge and sort by timestamp (most recent first)
+            return [...newMessages, ...prevMessages].sort((a, b) => 
+              new Date(b.timestamp) - new Date(a.timestamp)
+            );
+          }
+          
+          return prevMessages;
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching latest messages:', error);
+    }
+  };
 
   // Rest of your component functionality...
-const fetchContactDetails = async (contactId) => {
-  try {
-    setContactDetails(null); // Reset previous details
-    
-    const token = await getAuthToken();
-    const response = await axios.get(`${API_URL}/api/user-profile/${contactId}`, {
-      headers: {
-        Authorization: token,
-      },
-    });
-    
-    console.log('Contact details received:', response.data);
-    setContactDetails(response.data);
-  } catch (error) {
-    console.error('Failed to fetch contact details:', error);
-    Alert.alert('Error', 'Could not load contact information');
-  }
-};
+  const fetchContactDetails = async (contactId) => {
+    try {
+      setContactDetails(null); // Reset previous details
+      
+      const token = await getAuthToken();
+      const response = await axios.get(`${API_URL}/api/user-profile/${contactId}`, {
+        headers: {
+          Authorization: token,
+        },
+      });
+      
+      console.log('Contact details received:', response.data);
+      setContactDetails(response.data);
+    } catch (error) {
+      console.error('Failed to fetch contact details:', error);
+      Alert.alert('Error', 'Could not load contact information');
+    }
+  };
+
   // Move downloadAndCacheImage function inside component
   const downloadAndCacheImage = async imageUrl => {
     try {
@@ -490,6 +601,17 @@ const fetchContactDetails = async (contactId) => {
           fileSize: msg.file_size || msg.fileSize,
         }));
 
+        // Find the latest message timestamp
+        if (formattedMessages.length > 0) {
+          const latestMsg = formattedMessages.reduce((latest, msg) => {
+            const msgTime = new Date(msg.timestamp);
+            const latestTime = new Date(latest.timestamp);
+            return msgTime > latestTime ? msg : latest;
+          }, formattedMessages[0]);
+          
+          setLastMessageTimestamp(latestMsg.timestamp);
+        }
+
         // Update both the current messages and the chat history
         setMessages(formattedMessages);
         setChatHistory(prev => ({
@@ -501,6 +623,13 @@ const fetchContactDetails = async (contactId) => {
       console.error('Error fetching message history:', error);
       Alert.alert('Error', 'Failed to load message history.');
     }
+  };
+
+  // Function for pull-to-refresh
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchLatestMessages();
+    setRefreshing(false);
   };
 
   // Search functionality
@@ -727,6 +856,10 @@ const fetchContactDetails = async (contactId) => {
         is_attachment: true,
         isAttachment: true,
         attachment_type: isImage ? 'image' : 'document',
+        file_type: file.type,
+        file_name: file.name,
+        file_url: result.url,
+        file_size: file.size,
       };
 
       // Create temporary message
@@ -1443,6 +1576,14 @@ const renderChatHeader = () => {
             inverted
             style={styles.messagesList}
             contentContainerStyle={styles.messagesListContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={["#2e7af5"]}
+                tintColor="#2e7af5"
+              />
+            }
             ListEmptyComponent={
               <Text style={styles.emptyMessagesText}>
                 {searchQuery
@@ -1606,22 +1747,28 @@ const renderChatHeader = () => {
 
                     {/* Contact Information Section */}
                     <View style={styles.profileSection}>
-                      <Text style={styles.profileSectionTitle}>Contact Information</Text>
-                      
+                      <Text style={styles.profileSectionTitle}>
+                        Contact Information
+                      </Text>
+
                       <View style={styles.profileInfoItem}>
                         <Icon name="email-outline" size={20} color="#666" />
                         <View style={styles.profileInfoContent}>
                           <Text style={styles.profileInfoLabel}>Email</Text>
-                          <Text style={styles.profileInfoText}>{contactDetails.email}</Text>
+                          <Text style={styles.profileInfoText}>
+                            {contactDetails.email}
+                          </Text>
                         </View>
                       </View>
-                      
+
                       {contactDetails.phone && (
                         <View style={styles.profileInfoItem}>
                           <Icon name="phone-outline" size={20} color="#666" />
                           <View style={styles.profileInfoContent}>
                             <Text style={styles.profileInfoLabel}>Phone</Text>
-                            <Text style={styles.profileInfoText}>{contactDetails.phone}</Text>
+                            <Text style={styles.profileInfoText}>
+                              {contactDetails.phone}
+                            </Text>
                           </View>
                         </View>
                       )}
@@ -1630,26 +1777,42 @@ const renderChatHeader = () => {
                     {/* Professional Information Section - Enhanced for Doctors */}
                     {contactDetails.role === 'doctor' && (
                       <View style={styles.profileSection}>
-                        <Text style={styles.profileSectionTitle}>Professional Information</Text>
-                        
+                        <Text style={styles.profileSectionTitle}>
+                          Professional Information
+                        </Text>
+
                         {contactDetails.degree && (
                           <View style={styles.profileInfoItem}>
-                            <Icon name="school-outline" size={20} color="#666" />
+                            <Icon
+                              name="school-outline"
+                              size={20}
+                              color="#666"
+                            />
                             <View style={styles.profileInfoContent}>
-                              <Text style={styles.profileInfoLabel}>Medical Specialty</Text>
-                              <Text style={styles.profileInfoText}>{contactDetails.degree}</Text>
+                              <Text style={styles.profileInfoLabel}>
+                                Medical Specialty
+                              </Text>
+                              <Text style={styles.profileInfoText}>
+                                {contactDetails.degree}
+                              </Text>
                             </View>
                           </View>
                         )}
 
                         {/* Medical License/Registration Info */}
                         <View style={styles.profileInfoItem}>
-                          <Icon name="card-account-details-outline" size={20} color="#666" />
+                          <Icon
+                            name="card-account-details-outline"
+                            size={20}
+                            color="#666"
+                          />
                           <View style={styles.profileInfoContent}>
-                            <Text style={styles.profileInfoLabel}>Documents Uploaded</Text>
+                            <Text style={styles.profileInfoLabel}>
+                              Documents Uploaded
+                            </Text>
                             <Text style={styles.profileInfoText}>
                               {contactDetails.totalDocuments || 0} documents
-                              {contactDetails.verifiedDocuments > 0 && 
+                              {contactDetails.verifiedDocuments > 0 &&
                                 ` (${contactDetails.verifiedDocuments} verified)`}
                             </Text>
                           </View>
@@ -1657,14 +1820,25 @@ const renderChatHeader = () => {
 
                         {/* Email Verification Status */}
                         <View style={styles.profileInfoItem}>
-                          <Icon name="email-check-outline" size={20} color="#666" />
+                          <Icon
+                            name="email-check-outline"
+                            size={20}
+                            color="#666"
+                          />
                           <View style={styles.profileInfoContent}>
-                            <Text style={styles.profileInfoLabel}>Email Status</Text>
-                            <Text style={[
-                              styles.profileInfoText, 
-                              contactDetails.email_verified ? styles.verifiedTextGreen : styles.unverifiedTextOrange
-                            ]}>
-                              {contactDetails.email_verified ? 'Verified' : 'Unverified'}
+                            <Text style={styles.profileInfoLabel}>
+                              Email Status
+                            </Text>
+                            <Text
+                              style={[
+                                styles.profileInfoText,
+                                contactDetails.email_verified
+                                  ? styles.verifiedTextGreen
+                                  : styles.unverifiedTextOrange,
+                              ]}>
+                              {contactDetails.email_verified
+                                ? 'Verified'
+                                : 'Unverified'}
                             </Text>
                           </View>
                         </View>
@@ -1674,83 +1848,125 @@ const renderChatHeader = () => {
                     {/* Company Information Section - Enhanced for Pharma */}
                     {contactDetails.role === 'pharma' && (
                       <View style={styles.profileSection}>
-                        <Text style={styles.profileSectionTitle}>Company Information</Text>
-                        
+                        <Text style={styles.profileSectionTitle}>
+                          Company Information
+                        </Text>
+
                         {contactDetails.company && (
                           <View style={styles.profileInfoItem}>
                             <Icon name="domain" size={20} color="#666" />
                             <View style={styles.profileInfoContent}>
-                              <Text style={styles.profileInfoLabel}>Company</Text>
-                              <Text style={styles.profileInfoText}>{contactDetails.company}</Text>
+                              <Text style={styles.profileInfoLabel}>
+                                Company
+                              </Text>
+                              <Text style={styles.profileInfoText}>
+                                {contactDetails.company}
+                              </Text>
                             </View>
                           </View>
                         )}
 
                         {contactDetails.role_in_company && (
                           <View style={styles.profileInfoItem}>
-                            <Icon name="briefcase-outline" size={20} color="#666" />
+                            <Icon
+                              name="briefcase-outline"
+                              size={20}
+                              color="#666"
+                            />
                             <View style={styles.profileInfoContent}>
-                              <Text style={styles.profileInfoLabel}>Position</Text>
-                              <Text style={styles.profileInfoText}>{contactDetails.role_in_company}</Text>
+                              <Text style={styles.profileInfoLabel}>
+                                Position
+                              </Text>
+                              <Text style={styles.profileInfoText}>
+                                {contactDetails.role_in_company}
+                              </Text>
                             </View>
                           </View>
                         )}
 
                         {/* Company Documents Info */}
                         <View style={styles.profileInfoItem}>
-                          <Icon name="file-document-multiple-outline" size={20} color="#666" />
+                          <Icon
+                            name="file-document-multiple-outline"
+                            size={20}
+                            color="#666"
+                          />
                           <View style={styles.profileInfoContent}>
-                            <Text style={styles.profileInfoLabel}>Company Documents</Text>
+                            <Text style={styles.profileInfoLabel}>
+                              Company Documents
+                            </Text>
                             <Text style={styles.profileInfoText}>
-                              {contactDetails.totalDocuments || 0} documents uploaded
+                              {contactDetails.totalDocuments || 0} documents
+                              uploaded
                             </Text>
                           </View>
                         </View>
                       </View>
                     )}
-                    
+
                     {/* Achievements Section - Enhanced */}
-                    {contactDetails.achievements && contactDetails.achievements.length > 0 && (
-                      <View style={styles.profileSection}>
-                        <Text style={styles.profileSectionTitle}>Achievements & Certifications</Text>
-                        
-                        {contactDetails.achievements.map((achievement, index) => (
-                          <View key={index} style={styles.achievementItem}>
-                            <Icon name="trophy-outline" size={20} color="#E6A817" />
-                            <View style={styles.achievementContent}>
-                              {achievement.title && (
-                                <Text style={styles.achievementTitle}>{achievement.title}</Text>
-                              )}
-                              {achievement.description && (
-                                <Text style={styles.achievementDescription}>{achievement.description}</Text>
-                              )}
-                              {achievement.year && (
-                                <Text style={styles.achievementYear}>Year: {achievement.year}</Text>
-                              )}
-                              {achievement.institution && (
-                                <Text style={styles.achievementInstitution}>
-                                  Institution: {achievement.institution}
-                                </Text>
-                              )}
-                            </View>
-                          </View>
-                        ))}
-                      </View>
-                    )}
+                    {contactDetails.achievements &&
+                      contactDetails.achievements.length > 0 && (
+                        <View style={styles.profileSection}>
+                          <Text style={styles.profileSectionTitle}>
+                            Achievements & Certifications
+                          </Text>
+
+                          {contactDetails.achievements.map(
+                            (achievement, index) => (
+                              <View key={index} style={styles.achievementItem}>
+                                <Icon
+                                  name="trophy-outline"
+                                  size={20}
+                                  color="#E6A817"
+                                />
+                                <View style={styles.achievementContent}>
+                                  {achievement.title && (
+                                    <Text style={styles.achievementTitle}>
+                                      {achievement.title}
+                                    </Text>
+                                  )}
+                                  {achievement.description && (
+                                    <Text style={styles.achievementDescription}>
+                                      {achievement.description}
+                                    </Text>
+                                  )}
+                                  {achievement.year && (
+                                    <Text style={styles.achievementYear}>
+                                      Year: {achievement.year}
+                                    </Text>
+                                  )}
+                                  {achievement.institution && (
+                                    <Text style={styles.achievementInstitution}>
+                                      Institution: {achievement.institution}
+                                    </Text>
+                                  )}
+                                </View>
+                              </View>
+                            ),
+                          )}
+                        </View>
+                      )}
 
                     {/* Account Information Section - Enhanced */}
                     <View style={styles.profileSection}>
-                      <Text style={styles.profileSectionTitle}>Account Information</Text>
-                      
+                      <Text style={styles.profileSectionTitle}>
+                        Account Information
+                      </Text>
+
                       <View style={styles.profileInfoItem}>
                         <Icon name="calendar-outline" size={20} color="#666" />
                         <View style={styles.profileInfoContent}>
-                          <Text style={styles.profileInfoLabel}>Member Since</Text>
+                          <Text style={styles.profileInfoLabel}>
+                            Member Since
+                          </Text>
                           <Text style={styles.profileInfoText}>
-                            {new Date(contactDetails.created_at).toLocaleDateString('en-US', {
+                            {new Date(
+                              contactDetails.created_at,
+                            ).toLocaleDateString('en-US', {
                               year: 'numeric',
                               month: 'long',
-                              day: 'numeric'
+                              day: 'numeric',
                             })}
                           </Text>
                         </View>
@@ -1759,12 +1975,16 @@ const renderChatHeader = () => {
                       <View style={styles.profileInfoItem}>
                         <Icon name="update" size={20} color="#666" />
                         <View style={styles.profileInfoContent}>
-                          <Text style={styles.profileInfoLabel}>Last Updated</Text>
+                          <Text style={styles.profileInfoLabel}>
+                            Last Updated
+                          </Text>
                           <Text style={styles.profileInfoText}>
-                            {new Date(contactDetails.updated_at).toLocaleDateString('en-US', {
+                            {new Date(
+                              contactDetails.updated_at,
+                            ).toLocaleDateString('en-US', {
                               year: 'numeric',
                               month: 'long',
-                              day: 'numeric'
+                              day: 'numeric',
                             })}
                           </Text>
                         </View>
@@ -1772,19 +1992,29 @@ const renderChatHeader = () => {
 
                       {/* Overall Verification Status */}
                       <View style={styles.profileInfoItem}>
-                        <Icon name="shield-check-outline" size={20} color="#666" />
+                        <Icon
+                          name="shield-check-outline"
+                          size={20}
+                          color="#666"
+                        />
                         <View style={styles.profileInfoContent}>
-                          <Text style={styles.profileInfoLabel}>Verification Status</Text>
+                          <Text style={styles.profileInfoLabel}>
+                            Verification Status
+                          </Text>
                           <View style={styles.verificationStatusContainer}>
                             {contactDetails.verified ? (
                               <View style={styles.statusBadgeGreen}>
                                 <Icon name="check" size={14} color="#fff" />
-                                <Text style={styles.statusBadgeText}>Fully Verified</Text>
+                                <Text style={styles.statusBadgeText}>
+                                  Fully Verified
+                                </Text>
                               </View>
                             ) : (
                               <View style={styles.statusBadgeOrange}>
                                 <Icon name="clock" size={14} color="#fff" />
-                                <Text style={styles.statusBadgeText}>Under Review</Text>
+                                <Text style={styles.statusBadgeText}>
+                                  Under Review
+                                </Text>
                               </View>
                             )}
                           </View>
@@ -1794,25 +2024,45 @@ const renderChatHeader = () => {
 
                     {/* Quick Stats Section */}
                     <View style={styles.profileSection}>
-                      <Text style={styles.profileSectionTitle}>Quick Stats</Text>
-                      
+                      <Text style={styles.profileSectionTitle}>
+                        Quick Stats
+                      </Text>
+
                       <View style={styles.statsContainer}>
                         <View style={styles.statItem}>
-                          <Icon name="file-document-outline" size={24} color="#2e7af5" />
-                          <Text style={styles.statNumber}>{contactDetails.totalDocuments || 0}</Text>
+                          <Icon
+                            name="file-document-outline"
+                            size={24}
+                            color="#2e7af5"
+                          />
+                          <Text style={styles.statNumber}>
+                            {contactDetails.totalDocuments || 0}
+                          </Text>
                           <Text style={styles.statLabel}>Documents</Text>
                         </View>
-                        
+
                         <View style={styles.statItem}>
-                          <Icon name="check-circle-outline" size={24} color="#4CAF50" />
-                          <Text style={styles.statNumber}>{contactDetails.verifiedDocuments || 0}</Text>
+                          <Icon
+                            name="check-circle-outline"
+                            size={24}
+                            color="#4CAF50"
+                          />
+                          <Text style={styles.statNumber}>
+                            {contactDetails.verifiedDocuments || 0}
+                          </Text>
                           <Text style={styles.statLabel}>Verified</Text>
                         </View>
-                        
+
                         <View style={styles.statItem}>
-                          <Icon name="trophy-outline" size={24} color="#E6A817" />
+                          <Icon
+                            name="trophy-outline"
+                            size={24}
+                            color="#E6A817"
+                          />
                           <Text style={styles.statNumber}>
-                            {(contactDetails.achievements && contactDetails.achievements.length) || 0}
+                            {(contactDetails.achievements &&
+                              contactDetails.achievements.length) ||
+                              0}
                           </Text>
                           <Text style={styles.statLabel}>Achievements</Text>
                         </View>
@@ -1821,25 +2071,32 @@ const renderChatHeader = () => {
 
                     {/* Action Buttons */}
                     <View style={styles.profileActionsContainer}>
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.profileActionButton}
                         onPress={() => {
                           setProfileModalVisible(false);
                           // Continue in the chat
                         }}>
                         <Icon name="chat" size={22} color="#fff" />
-                        <Text style={styles.profileActionButtonText}>Continue Chat</Text>
+                        <Text style={styles.profileActionButtonText}>
+                          Continue Chat
+                        </Text>
                       </TouchableOpacity>
-                      
+
                       {contactDetails.phone && (
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           style={styles.profileActionButtonSecondary}
                           onPress={() => {
                             // You can add phone call functionality here
-                            Alert.alert('Contact', `Call ${contactDetails.phone}?`);
+                            Alert.alert(
+                              'Contact',
+                              `Call ${contactDetails.phone}?`,
+                            );
                           }}>
                           <Icon name="phone" size={22} color="#2e7af5" />
-                          <Text style={styles.profileActionButtonTextSecondary}>Call</Text>
+                          <Text style={styles.profileActionButtonTextSecondary}>
+                            Call
+                          </Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -1868,9 +2125,11 @@ const renderChatHeader = () => {
           </View>
 
           <View style={styles.previewContent}>
-            {previewItem && previewItem.fileType && previewItem.fileType.includes('image') ? (
+            {previewItem &&
+            previewItem.fileType &&
+            previewItem.fileType.includes('image') ? (
               <Image
-                source={{ uri: previewItem.fileUrl }}
+                source={{uri: previewItem.fileUrl}}
                 style={styles.previewImage}
                 resizeMode="contain"
               />
@@ -1891,7 +2150,9 @@ const renderChatHeader = () => {
                   onPress={() => {
                     Linking.openURL(previewItem.fileUrl);
                   }}>
-                  <Text style={styles.openExternalButtonText}>Open in Browser</Text>
+                  <Text style={styles.openExternalButtonText}>
+                    Open in Browser
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -2042,18 +2303,18 @@ const styles = StyleSheet.create({
     color: 'black',
   },
   headerTitleContainer: {
-  flex: 1,
-  marginLeft: 8,
-  flexDirection: 'row',
-  alignItems: 'center',
-  paddingVertical: 8, // Add some padding for a better touch target
-},
-headerTitle: {
-  fontSize: 18,
-  fontWeight: 'bold',
-  color: '#000000',
-  marginRight: 4, // Add a little space for the icon
-},
+    flex: 1,
+    marginLeft: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8, // Add some padding for a better touch target
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000000',
+    marginRight: 4, // Add a little space for the icon
+  },
   headerSubtitle: {
     fontSize: 12,
     color: 'grey',
@@ -2295,7 +2556,7 @@ headerTitle: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f0f0f0',
-    borderRadius:  8,
+    borderRadius: 8,
     padding: 12,
     marginBottom: 8,
   },
@@ -2522,308 +2783,308 @@ headerTitle: {
     fontWeight: 'bold',
   },
   // Add to your existing styles
-profileModalContainer: {
-  flex: 1,
-  backgroundColor: '#F8F9FA',
-},
-profileModalHeader: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#fff',
-  paddingVertical: 16,
-  paddingHorizontal: 12,
-  borderBottomWidth: 1,
-  borderBottomColor: '#f0f0f0',
-},
-profileModalBackButton: {
-  padding: 8,
-},
-profileModalTitle: {
-  fontSize: 20,
-  fontWeight: 'bold',
-  marginLeft: 12,
-  color: '#333',
-},
-profileModalContent: {
-  flex: 1,
-},
-profileDetailsContainer: {
-  padding: 16,
-},
-profileHeaderSection: {
-  alignItems: 'center',
-  marginBottom: 24,
-},
-profileAvatarLarge: {
-  width: 100,
-  height: 100,
-  borderRadius: 50,
-  backgroundColor: '#2e7af5',
-  justifyContent: 'center',
-  alignItems: 'center',
-  marginBottom: 16,
-},
-profileAvatarImage: {
-  width: '100%',
-  height: '100%',
-  borderRadius: 50,
-},
-profileAvatarText: {
-  fontSize: 40,
-  fontWeight: 'bold',
-  color: '#fff',
-},
-profileName: {
-  fontSize: 22,
-  fontWeight: 'bold',
-  color: '#333',
-  marginBottom: 8,
-},
-profileRoleBadge: {
-  backgroundColor: '#2e7af5',
-  paddingVertical: 4,
-  paddingHorizontal: 12,
-  borderRadius: 16,
-},
-profileRoleText: {
-  color: '#fff',
-  fontSize: 14,
-  fontWeight: '500',
-},
-profileSection: {
-  backgroundColor: '#fff',
-  borderRadius: 12,
-  padding: 16,
-  marginBottom: 16,
-  shadowColor: '#000',
-  shadowOffset: {width: 0, height: 1},
-  shadowOpacity: 0.05,
-  shadowRadius: 2,
-  elevation: 2,
-},
-profileSectionTitle: {
-  fontSize: 18,
-  fontWeight: 'bold',
-  color: '#333',
-  marginBottom: 16,
-},
-profileInfoItem: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginBottom: 12,
-},
-profileInfoText: {
-  fontSize: 16,
-  color: '#444',
-  marginLeft: 12,
-  flex: 1,
-},
-achievementItem: {
-  flexDirection: 'row',
-  marginBottom: 16,
-},
-achievementContent: {
-  marginLeft: 12,
-  flex: 1,
-},
-achievementTitle: {
-  fontSize: 16,
-  fontWeight: '600',
-  color: '#333',
-  marginBottom: 4,
-},
-achievementDescription: {
-  fontSize: 14,
-  color: '#666',
-  marginBottom: 4,
-},
-achievementYear: {
-  fontSize: 14,
-  color: '#888',
-},
-profileActionsContainer: {
-  marginTop: 8,
-  marginBottom: 24,
-},
-profileActionButton: {
-  backgroundColor: '#2e7af5',
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 14,
-  borderRadius: 12,
-},
-profileActionButtonText: {
-  color: '#fff',
-  marginLeft: 8,
-  fontSize: 16,
-  fontWeight: '600',
-},
-contactAvatarImage: {
-  width: 50,
-  height: 50,
-  borderRadius: 20,
-  backgroundColor: '#e1e1e1',
-},
-// Add these enhanced styles to your existing styles object
-verificationContainer: {
-  marginTop: 12,
-},
-verifiedBadge: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#E8F5E8',
-  paddingHorizontal: 12,
-  paddingVertical: 6,
-  borderRadius: 20,
-},
-verifiedText: {
-  color: '#4CAF50',
-  fontSize: 14,
-  fontWeight: '500',
-  marginLeft: 4,
-},
-unverifiedBadge: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#FFF3E0',
-  paddingHorizontal: 12,
-  paddingVertical: 6,
-  borderRadius: 20,
-},
-unverifiedText: {
-  color: '#FF9800',
-  fontSize: 14,
-  fontWeight: '500',
-  marginLeft: 4,
-},
-profileInfoContent: {
-  marginLeft: 12,
-  flex: 1,
-},
-profileInfoLabel: {
-  fontSize: 12,
-  color: '#888',
-  marginBottom: 2,
-  fontWeight: '500',
-},
-verifiedTextGreen: {
-  color: '#4CAF50',
-  fontWeight: '500',
-},
-unverifiedTextOrange: {
-  color: '#FF9800',
-  fontWeight: '500',
-},
-verificationStatusContainer: {
-  marginTop: 4,
-},
-statusBadgeGreen: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#4CAF50',
-  paddingHorizontal: 8,
-  paddingVertical: 4,
-  borderRadius: 12,
-  alignSelf: 'flex-start',
-},
-statusBadgeOrange: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#FF9800',
-  paddingHorizontal: 8,
-  paddingVertical: 4,
-  borderRadius: 12,
-  alignSelf: 'flex-start',
-},
-statusBadgeText: {
-  color: '#fff',
-  fontSize: 12,
-  fontWeight: '500',
-  marginLeft: 4,
-},
-achievementInstitution: {
-  fontSize: 12,
-  color: '#666',
-  fontStyle: 'italic',
-},
-statsContainer: {
-  flexDirection: 'row',
-  justifyContent: 'space-around',
-  paddingVertical: 16,
-},
-statItem: {
-  alignItems: 'center',
-  flex: 1,
-},
-statNumber: {
-  fontSize: 24,
-  fontWeight: 'bold',
-  color: '#333',
-  marginTop: 8,
-},
-statLabel: {
-  fontSize: 12,
-  color: '#666',
-  marginTop: 4,
-},
-profileActionButtonSecondary: {
-  backgroundColor: '#fff',
-  borderWidth: 2,
-  borderColor: '#2e7af5',
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 14,
-  borderRadius: 12,
-  marginTop: 12,
-},
-profileActionButtonTextSecondary: {
-  color: '#2e7af5',
-  marginLeft: 8,
-  fontSize: 16,
-  fontWeight: '600',
-},
-// Add these to your existing styles
-headerAvatarImage: {
-  width: '100%',
-  height: '100%',
-  borderRadius: 20,
-  backgroundColor: '#e1e1e1',
-},
-doctorAvatarImage: {
-  width: '100%',
-  height: '100%',
-  borderRadius: 20,
-  backgroundColor: '#e1e1e1',
-},
-recentChatAvatarImage: {
-  width: '100%',
-  height: '100%',
-  borderRadius: 20,
-  backgroundColor: '#e1e1e1',
-},
-searchResultAvatarImage: {
-  width: '100%',
-  height: '100%',
-  borderRadius: 20,
-  backgroundColor: '#e1e1e1',
-},
-degreeText: {
-  color: '#2e7af5',
-  fontWeight: '500',
-},
-searchBarContainer: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#f0f0f0',
-  borderRadius: 20,
-  paddingHorizontal: 16,
-  paddingVertical: 12,
-  marginBottom: 16,
-  borderWidth: 1,
-  borderColor: '#e0e0e0',
-},
+  profileModalContainer: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+  profileModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  profileModalBackButton: {
+    padding: 8,
+  },
+  profileModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginLeft: 12,
+    color: '#333',
+  },
+  profileModalContent: {
+    flex: 1,
+  },
+  profileDetailsContainer: {
+    padding: 16,
+  },
+  profileHeaderSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  profileAvatarLarge: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#2e7af5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  profileAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 50,
+  },
+  profileAvatarText: {
+    fontSize: 40,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  profileName: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  profileRoleBadge: {
+    backgroundColor: '#2e7af5',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
+  profileRoleText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  profileSection: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  profileSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+  },
+  profileInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  profileInfoText: {
+    fontSize: 16,
+    color: '#444',
+    marginLeft: 12,
+    flex: 1,
+  },
+  achievementItem: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  achievementContent: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  achievementTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  achievementDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  achievementYear: {
+    fontSize: 14,
+    color: '#888',
+  },
+  profileActionsContainer: {
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  profileActionButton: {
+    backgroundColor: '#2e7af5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 12,
+  },
+  profileActionButtonText: {
+    color: '#fff',
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  contactAvatarImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 20,
+    backgroundColor: '#e1e1e1',
+  },
+  // Add these enhanced styles to your existing styles object
+  verificationContainer: {
+    marginTop: 12,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E8',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  verifiedText: {
+    color: '#4CAF50',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  unverifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  unverifiedText: {
+    color: '#FF9800',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  profileInfoContent: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  profileInfoLabel: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 2,
+    fontWeight: '500',
+  },
+  verifiedTextGreen: {
+    color: '#4CAF50',
+    fontWeight: '500',
+  },
+  unverifiedTextOrange: {
+    color: '#FF9800',
+    fontWeight: '500',
+  },
+  verificationStatusContainer: {
+    marginTop: 4,
+  },
+  statusBadgeGreen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  statusBadgeOrange: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF9800',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  statusBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  achievementInstitution: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 16,
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
+  profileActionButtonSecondary: {
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#2e7af5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 12,
+    marginTop: 12,
+  },
+  profileActionButtonTextSecondary: {
+    color: '#2e7af5',
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Add these to your existing styles
+  headerAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    backgroundColor: '#e1e1e1',
+  },
+  doctorAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    backgroundColor: '#e1e1e1',
+  },
+  recentChatAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    backgroundColor: '#e1e1e1',
+  },
+  searchResultAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    backgroundColor: '#e1e1e1',
+  },
+  degreeText: {
+    color: '#2e7af5',
+    fontWeight: '500',
+  },
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
 });
 
 export default ChatScreen;
