@@ -1,982 +1,246 @@
-// import React, {useState, useEffect} from 'react';
-// import {
-//   View,
-//   Text,
-//   StyleSheet,
-//   TextInput,
-//   TouchableOpacity,
-//   ActivityIndicator,
-//   Alert,
-//   Image,
-//   ScrollView,
-//   Animated,
-// } from 'react-native';
-// import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-// import {courseService} from '../services/api';
-// import {format} from 'date-fns';
-
-// const CourseDiscussion = ({
-//   courseId, 
-//   videoId = null, 
-//   user, 
-//   refreshDiscussions,
-//   discussionType = 'course'
-// }) => {
-//   const [discussions, setDiscussions] = useState([]);
-//   const [loading, setLoading] = useState(true);
-//   const [posting, setPosting] = useState(false);
-//   const [message, setMessage] = useState('');
-//   const [refreshing, setRefreshing] = useState(false);
-//   const [replyingTo, setReplyingTo] = useState(null);
-//   const [replyMessage, setReplyMessage] = useState('');
-//   const [expandedReplies, setExpandedReplies] = useState({});
-
-//   useEffect(() => {
-//     console.log('CourseDiscussion mounted:', { courseId, videoId, discussionType });
-//     fetchDiscussions();
-//   }, [courseId, videoId]);
-
-//   const fetchDiscussions = async () => {
-//     try {
-//       setLoading(true);
-      
-//       // For course overview: don't pass videoId (show all discussions)
-//       // For video view: pass videoId (show only video-specific discussions)
-//       const data = await courseService.getCourseDiscussions(
-//         courseId, 
-//         discussionType === 'video' ? videoId : null
-//       );
-      
-//       console.log('Received discussions:', data?.length || 0);
-      
-//       const organizedData = organizeComments(data || []);
-//       setDiscussions(organizedData);
-//     } catch (error) {
-//       console.error('Error fetching discussions:', error);
-//     } finally {
-//       setLoading(false);
-//       setRefreshing(false);
-//     }
-//   };
-
-//   // Organize comments into parent/child structure
-//   const organizeComments = (comments) => {
-//     const topLevel = comments.filter(comment => !comment.parent_id);
-//     const replies = comments.filter(comment => comment.parent_id);
-    
-//     return topLevel.map(comment => ({
-//       ...comment,
-//       replies: replies
-//         .filter(reply => reply.parent_id === comment.id)
-//         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-//     }));
-//   };
-
-//   const handleRefresh = () => {
-//     setRefreshing(true);
-//     fetchDiscussions();
-//   };
-
-//   const handlePostComment = async () => {
-//     if (!message.trim()) return;
-
-//     try {
-//       setPosting(true);
-      
-//       const discussionData = {
-//         content: message,
-//       };
-
-//       // Only add video_id if we're in video view
-//       if (discussionType === 'video' && videoId) {
-//         discussionData.video_id = videoId;
-//         console.log('Adding comment with video_id:', videoId);
-//       } else {
-//         console.log('Adding course-level comment');
-//       }
-
-//       await courseService.addCourseDiscussion(courseId, discussionData);
-//       setMessage('');
-//       fetchDiscussions();
-      
-//       if (refreshDiscussions) {
-//         refreshDiscussions();
-//       }
-//     } catch (error) {
-//       console.error('Error posting comment:', error);
-//       Alert.alert('Error', 'Failed to post comment. Please try again.');
-//     } finally {
-//       setPosting(false);
-//     }
-//   };
-
-//   const handlePostReply = async () => {
-//     if (!replyMessage.trim() || !replyingTo) return;
-
-//     try {
-//       setPosting(true);
-      
-//       const replyData = {
-//         content: replyMessage,
-//         parent_id: replyingTo.id,
-//       };
-
-//       // Only add video_id if we're in video view
-//       if (discussionType === 'video' && videoId) {
-//         replyData.video_id = videoId;
-//         console.log('Adding reply with video_id:', videoId);
-//       } else {
-//         console.log('Adding course-level reply');
-//       }
-
-//       await courseService.addCourseDiscussion(courseId, replyData);
-      
-//       setReplyMessage('');
-//       setReplyingTo(null);
-//       fetchDiscussions();
-      
-//       if (refreshDiscussions) {
-//         refreshDiscussions();
-//       }
-//     } catch (error) {
-//       console.error('Error posting reply:', error);
-//       Alert.alert('Error', 'Failed to post reply. Please try again.');
-//     } finally {
-//       setPosting(false);
-//     }
-//   };
-
-//   const handleReplyPress = (comment) => {
-//     setReplyingTo(comment);
-//     setReplyMessage('');
-//   };
-
-//   const toggleReplies = (commentId) => {
-//     setExpandedReplies(prev => ({
-//       ...prev,
-//       [commentId]: !prev[commentId]
-//     }));
-//   };
-
-//   const handleDeleteComment = async (commentId) => {
-//     try {
-//       Alert.alert(
-//         'Delete Comment',
-//         'Are you sure you want to delete this comment?',
-//         [
-//           {text: 'Cancel', style: 'cancel'},
-//           {
-//             text: 'Delete',
-//             onPress: async () => {
-//               try {
-//                 await courseService.deleteCourseDiscussion(courseId, commentId);
-//                 fetchDiscussions();
-//               } catch (error) {
-//                 console.error('Error deleting comment:', error);
-//                 Alert.alert('Error', 'Failed to delete comment');
-//               }
-//             },
-//             style: 'destructive',
-//           },
-//         ],
-//       );
-//     } catch (error) {
-//       console.error('Error handling delete:', error);
-//     }
-//   };
-
-//   const getRoleColor = (role) => {
-//     switch (role?.toLowerCase()) {
-//       case 'admin':
-//         return '#8e44ad'; // Purple
-//       case 'doctor':
-//         return '#2e86de'; // Blue
-//       case 'pharma':
-//         return '#10ac84'; // Green
-//       default:
-//         return '#7f8c8d'; // Gray
-//     }
-//   };
-
-//   const renderReply = (reply) => {
-//     const formattedDate = reply.created_at
-//       ? format(new Date(reply.created_at), 'MMM d, yyyy h:mm a')
-//       : 'Just now';
-
-//     const isOwnReply = user && reply.user_id === user.id;
-
-//     return (
-//       <View key={reply.id} style={styles.replyContainer}>
-//         <View style={styles.commentHeader}>
-//           <View style={styles.userInfo}>
-//             <View style={[styles.avatarContainer, styles.replyAvatarContainer]}>
-//               <Text style={styles.avatarText}>
-//                 {reply.user_name ? reply.user_name.charAt(0).toUpperCase() : '?'}
-//               </Text>
-//             </View>
-//             <View>
-//               <Text style={styles.userName}>
-//                 {reply.user_name || 'Anonymous'}
-//               </Text>
-//               <Text style={styles.commentDate}>{formattedDate}</Text>
-//             </View>
-//           </View>
-
-//           {isOwnReply && (
-//             <TouchableOpacity
-//               style={styles.deleteButton}
-//               onPress={() => handleDeleteComment(reply.id)}>
-//               <Icon name="delete-outline" size={16} color="#ff6b6b" />
-//             </TouchableOpacity>
-//           )}
-//         </View>
-
-//         <Text style={styles.commentContent}>{reply.content}</Text>
-
-//         {reply.role && (
-//           <View
-//             style={[
-//               styles.roleBadge,
-//               {backgroundColor: getRoleColor(reply.role)},
-//             ]}>
-//             <Text style={styles.roleText}>{reply.role}</Text>
-//           </View>
-//         )}
-//       </View>
-//     );
-//   };
-
-//   const renderDiscussionItem = (item) => {
-//     const formattedDate = item.created_at
-//       ? format(new Date(item.created_at), 'MMM d, yyyy h:mm a')
-//       : 'Just now';
-
-//     const isOwnComment = user && item.user_id === user.id;
-//     const hasReplies = item.replies && item.replies.length > 0;
-//     const isExpanded = expandedReplies[item.id] !== false; // Default to expanded
-
-//     return (
-//       <View key={item.id} style={styles.commentContainer}>
-//         <View style={styles.commentHeader}>
-//           <View style={styles.userInfo}>
-//             <View style={styles.avatarContainer}>
-//               <Text style={styles.avatarText}>
-//                 {item.user_name ? item.user_name.charAt(0).toUpperCase() : '?'}
-//               </Text>
-//             </View>
-//             <View>
-//               <Text style={styles.userName}>
-//                 {item.user_name || 'Anonymous'}
-//               </Text>
-//               <Text style={styles.commentDate}>{formattedDate}</Text>
-//             </View>
-//           </View>
-
-//           <View style={styles.commentActions}>
-//             {isOwnComment && (
-//               <TouchableOpacity
-//                 style={styles.deleteButton}
-//                 onPress={() => handleDeleteComment(item.id)}>
-//                 <Icon name="delete-outline" size={18} color="#ff6b6b" />
-//               </TouchableOpacity>
-//             )}
-//           </View>
-//         </View>
-
-//         <Text style={styles.commentContent}>{item.content}</Text>
-
-//         {item.role && (
-//           <View
-//             style={[
-//               styles.roleBadge,
-//               {backgroundColor: getRoleColor(item.role)},
-//             ]}>
-//             <Text style={styles.roleText}>{item.role}</Text>
-//           </View>
-//         )}
-
-//         <View style={styles.commentFooter}>
-//           {user && (
-//             <TouchableOpacity 
-//               style={styles.replyButton}
-//               onPress={() => handleReplyPress(item)}>
-//               <Icon name="reply" size={14} color="#2e7af5" />
-//               <Text style={styles.replyButtonText}>Reply</Text>
-//             </TouchableOpacity>
-//           )}
-          
-//           {hasReplies && (
-//             <TouchableOpacity 
-//               style={styles.toggleRepliesButton}
-//               onPress={() => toggleReplies(item.id)}>
-//               <Icon 
-//                 name={isExpanded ? "chevron-up" : "chevron-down"} 
-//                 size={14} 
-//                 color="#666" 
-//               />
-//               <Text style={styles.toggleRepliesText}>
-//                 {isExpanded ? "Hide" : "Show"} {item.replies.length} {item.replies.length === 1 ? "reply" : "replies"}
-//               </Text>
-//             </TouchableOpacity>
-//           )}
-//         </View>
-        
-//         {/* Reply input area */}
-//         {replyingTo?.id === item.id && (
-//           <View style={styles.replyInputContainer}>
-//             <View style={styles.replyInputHeader}>
-//               <Text style={styles.replyingToText}>
-//                 Replying to {item.user_name || 'Anonymous'}
-//               </Text>
-//               <TouchableOpacity onPress={() => setReplyingTo(null)}>
-//                 <Icon name="close" size={16} color="#666" />
-//               </TouchableOpacity>
-//             </View>
-//             <View style={styles.replyInputRow}>
-//               <TextInput
-//                 style={styles.replyInput}
-//                 placeholder="Write a reply..."
-//                 value={replyMessage}
-//                 onChangeText={setReplyMessage}
-//                 multiline
-//                 maxLength={500}
-//                 autoFocus
-//               />
-//               <TouchableOpacity
-//                 style={[
-//                   styles.replyPostButton,
-//                   !replyMessage.trim() && styles.disabledButton,
-//                 ]}
-//                 disabled={!replyMessage.trim() || posting}
-//                 onPress={handlePostReply}>
-//                 {posting ? (
-//                   <ActivityIndicator size="small" color="#fff" />
-//                 ) : (
-//                   <Icon name="send" size={16} color="#fff" />
-//                 )}
-//               </TouchableOpacity>
-//             </View>
-//           </View>
-//         )}
-        
-//         {/* Replies section */}
-//         {hasReplies && isExpanded && (
-//           <View style={styles.repliesContainer}>
-//             {item.replies.map(reply => renderReply(reply))}
-//           </View>
-//         )}
-//       </View>
-//     );
-//   };
-
-//   const renderDiscussionList = () => {
-//     if (discussions.length === 0) {
-//       return (
-//         <View style={styles.emptyContainer}>
-//           <Icon name="chat-outline" size={40} color="#ccc" />
-//           <Text style={styles.emptyText}>No comments yet</Text>
-//           <Text style={styles.emptySubtext}>
-//             Be the first to start the discussion!
-//           </Text>
-//         </View>
-//       );
-//     }
-
-//     return discussions.map(item => renderDiscussionItem(item));
-//   };
-
-//   if (loading && !refreshing) {
-//     return (
-//       <View style={styles.loadingContainer}>
-//         <ActivityIndicator size="small" color="#2e7af5" />
-//         <Text style={styles.loadingText}>Loading discussions...</Text>
-//       </View>
-//     );
-//   }
-
-//   return (
-//     <View style={styles.container}>
-//       {user ? (
-//         <View style={styles.inputContainer}>
-//           <TextInput
-//             style={styles.input}
-//             placeholder={
-//               discussionType === 'video' 
-//                 ? "Comment on this video..." 
-//                 : "Add a comment..."
-//             }
-//             value={message}
-//             onChangeText={setMessage}
-//             multiline
-//             maxLength={500}
-//           />
-//           <TouchableOpacity
-//             style={[
-//               styles.postButton,
-//               !message.trim() && styles.disabledButton,
-//             ]}
-//             onPress={handlePostComment}
-//             disabled={!message.trim() || posting}>
-//             {posting ? (
-//               <ActivityIndicator size="small" color="#fff" />
-//             ) : (
-//               <Icon name="send" size={20} color="#fff" />
-//             )}
-//           </TouchableOpacity>
-//         </View>
-//       ) : (
-//         <View style={styles.loginPrompt}>
-//           <Text style={styles.loginPromptText}>
-//             Please log in to join the discussion
-//           </Text>
-//         </View>
-//       )}
-
-//       <ScrollView 
-//         style={styles.discussionScrollView}
-//         contentContainerStyle={styles.discussionListContent}
-//         showsVerticalScrollIndicator={true}>
-//         {renderDiscussionList()}
-//         {refreshing && (
-//           <View style={styles.refreshingIndicator}>
-//             <ActivityIndicator size="small" color="#2e7af5" />
-//             <Text style={styles.refreshingText}>Refreshing...</Text>
-//           </View>
-//         )}
-//       </ScrollView>
-//     </View>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//   },
-//   loadingContainer: {
-//     padding: 20,
-//     alignItems: 'center',
-//   },
-//   loadingText: {
-//     marginTop: 8,
-//     fontSize: 14,
-//     color: '#666',
-//   },
-//   inputContainer: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     padding: 12,
-//     backgroundColor: '#f0f0f0',
-//     borderRadius: 8,
-//     marginBottom: 16,
-//   },
-//   input: {
-//     flex: 1,
-//     backgroundColor: '#fff',
-//     borderRadius: 20,
-//     paddingHorizontal: 16,
-//     paddingVertical: 10,
-//     marginRight: 8,
-//     maxHeight: 80,
-//     fontSize: 16,
-//   },
-//   postButton: {
-//     backgroundColor: '#2e7af5',
-//     width: 40,
-//     height: 40,
-//     borderRadius: 20,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//   },
-//   disabledButton: {
-//     backgroundColor: '#a0c0e8',
-//   },
-//   discussionScrollView: {
-//     maxHeight: 400, // Set a fixed height for the discussion area
-//   },
-//   discussionListContent: {
-//     paddingBottom: 16,
-//   },
-//   refreshingIndicator: {
-//     alignItems: 'center',
-//     padding: 10,
-//   },
-//   refreshingText: {
-//     fontSize: 12,
-//     color: '#666',
-//     marginTop: 4,
-//   },
-//   commentContainer: {
-//     backgroundColor: '#fff',
-//     padding: 16,
-//     borderRadius: 8,
-//     marginBottom: 12,
-//     shadowColor: '#000',
-//     shadowOffset: {width: 0, height: 1},
-//     shadowOpacity: 0.05,
-//     shadowRadius: 2,
-//     elevation: 1,
-//   },
-//   commentHeader: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     alignItems: 'center',
-//     marginBottom: 8,
-//   },
-//   commentActions: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//   },
-//   userInfo: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//   },
-//   avatarContainer: {
-//     width: 36,
-//     height: 36,
-//     borderRadius: 18,
-//     backgroundColor: '#2e7af5',
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     marginRight: 10,
-//   },
-//   replyAvatarContainer: {
-//     width: 28,
-//     height: 28,
-//     borderRadius: 14,
-//   },
-//   avatarText: {
-//     color: '#fff',
-//     fontSize: 16,
-//     fontWeight: 'bold',
-//   },
-//   userName: {
-//     fontWeight: 'bold',
-//     fontSize: 14,
-//     color: '#333',
-//   },
-//   commentDate: {
-//     fontSize: 12,
-//     color: '#888',
-//   },
-//   deleteButton: {
-//     padding: 4,
-//   },
-//   commentContent: {
-//     fontSize: 14,
-//     color: '#333',
-//     lineHeight: 20,
-//     marginBottom: 8,
-//   },
-//   roleBadge: {
-//     alignSelf: 'flex-start',
-//     paddingHorizontal: 8,
-//     paddingVertical: 4,
-//     borderRadius: 4,
-//     marginTop: 4,
-//   },
-//   roleText: {
-//     color: '#fff',
-//     fontSize: 10,
-//     fontWeight: '600',
-//   },
-//   commentFooter: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     alignItems: 'center',
-//     marginTop: 8,
-//     paddingTop: 8,
-//     borderTopWidth: 1,
-//     borderTopColor: '#f0f0f0',
-//   },
-//   replyButton: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     padding: 6,
-//   },
-//   replyButtonText: {
-//     marginLeft: 4,
-//     color: '#2e7af5',
-//     fontSize: 13,
-//     fontWeight: '500',
-//   },
-//   toggleRepliesButton: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     padding: 6,
-//   },
-//   toggleRepliesText: {
-//     marginLeft: 4,
-//     color: '#666',
-//     fontSize: 12,
-//   },
-//   replyInputContainer: {
-//     marginTop: 8,
-//     backgroundColor: '#f9f9f9',
-//     borderRadius: 8,
-//     padding: 12,
-//     borderLeftWidth: 2,
-//     borderLeftColor: '#2e7af5',
-//   },
-//   replyInputHeader: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     alignItems: 'center',
-//     marginBottom: 8,
-//   },
-//   replyingToText: {
-//     fontSize: 12,
-//     color: '#666',
-//     fontStyle: 'italic',
-//   },
-//   replyInputRow: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//   },
-//   replyInput: {
-//     flex: 1,
-//     backgroundColor: '#fff',
-//     borderRadius: 16,
-//     paddingHorizontal: 12,
-//     paddingVertical: 8,
-//     marginRight: 8,
-//     maxHeight: 80,
-//     fontSize: 14,
-//     borderWidth: 1,
-//     borderColor: '#eee',
-//   },
-//   replyPostButton: {
-//     backgroundColor: '#2e7af5',
-//     width: 32,
-//     height: 32,
-//     borderRadius: 16,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//   },
-//   repliesContainer: {
-//     marginTop: 8,
-//     paddingTop: 8,
-//     borderTopWidth: 1,
-//     borderTopColor: '#f0f0f0',
-//   },
-//   replyContainer: {
-//     padding: 12,
-//     backgroundColor: '#f9f9f9',
-//     borderRadius: 8,
-//     marginBottom: 8,
-//     marginLeft: 16,
-//     borderLeftWidth: 2,
-//     borderLeftColor: '#ddd',
-//   },
-//   emptyContainer: {
-//     padding: 24,
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//   },
-//   emptyText: {
-//     fontSize: 16,
-//     color: '#666',
-//     marginTop: 12,
-//   },
-//   emptySubtext: {
-//     fontSize: 14,
-//     color: '#888',
-//     marginTop: 4,
-//   },
-//   loginPrompt: {
-//     backgroundColor: '#f5f5f5',
-//     padding: 16,
-//     borderRadius: 8,
-//     alignItems: 'center',
-//     marginBottom: 16,
-//   },
-//   loginPromptText: {
-//     fontSize: 14,
-//     color: '#666',
-//   },
-// });
-
-// export default CourseDiscussion;
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   Text,
+  StyleSheet,
   TextInput,
   TouchableOpacity,
-  FlatList,
-  StyleSheet,
-  Alert,
   ActivityIndicator,
+  FlatList,
+  Image,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { courseService } from '../services/api';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { format } from 'date-fns';
+import {courseService} from '../services/api';
+import {formatDistanceToNow} from 'date-fns';
 
-const CourseDiscussion = ({ 
-  courseId, 
-  videoId, 
-  user, 
-  refreshDiscussions,
-  discussionType = 'course' 
+const CourseDiscussion = ({
+  courseId,
+  videoId,
+  user,
+  discussionType = 'course', // 'course' or 'video'
 }) => {
-  const [discussions, setDiscussions] = useState([]);
+  const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [newComment, setNewComment] = useState('');
-  const [replyTo, setReplyTo] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+  const flatListRef = useRef(null);
+  const pollingIntervalRef = useRef(null);
+  const [error, setError] = useState(null);
+  const [isPolling, setIsPolling] = useState(true);
 
-  // Debug logging
+  // Fetch comments initially and set up polling
   useEffect(() => {
-    console.log('CourseDiscussion mounted with:', {
-      courseId,
-      videoId,
-      discussionType,
-      videoIdType: typeof videoId
-    });
-  }, [courseId, videoId, discussionType]);
-
-  useEffect(() => {
-    if (courseId) {
-      fetchDiscussions();
-    }
-  }, [courseId, videoId]); // Re-fetch when videoId changes
-
-  const fetchDiscussions = async () => {
+    // Initial fetch
+    fetchComments(true);
+    
+    // Set up polling every 3 seconds
+    pollingIntervalRef.current = setInterval(() => {
+      if (isPolling) {
+        fetchComments(false); // false means don't show loading indicator
+      }
+    }, 3000);
+    
+    // Clean up interval on unmount
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [courseId, videoId, isPolling]);
+  
+  const fetchComments = async (showLoading = true) => {
     try {
-      setLoading(true);
-      console.log('Fetching discussions with params:', {
-        courseId,
-        videoId,
-        discussionType
-      });
-      
-      const data = await courseService.getCourseDiscussions(courseId, videoId);
-      console.log('Received discussions:', data?.length || 0);
-      
-      setDiscussions(data || []);
-    } catch (error) {
-      console.error('Error fetching discussions:', error);
-      Alert.alert('Error', 'Failed to load discussions');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmitComment = async () => {
-    if (!newComment.trim()) {
-      Alert.alert('Error', 'Please enter a comment');
-      return;
-    }
-
-    if (!user) {
-      Alert.alert('Error', 'You must be logged in to comment');
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      
-      const commentData = {
-        content: newComment.trim(),
-        parent_id: replyTo?.id || null,
-        video_id: videoId || null, // This is crucial - pass the actual videoId
-      };
-
-      console.log('Submitting comment with data:', commentData);
-
-      await courseService.addCourseDiscussion(courseId, commentData);
-      
-      setNewComment('');
-      setReplyTo(null);
-      
-      // Refresh discussions
-      await fetchDiscussions();
-      
-      // Call parent refresh if provided
-      if (refreshDiscussions) {
-        refreshDiscussions();
+      if (showLoading) {
+        setLoading(true);
+        setError(null);
       }
       
+      console.log(`Fetching discussions for course ${courseId}${videoId ? ` video ${videoId}` : ''}`);
+      
+      // Use the discussions endpoint (not comments)
+      const data = await courseService.getCourseDiscussions(courseId, videoId);
+      
+      // Sort comments by created_at (newest first)
+      const sortedComments = data.sort(
+        (a, b) => new Date(b.created_at) - new Date(a.created_at),
+      );
+      
+      setComments(sortedComments);
+      setLastUpdate(new Date());
+      setError(null);
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+      setError(error.message || 'Failed to load comments');
+      
+      // Only show alert on initial load
+      if (showLoading) {
+        Alert.alert('Error', 'Failed to load comments. Please try again later.');
+      }
+      
+      // Don't clear existing comments on polling errors
+      if (showLoading) {
+        setComments([]);
+      }
+    } finally {
+      if (showLoading) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleSendComment = async () => {
+    if (!message.trim()) return;
+    if (!user) {
+      Alert.alert('Login Required', 'Please login to post a comment');
+      return;
+    }
+
+    try {
+      setSending(true);
+      
+      // Store current message and clear input for better UX
+      const commentContent = message.trim();
+      setMessage('');
+      
+      // Temporarily stop polling to avoid conflicts
+      setIsPolling(false);
+      
+      // Add discussion to the course
+      const discussionData = {
+        content: commentContent,
+        video_id: videoId || null,
+        parent_id: null
+      };
+      
+      await courseService.addCourseDiscussion(courseId, discussionData);
+      
+      // Fetch updated comments immediately
+      await fetchComments(false);
+      
+      // Resume polling after a short delay
+      setTimeout(() => {
+        setIsPolling(true);
+      }, 2000);
+      
+      // Scroll to the top of the list to show the new comment
+      if (flatListRef.current) {
+        flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+      }
     } catch (error) {
       console.error('Error adding comment:', error);
-      Alert.alert('Error', 'Failed to add comment');
+      Alert.alert('Error', 'Failed to post comment');
+      // Restore the message if sending failed
+      setMessage(commentContent);
+      // Resume polling even if sending failed
+      setIsPolling(true);
     } finally {
-      setSubmitting(false);
+      setSending(false);
     }
   };
 
-  const handleReply = (discussion) => {
-    setReplyTo(discussion);
-  };
-
-  const cancelReply = () => {
-    setReplyTo(null);
-  };
-
-  const formatDate = (dateString) => {
-    try {
-      return format(new Date(dateString), 'MMM dd, yyyy HH:mm');
-    } catch (error) {
-      return 'Invalid date';
-    }
-  };
-
-  const getRoleColor = (role) => {
-    switch (role) {
-      case 'admin':
-        return '#ff6b6b';
-      case 'doctor':
-        return '#4ecdc4';
-      default:
-        return '#666';
-    }
-  };
-
-  const renderDiscussion = ({ item }) => {
-    const isReply = item.parent_id !== null;
-    
-    return (
-      <View style={[styles.discussionItem, isReply && styles.replyItem]}>
-        <View style={styles.discussionHeader}>
-          <View style={styles.userInfo}>
-            <Text style={[styles.userName, { color: getRoleColor(item.role) }]}>
-              {item.user_name}
+  const renderCommentItem = ({item}) => (
+    <View style={styles.commentContainer}>
+      <View style={styles.commentAvatar}>
+        {item.user_avatar ? (
+          <Image 
+            source={{uri: item.user_avatar}} 
+            style={styles.avatarImage}
+            onError={() => console.log(`Failed to load avatar for ${item.user_name}`)}
+          />
+        ) : (
+          <View style={styles.avatarFallback}>
+            <Text style={styles.avatarText}>
+              {item.user_name ? item.user_name.charAt(0).toUpperCase() : '?'}
             </Text>
-            <Text style={styles.userRole}>
-              {item.role}
-            </Text>
-            {videoId && item.video_id && (
-              <Text style={styles.videoIndicator}>
-                • Video Comment
-              </Text>
-            )}
           </View>
-          <Text style={styles.discussionDate}>
-            {formatDate(item.created_at)}
-          </Text>
-        </View>
-        
-        <Text style={styles.discussionContent}>{item.content}</Text>
-        
-        {user && !isReply && (
-          <TouchableOpacity
-            style={styles.replyButton}
-            onPress={() => handleReply(item)}
-          >
-            <Icon name="reply" size={16} color="#666" />
-            <Text style={styles.replyButtonText}>Reply</Text>
-          </TouchableOpacity>
         )}
       </View>
-    );
-  };
-
-  const filteredDiscussions = discussions.filter(discussion => {
-    if (discussionType === 'video' && videoId) {
-      // For video discussions, only show comments for this specific video
-      return discussion.video_id === parseInt(videoId) || discussion.video_id === videoId;
-    } else if (discussionType === 'course') {
-      // For course discussions, show all comments (including video-specific ones)
-      return true;
-    }
-    return true;
-  });
-
-  const parentDiscussions = filteredDiscussions.filter(d => !d.parent_id);
-  const childDiscussions = filteredDiscussions.filter(d => d.parent_id);
-
-  const discussionsWithReplies = parentDiscussions.map(parent => ({
-    ...parent,
-    replies: childDiscussions.filter(child => child.parent_id === parent.id)
-  }));
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="small" color="#2e7af5" />
-        <Text style={styles.loadingText}>Loading discussions...</Text>
+      <View style={styles.commentContent}>
+        <View style={styles.commentHeader}>
+          <Text style={styles.userName}>{item.user_name || "Unknown User"}</Text>
+          <Text style={styles.commentTime}>
+            {formatDistanceToNow(new Date(item.created_at), {addSuffix: true})}
+          </Text>
+        </View>
+        <Text style={styles.commentText}>{item.content}</Text>
       </View>
-    );
-  }
+    </View>
+  );
+
+  // Manual refresh function
+  const handleRefresh = () => {
+    fetchComments(true);
+  };
 
   return (
-    <View style={styles.container}>
-      {/* Comment Input */}
-      <View style={styles.inputContainer}>
-        {replyTo && (
-          <View style={styles.replyIndicator}>
-            <Text style={styles.replyText}>
-              Replying to {replyTo.user_name}
-            </Text>
-            <TouchableOpacity onPress={cancelReply}>
-              <Icon name="close" size={16} color="#666" />
-            </TouchableOpacity>
-          </View>
-        )}
-        
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.commentInput}
-            placeholder={
-              discussionType === 'video' 
-                ? "Add a comment about this video..." 
-                : "Add a comment to the course..."
-            }
-            value={newComment}
-            onChangeText={setNewComment}
-            multiline
-            maxLength={500}
-          />
-          <TouchableOpacity
-            style={[styles.submitButton, submitting && styles.submittingButton]}
-            onPress={handleSubmitComment}
-            disabled={submitting || !newComment.trim()}
-          >
-            {submitting ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Icon name="send" size={20} color="#fff" />
-            )}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={80}
+      style={styles.container}>
+      
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color="#2e7af5" />
+          <Text style={styles.loadingText}>Loading comments...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Icon name="alert-circle-outline" size={32} color="#e74c3c" />
+          <Text style={styles.errorText}>Failed to load comments</Text>
+          <Text style={styles.errorSubtext}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
+            <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>
-      </View>
-
-      {/* Discussions List */}
-      {discussionsWithReplies.length > 0 ? (
-        <FlatList
-          data={discussionsWithReplies}
-          renderItem={({ item }) => (
-            <View>
-              {renderDiscussion({ item })}
-              {item.replies && item.replies.length > 0 && (
-                <View style={styles.repliesContainer}>
-                  {item.replies.map(reply => (
-                    <View key={reply.id}>
-                      {renderDiscussion({ item: reply })}
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
-          keyExtractor={item => item.id.toString()}
-          scrollEnabled={false}
-          showsVerticalScrollIndicator={false}
-        />
       ) : (
-        <View style={styles.emptyContainer}>
-          <Icon name="comment-outline" size={40} color="#ccc" />
-          <Text style={styles.emptyText}>
-            {discussionType === 'video' 
-              ? 'No comments on this video yet'
-              : 'No discussions yet'
-            }
-          </Text>
-          <Text style={styles.emptySubtext}>
-            Be the first to start the conversation!
-          </Text>
-        </View>
+        <FlatList
+          ref={flatListRef}
+          data={comments}
+          renderItem={renderCommentItem}
+          keyExtractor={item => item.id.toString()}
+          contentContainerStyle={styles.commentsContainer}
+          refreshing={loading}
+          onRefresh={handleRefresh}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Icon name="chat-outline" size={40} color="#ccc" />
+              <Text style={styles.emptyText}>No comments yet</Text>
+              <Text style={styles.emptySubtext}>Be the first to start the discussion</Text>
+            </View>
+          }
+        />
       )}
-    </View>
+
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Add a comment..."
+          value={message}
+          onChangeText={setMessage}
+          multiline
+          maxLength={500}
+          editable={!sending}
+        />
+        <TouchableOpacity
+          style={[
+            styles.sendButton,
+            (!message.trim() || sending) && styles.disabledButton,
+          ]}
+          onPress={handleSendComment}
+          disabled={!message.trim() || sending}>
+          {sending ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Icon name="send" size={20} color="#fff" />
+          )}
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -984,135 +248,177 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  loadingContainer: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 8,
-    color: '#666',
-    fontSize: 14,
-  },
-  inputContainer: {
-    marginBottom: 15,
-  },
-  replyIndicator: {
+  refreshInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f0f8ff',
     padding: 8,
-    borderRadius: 6,
-    marginBottom: 8,
+    backgroundColor: '#f0f7ff',
+    borderRadius: 8,
+    marginBottom: 10,
   },
-  replyText: {
-    fontSize: 14,
+  refreshInfoContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  lastUpdateText: {
+    fontSize: 12,
     color: '#2e7af5',
     fontStyle: 'italic',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-  },
-  commentInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    maxHeight: 100,
-    marginRight: 8,
-    fontSize: 14,
-  },
-  submitButton: {
-    backgroundColor: '#2e7af5',
-    borderRadius: 8,
-    padding: 12,
-  },
-  submittingButton: {
-    opacity: 0.7,
-  },
-  discussionItem: {
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  replyItem: {
-    backgroundColor: '#fff',
-    marginLeft: 20,
-    borderLeftWidth: 3,
-    borderLeftColor: '#2e7af5',
-    paddingLeft: 15,
-  },
-  discussionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  userName: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginRight: 8,
-  },
-  userRole: {
-    fontSize: 12,
-    color: '#666',
-    backgroundColor: '#e9ecef',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    textTransform: 'capitalize',
-  },
-  videoIndicator: {
-    fontSize: 12,
-    color: '#2e7af5',
     marginLeft: 4,
   },
-  discussionDate: {
+  lastUpdateTime: {
+    fontSize: 11,
+    color: '#999',
+    marginLeft: 8,
+  },
+  refreshButton: {
+    padding: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    marginTop: 8,
+    color: '#e74c3c',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  errorSubtext: {
+    marginTop: 4,
+    color: '#999',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#2e7af5',
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: '500',
+  },
+  commentsContainer: {
+    flexGrow: 1,
+    paddingBottom: 16,
+  },
+  commentContainer: {
+    flexDirection: 'row',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  commentAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+    backgroundColor: '#2e7af5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarFallback: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  commentContent: {
+    flex: 1,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  userName: {
+    fontWeight: '600',
+    color: '#333',
+    fontSize: 14,
+  },
+  commentTime: {
     fontSize: 12,
     color: '#999',
   },
-  discussionContent: {
-    fontSize: 14,
+  commentText: {
     color: '#333',
+    fontSize: 14,
     lineHeight: 20,
-    marginBottom: 8,
-  },
-  replyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-  },
-  replyButtonText: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 4,
-  },
-  repliesContainer: {
-    marginTop: -8,
   },
   emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    padding: 30,
+    padding: 40,
   },
   emptyText: {
     fontSize: 16,
+    fontWeight: '600',
     color: '#666',
-    marginTop: 10,
-    textAlign: 'center',
+    marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
     color: '#999',
-    marginTop: 5,
+    marginTop: 4,
     textAlign: 'center',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    backgroundColor: '#fff',
+  },
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    maxHeight: 100,
+    fontSize: 14,
+    backgroundColor: '#f9f9f9',
+  },
+  sendButton: {
+    backgroundColor: '#2e7af5',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
   },
 });
 
