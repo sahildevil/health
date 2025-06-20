@@ -1311,19 +1311,6 @@ const renderChatHeader = () => {
         </View>
       ) : null}
 
-      {/* Show search results */}
-      {searchResults.length > 0 && (
-        <>
-          <Text style={styles.resultsHeader}>Search Results</Text>
-          <FlatList
-            data={searchResults}
-            renderItem={renderUserSearchResult}
-            keyExtractor={item => item.id.toString()}
-            style={styles.searchResultsList}
-          />
-        </>
-      )}
-
       {/* Show recent chats section if available */}
       {recentChats.length > 0 && !searchQuery && (
         <>
