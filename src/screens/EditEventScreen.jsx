@@ -52,6 +52,10 @@ const EditEventScreen = ({route, navigation}) => {
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
+  // Multi-day event states
+  const [numberOfDays, setNumberOfDays] = useState(1);
+  const [isMultiDay, setIsMultiDay] = useState(false);
+
   useEffect(() => {
     fetchEventDetails();
   }, [eventId]);
@@ -65,7 +69,13 @@ const EditEventScreen = ({route, navigation}) => {
         endDate: new Date(data.endDate),
         isFree: data.registrationFee === '0',
         tags: Array.isArray(data.tags) ? data.tags.join(', ') : '',
+        speakers: data.speakers || [],
+        sponsors: data.sponsors || [],
       });
+
+      // Set multi-day fields
+      setNumberOfDays(data.number_of_days || 1);
+      setIsMultiDay(data.is_multi_day || false);
     } catch (error) {
       console.error('Failed to fetch event details:', error);
       Alert.alert('Error', 'Failed to load event details');
@@ -84,6 +94,9 @@ const EditEventScreen = ({route, navigation}) => {
         tags: eventData.tags
           ? eventData.tags.split(',').map(tag => tag.trim())
           : [],
+        // Include multi-day fields
+        numberOfDays,
+        isMultiDay,
       };
 
       await eventService.updateEvent(eventId, updatedEventData);
@@ -464,6 +477,40 @@ const EditEventScreen = ({route, navigation}) => {
               numberOfLines={6}
             />
           </View>
+
+          {/* Event Duration Section */}
+          <Text style={styles.sectionTitle}>Event Duration</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Number of Days</Text>
+            <View style={styles.daysSelectorContainer}>
+              {[1, 2, 3, 4, 5].map(day => (
+                <TouchableOpacity
+                  key={day}
+                  style={[
+                    styles.daySelector,
+                    numberOfDays === day && styles.daySelectorSelected,
+                  ]}
+                  onPress={() => {
+                    setNumberOfDays(day);
+                    setIsMultiDay(day > 1);
+                  }}>
+                  <Text
+                    style={[
+                      styles.daySelectorText,
+                      numberOfDays === day && styles.daySelectorTextSelected,
+                    ]}>
+                    {day}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {isMultiDay && (
+              <Text style={styles.multiDayNote}>
+                Multi-day events require detailed scheduling after admin
+                approval
+              </Text>
+            )}
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -603,6 +650,37 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: '#666',
+  },
+  daysSelectorContainer: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  daySelector: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginRight: 8,
+    backgroundColor: '#fff',
+  },
+  daySelectorSelected: {
+    backgroundColor: '#2e7af5',
+    borderColor: '#2e7af5',
+  },
+  daySelectorText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  daySelectorTextSelected: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  multiDayNote: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    marginTop: 8,
   },
 });
 

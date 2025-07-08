@@ -3,6 +3,8 @@ import {createStackNavigator} from '@react-navigation/stack';
 import {ActivityIndicator, View, StyleSheet} from 'react-native';
 import {useAuth} from '../context/AuthContext';
 
+// Add this import with the other admin screen imports
+import EventDaysManagementScreen from '../screens/admin/EventDaysManagementScreen';
 // Import screens
 import SplashScreen from '../screens/SplashScreen';
 import LandingScreen from '../screens/LandingScreen';
@@ -38,7 +40,6 @@ import AdminEventDetails from '../screens/admin/AdminEventDetails';
 import CreatePrivateMeetingScreen from '../screens/CreatePrivateMeetingScreen';
 import MyMeetingsScreen from '../screens/MyMeetingsScreen';
 import MeetingDetailsScreen from '../screens/MeetingDetailsScreen';
-import MeetingInvitationsScreen from '../screens/MeetingInvitationsScreen';
 import AdminPrivateMeetingsScreen from '../screens/admin/AdminPrivateMeetingsScreen';
 import CoursesScreen from '../screens/CoursesScreen';
 import CourseDetailsScreen from '../screens/CourseDetailsScreen';
@@ -51,6 +52,7 @@ import FCMDebugScreen from '../screens/FCMDebugScreen';
 import QuizScreen from '../screens/QuizScreen';
 import AdminQuizScreen from '../screens/admin/AdminQuizScreen';
 import PendingCoursesScreen from '../screens/admin/PendingCoursesScreen';
+
 
 const Stack = createStackNavigator();
 const AdminStack = createStackNavigator();
@@ -96,6 +98,11 @@ const AdminNavigator = () => {
       <AdminStack.Screen
         name="AddCourseVideo"
         component={AddCourseVideoScreen}
+        options={{headerShown: false}}
+      />
+      <AdminStack.Screen
+        name="EventDaysManagement"
+        component={EventDaysManagementScreen}
         options={{headerShown: false}}
       />
 
@@ -229,10 +236,10 @@ const AppNavigator = () => {
               name="MeetingDetails"
               component={MeetingDetailsScreen}
             />
-            <Stack.Screen
+            {/* <Stack.Screen
               name="MeetingInvitations"
               component={MeetingInvitationsScreen}
-            />
+            /> */}
 
             {/* Only show course screens for non-pharma users */}
             {user?.role !== 'pharma' && (

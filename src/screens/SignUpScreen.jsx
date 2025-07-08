@@ -20,7 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {api} from '../services/api';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
-const API_BASE_URL = 'http://192.168.1.10:5000/api';
+const API_BASE_URL = 'http://192.168.1.17:5000/api';
 
 const SignUpScreen = ({navigation}) => {
   const [step, setStep] = useState(1);

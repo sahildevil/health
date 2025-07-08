@@ -18,7 +18,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import {eventService} from '../../services/api';
 import {useAuth} from '../../context/AuthContext';
 import BrochureUploader from '../../components/BrochureUploader';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 const AdminEditEventScreen = ({route, navigation}) => {
   const {eventId, fromApproval} = route.params;
   const {user} = useAuth();
@@ -61,6 +61,10 @@ const AdminEditEventScreen = ({route, navigation}) => {
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
+  // New state variables for multi-day events
+  const [numberOfDays, setNumberOfDays] = useState(1);
+  const [isMultiDay, setIsMultiDay] = useState(false);
+
   useEffect(() => {
     fetchEventDetails();
   }, [eventId]);
@@ -77,6 +81,10 @@ const AdminEditEventScreen = ({route, navigation}) => {
         speakers: data.speakers || [],
         sponsors: data.sponsors || [],
       });
+
+      // Set multi-day fields
+      setNumberOfDays(data.number_of_days || 1);
+      setIsMultiDay(data.is_multi_day || false);
 
       // Set brochure if it exists
       if (data.brochure) {
@@ -127,15 +135,15 @@ const AdminEditEventScreen = ({route, navigation}) => {
     try {
       setSubmitting(true);
 
-      // Log the current brochure state to debug
-      console.log('Current brochure state:', brochure);
-
       const updatedEventData = {
         ...eventData,
         registrationFee: eventData.isFree ? '0' : eventData.registrationFee,
         tags: eventData.tags
           ? eventData.tags.split(',').map(tag => tag.trim())
           : [],
+        // Include multi-day fields
+        numberOfDays,
+        isMultiDay,
         // Explicitly include brochure in the update
         brochure: brochure,
       };
@@ -538,6 +546,61 @@ const AdminEditEventScreen = ({route, navigation}) => {
               />
             </View>
           )}
+
+          {/* Event Duration Section - Admin Only */}
+          <View style={styles.adminSection}>
+            <Text style={styles.sectionTitle}>
+              Event Duration{' '}
+              <Text style={styles.adminOnlyText}>(Admin Only)</Text>
+            </Text>
+            <Text style={styles.sectionSubtitle}>
+              Configure whether this is a single-day or multi-day event
+            </Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Number of Days</Text>
+              <View style={styles.daysSelectorContainer}>
+                {[1, 2, 3, 4, 5].map(day => (
+                  <TouchableOpacity
+                    key={day}
+                    style={[
+                      styles.daySelector,
+                      numberOfDays === day && styles.daySelectorSelected,
+                    ]}
+                    onPress={() => {
+                      setNumberOfDays(day);
+                      setIsMultiDay(day > 1);
+                    }}>
+                    <Text
+                      style={[
+                        styles.daySelectorText,
+                        numberOfDays === day && styles.daySelectorTextSelected,
+                      ]}>
+                      {day}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {isMultiDay && (
+                <View style={styles.multiDayInfoContainer}>
+                  <Text style={styles.multiDayNote}>
+                    📅 This is a multi-day event ({numberOfDays} days)
+                  </Text>
+                  <Text style={styles.multiDaySubNote}>
+                    After saving, use the "Manage Days" button in Event Details
+                    to configure individual day schedules, venues, and timings.
+                  </Text>
+                </View>
+              )}
+
+              {!isMultiDay && (
+                <Text style={styles.singleDayNote}>
+                  📅 This is a single-day event
+                </Text>
+              )}
+            </View>
+          </View>
 
           {/* Brochure Upload Section - Admin Only */}
           <View style={styles.adminSection}>
@@ -983,6 +1046,66 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
     marginLeft: 8,
+  },
+  daysSelectorContainer: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  daySelector: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e1e1e1',
+    marginRight: 8,
+    backgroundColor: '#fff',
+  },
+  daySelectorSelected: {
+    backgroundColor: '#2e7af5',
+    borderColor: '#2e7af5',
+  },
+  daySelectorText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  daySelectorTextSelected: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  multiDayNote: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    marginTop: 8,
+    backgroundColor: '#f0f8ff',
+    padding: 8,
+    borderRadius: 4,
+    borderLeftWidth: 3,
+    borderLeftColor: '#2e7af5',
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+  },
+  multiDayInfoContainer: {
+    backgroundColor: '#e8f5e9',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#c8e6c9',
+  },
+  multiDaySubNote: {
+    fontSize: 12,
+    color: '#333',
+    marginTop: 4,
+  },
+  singleDayNote: {
+    fontSize: 12,
+    color: '#4caf50',
+    marginTop: 4,
+    textAlign: 'center',
   },
 });
 

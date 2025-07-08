@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Base URL for API calls
-const API_URL = 'http://192.168.1.10:5000/api';
+const API_URL = 'http://192.168.1.17:5000/api';
 
 // Create axios instance with better configuration
 const api = axios.create({
@@ -411,6 +411,30 @@ export const adminService = {
       throw error;
     }
   },
+
+  // Get event days for a specific event
+  getEventDays: async eventId => {
+    try {
+      const response = await api.get(`/admin/events/${eventId}/days`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching event days:', error);
+      throw error;
+    }
+  },
+
+  // Update event days
+  updateEventDays: async (eventId, eventDays) => {
+    try {
+      const response = await api.put(`/admin/events/${eventId}/days`, {
+        eventDays,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating event days:', error);
+      throw error;
+    }
+  },
 };
 
 // Event services
@@ -679,6 +703,31 @@ export const eventService = {
       return response.data;
     } catch (error) {
       console.error('Respond to sponsorship request error:', error);
+      throw error;
+    }
+  },
+
+  // Get event days
+  getEventDays: async eventId => {
+    try {
+      const response = await api.get(`/events/${eventId}/days`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching event days:', error);
+      throw error;
+    }
+  },
+
+  // Register for specific event days
+  registerForEventDays: async (eventId, registrationData) => {
+    try {
+      const response = await api.post(
+        `/events/${eventId}/register-days`,
+        registrationData,
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error registering for event days:', error);
       throw error;
     }
   },

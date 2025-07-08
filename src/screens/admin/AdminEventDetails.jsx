@@ -15,7 +15,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {eventService, adminService} from '../../services/api';
 import PdfViewer from '../../components/PdfViewer';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 // Event Status Badge Component
 const EventStatusBadge = ({status}) => {
@@ -346,13 +346,30 @@ const AdminEventDetails = ({route, navigation}) => {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.adminButton, {backgroundColor: '#9c27b0'}]}
-              onPress={() => navigation.navigate('AdminQuiz', { 
-                eventId: eventId, 
-                eventTitle: event.title 
-              })}>
+              onPress={() =>
+                navigation.navigate('AdminQuiz', {
+                  eventId: eventId,
+                  eventTitle: event.title,
+                })
+              }>
               <Icon name="help-circle" size={18} color="#fff" />
               <Text style={styles.adminButtonText}>Manage Quiz</Text>
             </TouchableOpacity>
+
+            {/* Show Manage Days button only for multi-day events */}
+            {event.is_multi_day && event.number_of_days > 1 && (
+              <TouchableOpacity
+                style={[styles.adminButton, styles.manageDaysButton]}
+                onPress={() =>
+                  navigation.navigate('EventDaysManagement', {
+                    eventId: event.id,
+                    eventTitle: event.title,
+                  })
+                }>
+                <Icon name="calendar-multiple" size={18} color="#fff" />
+                <Text style={styles.adminButtonText}>Manage Days</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -799,6 +816,9 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     backgroundColor: '#757575',
+  },
+  manageDaysButton: {
+    backgroundColor: '#ff9500',
   },
   adminButtonText: {
     color: 'white',
